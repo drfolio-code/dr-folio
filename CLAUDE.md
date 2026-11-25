@@ -19,6 +19,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/styles.css` | Estilos (modo claro/oscuro, responsive móvil < 860 px) |
 | `public/js/app.js` | Lógica principal: vistas, carpetas, etiquetas, notas, bibliografía, ajustes |
 | `public/js/editor.js` | Editor `contenteditable`: barra de formato, pegado limpio (DOMPurify), tablas, listas de tareas, enlaces entre notas, índice |
+| `public/js/snippets.js` | Prerredactados: lista, editor de texto plano, campos `{campo}` / `{campo:a\|b}`, copiar e insertar en notas |
 | `public/js/store.js` | Datos en memoria sincronizados con Firestore (`onSnapshot`) + ayudas de carpetas |
 | `public/js/files.js` | Imágenes/PDF guardados **en Firestore en trozos base64** (no hay Storage en Spark) |
 | `public/js/db.js` | Inicialización Firebase, login, modo dispositivo, logout |
@@ -34,6 +35,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
   - Imágenes en el HTML: `<img data-file="ID">` (sin `src`; se resuelve al mostrar)
   - Enlaces entre notas: `<a data-note="ID" class="note-link" href="#nota/ID">`
 - `files/{id}`: `noteId, name, mime, size, kind, chunks, createdAt` + subcolección `chunks/{000..}` `{d: base64}` (700 KB por trozo)
+- `snippets/{id}`: `title, body (texto plano), category, uses, lastUsedAt, createdAt, updatedAt` (prerredactados)
 - Fechas en milisegundos (`Date.now()`), no `serverTimestamp`.
 
 ## Seguridad
@@ -44,7 +46,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 
 ## Hoja de ruta
 1. ✅ Notas: carpetas/subcarpetas, etiquetas, editor enriquecido, imágenes, bibliografía con PDF, índice, enlaces entre notas, offline
-2. Prerredactados (plantillas de texto para copiar)
+2. ✅ Prerredactados (plantillas de texto para copiar, con campos rellenables)
 3. Vademécum personal
 4. Chat conmigo mismo (enviarse textos y documentos)
 

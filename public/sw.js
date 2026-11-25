@@ -1,10 +1,10 @@
 // Service worker de Dr.Folio: guarda la app para usarla sin conexión.
 // Los datos (notas) los guarda Firestore por su cuenta, no este archivo.
-const VERSION = 'drfolio-v1.0.0';
+const VERSION = 'drfolio-v1.1.0';
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest',
   './js/app.js', './js/config.js', './js/db.js', './js/store.js', './js/files.js',
-  './js/editor.js', './js/ui.js', './js/util.js', './vendor/libs.js',
+  './js/editor.js', './js/snippets.js', './js/ui.js', './js/util.js', './vendor/libs.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png', './icons/apple-touch-icon.png'
 ];
 

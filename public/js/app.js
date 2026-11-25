@@ -9,6 +9,10 @@ import { compressImage, saveFile, fileUrl, fileBlob, deleteFile, revokeAll } fro
 import { createEditor, escapeHtml } from './editor.js';
 import { el, $, $$, debounce, norm, shortDate, longDate, formatBytes, download } from './util.js';
 import { toast, modal, prompt, confirm, menu, picker, colorPicker, modalOpen } from './ui.js';
+import {
+  initSnippets, renderSnippetList, newSnippet, openSnippet, closeSnippet, currentSnippet,
+  flushSnippet, onSnippetsChange, pickSnippetText
+} from './snippets.js';
 
 // ====================== Estado ======================
 const S = {
@@ -99,7 +103,16 @@ function startApp(user) {
     uploadImages,
     resolveImage: fileUrl,
     noteExists: (id) => store.notes.has(id) && !store.notes.get(id).trashed,
-    onDropFiles: (files) => files.forEach((f) => addAttachment(f))
+    onDropFiles: (files) => files.forEach((f) => addAttachment(f)),
+    pickSnippet: pickSnippetText
+  });
+
+  initSnippets({
+    renderList: () => renderList(),
+    renderSidebar: () => renderSidebar(),
+    pushHash: (replace) => pushHash(replace),
+    showList: () => showList(),
+    showPane
   });
 
   bindUi();
@@ -136,6 +149,10 @@ function onData(name, changed) {
     if (S.noteId) renderNoteChrome();
   } else if (name === 'files') {
     if (S.noteId) renderRefs();
+  } else if (name === 'snippets') {
+    onSnippetsChange(changed);
+    renderSidebarSoon();
+    if (S.view.type === 'snippets') renderListSoon();
   }
 }
 
@@ -173,7 +190,8 @@ function bindUi() {
   $$('.nav-item').forEach((b) => b.addEventListener('click', () => setView({ type: b.dataset.view, id: null })));
   $('#btn-new-folder').addEventListener('click', () => newFolder(null));
   $('#btn-settings').addEventListener('click', openSettings);
-  ['#btn-new-note', '#btn-new-note-side', '#btn-new-note-empty'].forEach((s) => $(s).addEventListener('click', newNote));
+  ['#btn-new-note', '#btn-new-note-empty'].forEach((s) => $(s).addEventListener('click', () => (S.view.type === 'snippets' ? newSnippet() : newNote())));
+  $('#btn-new-note-side').addEventListener('click', () => { if (S.view.type === 'snippets') setView({ type: 'all', id: null }); newNote(); });
   $('#btn-menu').addEventListener('click', () => $('#app').classList.add('drawer'));
   $('#scrim').addEventListener('click', closeDrawer);
   $('#btn-back').addEventListener('click', () => closeEditor());
@@ -217,15 +235,15 @@ function bindUi() {
   // Atajos de teclado
   document.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
-    if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveSoon.flush(); setSaveStatus('Guardado ✓'); }
+    if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveSoon.flush(); flushSnippet(); setSaveStatus('Guardado ✓'); }
     else if (mod && e.key.toLowerCase() === 'k' && !editor.isFocused()) { e.preventDefault(); showList(); $('#search').focus(); }
-    else if (mod && e.altKey && e.key.toLowerCase() === 'n') { e.preventDefault(); newNote(); }
+    else if (mod && e.altKey && e.key.toLowerCase() === 'n') { e.preventDefault(); if (S.view.type === 'snippets') newSnippet(); else newNote(); }
     else if (e.key === 'Escape' && !modalOpen()) closeDrawer();
   });
 
   // Guardar antes de salir
-  window.addEventListener('beforeunload', () => saveSoon.flush());
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveSoon.flush(); });
+  window.addEventListener('beforeunload', () => { saveSoon.flush(); flushSnippet(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { saveSoon.flush(); flushSnippet(); } });
   window.addEventListener('popstate', applyHash);
 }
 
@@ -236,6 +254,7 @@ const showList = () => { $('#app').dataset.view = 'list'; };
 function hashFor(view, noteId) {
   let h = `#/${view.type}${view.id ? `/${view.id}` : ''}`;
   if (noteId) h += `/n/${noteId}`;
+  else if (view.type === 'snippets' && currentSnippet()) h += `/s/${currentSnippet()}`;
   return h;
 }
 function pushHash(replace = false) {
@@ -247,7 +266,12 @@ function applyHash() {
   const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   let view = { type: 'all', id: null };
   let noteId = null;
+  let snipId = null;
   if (parts[0] === 'nota' && parts[1]) noteId = parts[1];
+  else if (parts[0] === 'snippets') {
+    view = { type: 'snippets', id: null };
+    if (parts[1] === 's') snipId = parts[2];
+  }
   else if (['all', 'pinned', 'trash'].includes(parts[0])) {
     view = { type: parts[0], id: null };
     if (parts[1] === 'n') noteId = parts[2];
@@ -258,11 +282,13 @@ function applyHash() {
   S.view = view;
   renderSidebar(); renderList();
   if (noteId) openNote(noteId, { fromHash: true });
-  else closeEditor({ fromHash: true });
+  else if (snipId) { S.noteId = null; openSnippet(snipId, { fromHash: true }); }
+  else { closeSnippet({ fromHash: true }); closeEditor({ fromHash: true }); }
 }
 
 function setView(view) {
   saveSoon.flush();
+  closeSnippet({ fromHash: true });
   S.view = view;
   S.search = ''; $('#search').value = '';
   closeDrawer();
@@ -280,6 +306,7 @@ function renderSidebar() {
   const live = liveNotes();
   $('#count-all').textContent = live.length || '';
   $('#count-pinned').textContent = live.filter((n) => n.pinned).length || '';
+  $('#count-snippets').textContent = store.snippets.size || '';
   $('#count-trash').textContent = [...store.notes.values()].filter((n) => n.trashed).length || '';
   $$('.nav-item').forEach((b) => b.classList.toggle('active', S.view.type === b.dataset.view));
 
@@ -486,6 +513,7 @@ function viewTitle() {
   const v = S.view;
   if (v.type === 'pinned') return 'Fijadas';
   if (v.type === 'trash') return 'Papelera';
+  if (v.type === 'snippets') return 'Prerredactados';
   if (v.type === 'folder') return store.folders.get(v.id)?.name || 'Carpeta';
   if (v.type === 'tag') return `#${store.tags.get(v.id)?.name || 'etiqueta'}`;
   return 'Todas las notas';
@@ -506,8 +534,15 @@ function snippetNode(n) {
 
 function renderList() {
   $('#list-title').textContent = viewTitle();
-  $('#list-trash-bar').classList.toggle('hidden', S.view.type !== 'trash' || !notesForView().length);
   const box = $('#note-list');
+  $('#btn-new-note').title = S.view.type === 'snippets' ? 'Nuevo prerredactado' : 'Nueva nota';
+  if (S.view.type === 'snippets') {
+    $('#list-trash-bar').classList.add('hidden');
+    renderSnippetList(box, { search: S.search, sort: S.sort });
+    return;
+  }
+  $('#snip-cats').classList.add('hidden');
+  $('#list-trash-bar').classList.toggle('hidden', S.view.type !== 'trash' || !notesForView().length);
   if (!store.loaded.notes) { box.replaceChildren(el('div', { class: 'list-empty' }, 'Cargando notas…')); return; }
   const notes = notesForView();
   if (!notes.length) {
@@ -564,11 +599,10 @@ function openNote(id, { push = false, focusTitle = false, fromHash = false } = {
     return;
   }
   if (S.noteId !== id) saveSoon.flush();
+  if (S.view.type === 'snippets') { closeSnippet({ fromHash: true }); S.view = { type: 'all', id: null }; renderSidebar(); }
   S.noteId = id;
   S.dirty = false;
-  $('#editor-empty').classList.add('hidden');
-  $('#editor-wrap').classList.remove('hidden');
-  $('#app').dataset.view = 'editor';
+  showPane('note');
   $('#ed-title').value = n.title || '';
   editor.setContent(n.html || '');
   S.loadedHtml = n.html || '';
@@ -589,10 +623,18 @@ function closeEditor({ fromHash = false } = {}) {
   if (!fromHash) pushHash(true);
   renderList();
 }
-function showEditorEmpty() {
-  $('#editor-wrap').classList.add('hidden');
-  $('#editor-empty').classList.remove('hidden');
-  editor?.hideFloating();
+function showEditorEmpty() { showPane('empty'); }
+
+/** Panel derecho: 'note' (editor), 'snip' (prerredactado) o 'empty' */
+function showPane(which) {
+  $('#editor-wrap').classList.toggle('hidden', which !== 'note');
+  $('#snip-wrap').classList.toggle('hidden', which !== 'snip');
+  $('#editor-empty').classList.toggle('hidden', which !== 'empty');
+  if (which !== 'note') editor?.hideFloating();
+  if (which !== 'empty') $('#app').dataset.view = 'editor';
+  const snip = S.view.type === 'snippets';
+  $('#btn-new-note-empty').textContent = snip ? '＋ Nuevo prerredactado' : '＋ Nueva nota';
+  $('#editor-empty-msg').textContent = snip ? 'Selecciona un prerredactado o crea uno nuevo.' : 'Selecciona una nota o crea una nueva.';
 }
 
 function renderNoteChrome() {
@@ -964,7 +1006,7 @@ function openSettings() {
       publicMode ? el('div', { class: 'settings-row' }, el('span', {}, 'Cerrar sesión por inactividad'), idleSel) : null,
       el('div', {},
         el('div', { class: 'settings-row', style: { borderBottom: 0 } }, el('span', {}, 'Espacio usado'),
-          el('span', {}, `${formatBytes(used)} de 1 GB · ${live} notas · ${store.files.size} archivos`)),
+          el('span', {}, `${formatBytes(used)} de 1 GB · ${live} notas · ${store.snippets.size} prerredactados · ${store.files.size} archivos`)),
         el('div', { class: 'meter' }, el('div', { style: { width: `${pct.toFixed(1)}%` } }))),
       el('div', { class: 'settings-row' }, el('span', {}, 'Copia de seguridad'),
         el('span', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' } },
@@ -984,7 +1026,8 @@ async function exportBackup(withFiles) {
   const data = {
     app: 'Dr.Folio', version: APP_VERSION, exportedAt: new Date().toISOString(),
     folders: [...store.folders.values()], tags: [...store.tags.values()],
-    notes: [...store.notes.values()], files: [...store.files.values()]
+    notes: [...store.notes.values()], files: [...store.files.values()],
+    snippets: [...store.snippets.values()]
   };
   if (withFiles) {
     toast(`Preparando ${store.files.size} archivos…`, '', 4000);
@@ -1017,6 +1060,7 @@ async function doLogout(reason) {
   if (S.loggingOut) return;
   S.loggingOut = true;
   saveSoon.flush();
+  flushSnippet();
   stopSync();
   revokeAll();
   await logout();

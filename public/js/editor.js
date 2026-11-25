@@ -228,6 +228,8 @@ export function createEditor(opts) {
       await insertLink();
     } else if (act === 'notelink') {
       await insertNoteLink();
+    } else if (act === 'snippet') {
+      await insertSnippet();
     }
   });
   blockSel.addEventListener('change', () => {
@@ -371,6 +373,16 @@ export function createEditor(opts) {
     restoreRange();
     const title = target.title || 'Sin título';
     exec('insertHTML', `<a href="#nota/${escapeAttr(target.id)}" data-note="${escapeAttr(target.id)}" class="note-link">${escapeHtml(title)}</a>&nbsp;`);
+    changed();
+  }
+
+  async function insertSnippet() {
+    if (!opts.pickSnippet) return;
+    const text = await opts.pickSnippet();
+    if (!text) return;
+    restoreRange();
+    const html = text.split(/\r?\n/).map((l) => escapeHtml(l)).join('<br>');
+    exec('insertHTML', html);
     changed();
   }
 
