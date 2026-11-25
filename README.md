@@ -2,7 +2,7 @@
 
 Notas médicas personales: carpetas, etiquetas, texto enriquecido, imágenes, bibliografía con PDFs, índice automático y enlaces entre notas. Funciona en móvil, tablet y ordenador, con y sin conexión.
 
-**Web:** https://drfolio-6af54.web.app
+**Web:** https://drfolio.web.app
 
 ## Cómo se publica
 Cada cambio que llega a la rama `main` se publica solo (pestaña **Actions** de GitHub).

@@ -6,7 +6,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 
 ## Despliegue
 - Hacer push a `main` publica automáticamente (GitHub Actions → `.github/workflows/deploy.yml`):
-  - **Hosting**: `public/` → https://drfolio-6af54.web.app
+  - **Hosting**: `public/` → https://drfolio.web.app (el sitio antiguo drfolio-6af54.web.app redirige aquí desde `redirect/`)
   - **Reglas de Firestore**: `firestore.rules`
 - Proyecto Firebase: `drfolio-6af54` (plan **Spark gratuito**: nunca proponer nada que requiera el plan Blaze ni tarjeta).
 - Secreto de GitHub: `FIREBASE_SERVICE_ACCOUNT` (no tocar, nunca imprimirlo).
