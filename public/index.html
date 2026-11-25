@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' blob: data: https://*.googleapis.com wss://*.googleapis.com https://*.firebaseio.com; frame-src 'self' blob: https://drfolio-6af54.firebaseapp.com; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0e7490">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Dr.Folio">
+  <title>Dr.Folio</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-screen="loading">
+
+  <!-- ============ CARGA ============ -->
+  <div id="loading" class="screen center">
+    <img src="icons/icon-192.png" alt="" class="logo-big">
+    <p class="muted">Cargando…</p>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="login" class="screen center">
+    <form id="login-form" class="login-card" autocomplete="on">
+      <img src="icons/icon-192.png" alt="" class="logo-big">
+      <h1>Dr.Folio</h1>
+      <p class="muted">Tus notas clínicas, en cualquier dispositivo</p>
+      <label>Correo
+        <input type="email" id="login-email" autocomplete="username" required>
+      </label>
+      <label>Contraseña
+        <input type="password" id="login-pass" autocomplete="current-password" required>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="login-public">
+        <span><b>Ordenador público</b> — no guardar sesión ni copia offline</span>
+      </label>
+      <button type="submit" class="btn primary block" id="login-btn">Entrar</button>
+      <p id="login-msg" class="login-msg" role="alert"></p>
+      <button type="button" class="link" id="login-reset">¿Has olvidado la contraseña?</button>
+    </form>
+  </div>
+
+  <!-- ============ APP ============ -->
+  <div id="app" class="screen" data-view="list">
+
+    <!-- Barra lateral -->
+    <aside id="sidebar">
+      <div class="side-head">
+        <img src="icons/icon-192.png" alt="" class="logo-small">
+        <span class="brand">Dr.Folio</span>
+        <button class="icon-btn" id="btn-settings" title="Ajustes" aria-label="Ajustes">⚙︎</button>
+      </div>
+      <button class="btn primary block" id="btn-new-note-side">＋ Nueva nota</button>
+      <nav class="side-nav">
+        <button class="nav-item" data-view="all"><span class="ico">🗂</span><span class="lbl">Todas las notas</span><span class="count" id="count-all"></span></button>
+        <button class="nav-item" data-view="pinned"><span class="ico">📌</span><span class="lbl">Fijadas</span><span class="count" id="count-pinned"></span></button>
+        <button class="nav-item" data-view="trash"><span class="ico">🗑</span><span class="lbl">Papelera</span><span class="count" id="count-trash"></span></button>
+      </nav>
+      <div class="side-section">
+        <div class="side-title"><span>Carpetas</span><button class="icon-btn sm" id="btn-new-folder" title="Nueva carpeta" aria-label="Nueva carpeta">＋</button></div>
+        <div id="folder-tree" class="tree"></div>
+      </div>
+      <div class="side-section">
+        <div class="side-title"><span>Etiquetas</span></div>
+        <div id="tag-list" class="tag-list"></div>
+      </div>
+      <div class="side-foot">
+        <span id="sync-status" class="sync"></span>
+        <span id="mode-badge" class="badge"></span>
+      </div>
+    </aside>
+    <div id="scrim"></div>
+
+    <!-- Lista de notas -->
+    <section id="list">
+      <div class="list-head">
+        <button class="icon-btn only-mobile" id="btn-menu" aria-label="Menú">☰</button>
+        <h2 id="list-title">Todas las notas</h2>
+        <button class="icon-btn" id="btn-new-note" title="Nueva nota" aria-label="Nueva nota">✎</button>
+      </div>
+      <div class="list-tools">
+        <input type="search" id="search" placeholder="Buscar…  (Ctrl+K)" autocomplete="off">
+        <select id="sort" aria-label="Ordenar">
+          <option value="updated">Modificadas</option>
+          <option value="created">Creadas</option>
+          <option value="title">Título</option>
+        </select>
+      </div>
+      <div id="list-trash-bar" class="trash-bar hidden">
+        <span>Las notas de la papelera no aparecen en búsquedas.</span>
+        <button class="btn sm danger" id="btn-empty-trash">Vaciar papelera</button>
+      </div>
+      <div id="note-list" class="note-list"></div>
+    </section>
+
+    <!-- Editor -->
+    <main id="editor">
+      <div id="editor-empty" class="center muted">
+        <div>
+          <p>Selecciona una nota o crea una nueva.</p>
+          <button class="btn primary" id="btn-new-note-empty">＋ Nueva nota</button>
+        </div>
+      </div>
+
+      <div id="editor-wrap" class="hidden">
+        <div class="ed-head">
+          <button class="icon-btn only-mobile" id="btn-back" aria-label="Volver">←</button>
+          <button class="crumb" id="ed-folder" title="Mover a otra carpeta"></button>
+          <span class="spacer"></span>
+          <span id="save-status" class="save-status"></span>
+          <button class="icon-btn" id="btn-pin" title="Fijar" aria-label="Fijar">📌</button>
+          <button class="icon-btn" id="btn-note-menu" title="Más opciones" aria-label="Más opciones">⋯</button>
+        </div>
+
+        <div id="trash-banner" class="trash-banner hidden">
+          <span>Esta nota está en la papelera.</span>
+          <button class="btn sm" id="btn-restore">Restaurar</button>
+          <button class="btn sm danger" id="btn-delete-forever">Eliminar definitivamente</button>
+        </div>
+
+        <div id="toolbar" class="toolbar" role="toolbar" aria-label="Formato">
+          <select data-block title="Estilo de párrafo" aria-label="Estilo">
+            <option value="p">Texto</option>
+            <option value="h1">Título 1</option>
+            <option value="h2">Título 2</option>
+            <option value="h3">Título 3</option>
+            <option value="blockquote">Cita</option>
+            <option value="pre">Código</option>
+          </select>
+          <span class="sep"></span>
+          <button data-cmd="bold" title="Negrita (Ctrl+B)"><b>B</b></button>
+          <button data-cmd="italic" title="Cursiva (Ctrl+I)"><i>I</i></button>
+          <button data-cmd="underline" title="Subrayado (Ctrl+U)"><u>U</u></button>
+          <button data-cmd="strikeThrough" title="Tachado"><s>S</s></button>
+          <button data-act="highlight" title="Resaltar">🖍</button>
+          <button data-act="color" title="Color del texto">A<span class="color-bar"></span></button>
+          <span class="sep"></span>
+          <button data-cmd="insertUnorderedList" title="Lista">•≡</button>
+          <button data-cmd="insertOrderedList" title="Lista numerada">1≡</button>
+          <button data-act="checklist" title="Lista de tareas">☑</button>
+          <button data-cmd="outdent" title="Reducir sangría">⇤</button>
+          <button data-cmd="indent" title="Aumentar sangría">⇥</button>
+          <span class="sep"></span>
+          <button data-act="table" title="Insertar tabla">▦</button>
+          <button data-act="image" title="Insertar imagen">🖼</button>
+          <button data-act="link" title="Enlace web">🔗</button>
+          <button data-act="notelink" title="Enlazar otra nota">↪︎</button>
+          <button data-cmd="insertHorizontalRule" title="Separador">―</button>
+          <span class="sep"></span>
+          <button data-cmd="removeFormat" title="Quitar formato">⌫</button>
+          <button data-cmd="undo" title="Deshacer (Ctrl+Z)">↶</button>
+          <button data-cmd="redo" title="Rehacer (Ctrl+Y)">↷</button>
+        </div>
+
+        <div class="ed-scroll" id="ed-scroll">
+          <div class="ed-inner">
+            <input id="ed-title" class="ed-title" placeholder="Título" autocomplete="off" maxlength="300">
+            <div class="ed-tags" id="ed-tags">
+              <div id="tag-chips" class="chips"></div>
+              <input id="tag-input" list="tag-suggest" placeholder="＋ etiqueta" autocomplete="off" maxlength="60">
+              <datalist id="tag-suggest"></datalist>
+            </div>
+
+            <details id="toc" class="toc hidden" open>
+              <summary>Índice</summary>
+              <nav id="toc-list"></nav>
+            </details>
+
+            <div id="content" class="content" contenteditable="true" spellcheck="true" data-placeholder="Empieza a escribir…  Puedes pegar texto e imágenes."></div>
+
+            <section class="biblio">
+              <div class="biblio-head">
+                <h3>Bibliografía</h3>
+                <button class="btn sm" id="btn-add-ref">＋ Añadir referencia</button>
+              </div>
+              <ol id="ref-list" class="ref-list"></ol>
+              <p id="ref-empty" class="muted small">Sin referencias. Añade citas, enlaces o PDFs de consulta.</p>
+            </section>
+
+            <section id="backlinks" class="backlinks hidden">
+              <h4>Enlazada desde</h4>
+              <div id="backlink-list" class="chips"></div>
+            </section>
+
+            <p class="ed-meta muted small" id="ed-meta"></p>
+          </div>
+        </div>
+
+        <!-- Barra flotante de tabla -->
+        <div id="table-tools" class="float-tools hidden">
+          <button data-t="row-add">＋ Fila</button>
+          <button data-t="col-add">＋ Columna</button>
+          <button data-t="row-del">− Fila</button>
+          <button data-t="col-del">− Columna</button>
+          <button data-t="table-del" class="danger">Borrar tabla</button>
+        </div>
+        <!-- Burbuja de enlace -->
+        <div id="link-bubble" class="float-tools hidden">
+          <button data-l="open">Abrir</button>
+          <button data-l="remove">Quitar enlace</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <input type="file" id="file-image" accept="image/*" multiple hidden>
+  <input type="file" id="file-pdf" accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" hidden>
+
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "dr-folio-tools",
+  "private": true,
+  "description": "Solo para regenerar public/vendor/libs.js. La app no necesita compilación.",
+  "scripts": {
+    "vendor": "esbuild vendor-entry.js --bundle --format=esm --minify --target=es2020 --outfile=../public/vendor/libs.js"
+  },
+  "devDependencies": {
+    "dompurify": "3.5.0",
+    "esbuild": "0.28.2",
+    "firebase": "13.4.0"
+  }
+}

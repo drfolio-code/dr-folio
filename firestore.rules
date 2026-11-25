@@ -1,0 +1,18 @@
+rules_version = '2';
+// Dr.Folio — solo el propietario (UID fijo) puede leer o escribir.
+// Aunque alguien cree una cuenta en el proyecto, no podrá acceder a nada.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && uid == "KCrZacB1H1ZdrxeBbiPuzd7Cp0N2";
+    }
+    match /users/{uid}/{document=**} {
+      allow read, write: if isOwner(uid);
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
