@@ -31,13 +31,13 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          token_format: access_token
+      - uses: google-github-actions/setup-gcloud@v2
       - name: Publicar firestore.rules (API de Firebase Rules)
         env:
-          TOKEN: ${{ steps.auth.outputs.access_token }}
           PROJECT: drfolio-6af54
         run: |
           set -euo pipefail
+          TOKEN=$(gcloud auth print-access-token)
           API="https://firebaserules.googleapis.com/v1/projects/$PROJECT"
           BODY=$(jq -n --rawfile c firestore.rules '{source:{files:[{name:"firestore.rules",content:$c}]}}')
           RULESET=$(curl -sSf -X POST "$API/rulesets" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "$BODY" | jq -r .name)
