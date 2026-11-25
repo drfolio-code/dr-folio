@@ -27,14 +27,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - id: auth
+        uses: google-github-actions/auth@v2
         with:
-          node-version: 22
-      - name: Credenciales
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          token_format: access_token
+      - name: Publicar firestore.rules (API de Firebase Rules)
         env:
-          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
-      - name: Desplegar reglas
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
-        run: npx -y firebase-tools@latest deploy --only firestore:rules --project drfolio-6af54 --non-interactive
+          TOKEN: ${{ steps.auth.outputs.access_token }}
+          PROJECT: drfolio-6af54
+        run: |
+          set -euo pipefail
+          API="https://firebaserules.googleapis.com/v1/projects/$PROJECT"
+          BODY=$(jq -n --rawfile c firestore.rules '{source:{files:[{name:"firestore.rules",content:$c}]}}')
+          RULESET=$(curl -sSf -X POST "$API/rulesets" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "$BODY" | jq -r .name)
+          echo "Ruleset: $RULESET"
+          REL="projects/$PROJECT/releases/cloud.firestore"
+          UPD=$(jq -n --arg n "$REL" --arg r "$RULESET" '{release:{name:$n,rulesetName:$r}}')
+          if ! curl -sSf -X PATCH "$API/releases/cloud.firestore" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "$UPD"; then
+            NEW=$(jq -n --arg n "$REL" --arg r "$RULESET" '{name:$n,rulesetName:$r}')
+            curl -sSf -X POST "$API/releases" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "$NEW"
+          fi
+          echo "Reglas publicadas"
