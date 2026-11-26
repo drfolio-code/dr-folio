@@ -24,6 +24,9 @@ const S = {
   search: '',
   homeSearch: '',
   sort: localStorage.getItem('drfolio.sort') || 'updated',
+  searchAll: false,                                                   // buscador: todas las notas en vez de la carpeta actual
+  folderSort: localStorage.getItem('drfolio.folderSort') || 'manual',  // 'manual' | 'name'
+  layout: localStorage.getItem('drfolio.layout') || 'list',            // 'list' | 'grid'
   expanded: new Set(JSON.parse(localStorage.getItem('drfolio.expanded') || '[]')),
   dirty: false,
   loadedHtml: null,
@@ -198,7 +201,20 @@ function bindUi() {
   $('#btn-new-folder').addEventListener('click', () => newFolder(null));
   $('#btn-settings').addEventListener('click', openSettings);
   ['#btn-new-note', '#btn-new-note-empty'].forEach((s) => $(s).addEventListener('click', () => (S.view.type === 'snippets' ? newSnippet() : newNote())));
-  $('#btn-new-note-side').addEventListener('click', () => { if (S.view.type === 'snippets') setView({ type: 'all', id: null }); newNote(); });
+  $('#btn-new-note-side').addEventListener('click', () => {
+    if (S.view.type === 'snippets') setView({ type: 'notes', id: null }).then(() => newNote()); else newNote();
+  });
+  $('#btn-explorer').addEventListener('click', () => setView({ type: 'notes', id: null }));
+  $('#btn-layout').addEventListener('click', () => {
+    S.layout = S.layout === 'grid' ? 'list' : 'grid';
+    localStorage.setItem('drfolio.layout', S.layout);
+    renderList();
+  });
+  $('#btn-list-more').addEventListener('click', (e) => {
+    if (S.view.type === 'folder' && store.folders.has(S.view.id)) folderMenu(e.currentTarget, store.folders.get(S.view.id), { here: true });
+    else rootMenu(e.currentTarget);
+  });
+  dropTarget($('#btn-explorer'), null);
   ['#btn-menu', '#btn-menu-home'].forEach((s) => $(s).addEventListener('click', () => $('#app').classList.add('drawer')));
   $('#btn-home').addEventListener('click', goHome);
   $('#btn-settings-home').addEventListener('click', openSettings);
@@ -208,10 +224,15 @@ function bindUi() {
     if (e.key === 'Enter') { e.preventDefault(); $('#home-search').blur(); }
   });
   $('#scrim').addEventListener('click', closeDrawer);
-  $('#btn-back').addEventListener('click', () => closeEditor());
+  // «←» de la nota: si la nota tiene su propia entrada en el historial, volvemos atrás (como el botón de Android)
+  $('#btn-back').addEventListener('click', () => { if (history.state?.nt && history.state?.d > 0) history.back(); else closeEditor(); });
 
   // Lista
   $('#search').addEventListener('input', debounce(() => { S.search = $('#search').value; renderList(); }, 120));
+  $('#search').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { $('#search').value = ''; S.search = ''; renderList(); }
+    if (e.key === 'Enter') { e.preventDefault(); $('#search').blur(); }
+  });
   $('#sort').value = S.sort;
   $('#sort').addEventListener('change', () => { S.sort = $('#sort').value; localStorage.setItem('drfolio.sort', S.sort); renderList(); });
   $('#btn-empty-trash').addEventListener('click', emptyTrash);
@@ -258,35 +279,63 @@ function bindUi() {
   // Guardar antes de salir
   window.addEventListener('beforeunload', () => { saveSoon.flush(); flushSnippet(); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { saveSoon.flush(); flushSnippet(); } });
-  window.addEventListener('popstate', applyHash);
+  window.addEventListener('popstate', onPopState);
 }
 
 const closeDrawer = () => $('#app').classList.remove('drawer');
 const showList = () => { $('#app').dataset.view = 'list'; };
 
-// ---------- Rutas (#/inicio, #/folder/ID/n/NOTA) ----------
-// history.state.d = cuántas entradas hay por encima de Inicio. Así el botón «atrás»
-// (Android) recorre nota → lista → Inicio, y el botón Inicio vuelve atrás de golpe.
+// ---------- Rutas (#/inicio, #/notas, #/folder/ID/n/NOTA) ----------
+// Cada entrada del historial guarda en history.state:
+//   d  = cuántas entradas hay por encima de Inicio (el botón 🏠 hace history.go(-d))
+//   lv = nivel dentro del explorador de Notas (0 = raíz «Notas», 1 = carpeta principal, 2 = subcarpeta…)
+//   nt = 1 si esa entrada es una nota (o un prerredactado) abierta encima de la lista
+// Al entrar en una carpeta se apilan también sus carpetas padre, así «atrás» (Android) sube un nivel:
+// nota → Cardio → Urgencias → Notas → Inicio.
+const EXPLORER = new Set(['notes', 'folder', 'all', 'pinned', 'recent', 'tag', 'trash']);
+const isExplorer = (t) => EXPLORER.has(t);
+
 function hashFor(view, noteId) {
   if (view.type === 'home') return '#/inicio';
-  let h = `#/${view.type}${view.id ? `/${view.id}` : ''}`;
+  let h = view.type === 'notes' ? '#/notas' : `#/${view.type}${view.id ? `/${view.id}` : ''}`;
   if (noteId) h += `/n/${noteId}`;
   else if (view.type === 'snippets' && currentSnippet()) h += `/s/${currentSnippet()}`;
   return h;
 }
+/** Cadena de rutas desde «Notas» hasta la vista (para el historial y la ruta de navegación). */
+function chainFor(view) {
+  if (!isExplorer(view.type)) return [];
+  const root = '#/notas';
+  if (view.type === 'notes') return [root];
+  if (view.type === 'folder') {
+    const path = folderPath(view.id);
+    return [root, ...(path.length ? path.map((f) => `#/folder/${f.id}`) : [`#/folder/${view.id}`])];
+  }
+  return [root, hashFor(view)];
+}
+const lvFor = (view) => Math.max(0, chainFor(view).length - 1);
+
 function pushHash(replace = false) {
   const h = hashFor(S.view, S.noteId);
   if (location.hash === h) return;
   const d = history.state?.d || 0;
-  if (replace) history.replaceState({ d }, '', h); else history.pushState({ d: d + 1 }, '', h);
+  const st = { lv: lvFor(S.view), nt: S.noteId || (S.view.type === 'snippets' && currentSnippet()) ? 1 : 0 };
+  if (replace) history.replaceState({ d, ...st }, '', h); else history.pushState({ d: d + 1, ...st }, '', h);
 }
-/** Al arrancar deja Inicio debajo de la ruta abierta, para que «atrás» vuelva a Inicio. */
+function pushChain(chain, from, d) {
+  for (let i = from; i < chain.length; i++) history.pushState({ d: d + (i - from) + 1, lv: i, nt: 0 }, '', chain[i]);
+}
+/** Al arrancar deja Inicio (y las carpetas padre) debajo de la ruta abierta, para que «atrás» suba de nivel. */
 function initHistory() {
   if (typeof history.state?.d === 'number') return; // recarga: el historial ya está montado
   const h = location.hash;
   const { view, noteId, snipId } = parseHash(h);
   history.replaceState({ d: 0 }, '', '#/inicio');
-  if (view.type !== 'home' || noteId || snipId) history.pushState({ d: 1 }, '', h);
+  if (view.type === 'home' && !noteId && !snipId) return;
+  const chain = chainFor(view);
+  if (chain.length) pushChain(chain, 0, 0);
+  else history.pushState({ d: 1, lv: 0, nt: 0 }, '', hashFor(view));
+  if (noteId || snipId) history.pushState({ d: (history.state?.d || 0) + 1, lv: lvFor(view), nt: 1 }, '', h);
 }
 function parseHash(hash) {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
@@ -298,7 +347,11 @@ function parseHash(hash) {
     view = { type: 'snippets', id: null };
     if (parts[1] === 's') snipId = parts[2];
   }
-  else if (['all', 'pinned', 'trash'].includes(parts[0])) {
+  else if (parts[0] === 'notas') {
+    view = { type: 'notes', id: null };
+    if (parts[1] === 'n') noteId = parts[2];
+  }
+  else if (['all', 'pinned', 'recent', 'trash'].includes(parts[0])) {
     view = { type: parts[0], id: null };
     if (parts[1] === 'n') noteId = parts[2];
   } else if (['folder', 'tag'].includes(parts[0]) && parts[1]) {
@@ -309,6 +362,10 @@ function parseHash(hash) {
 }
 function applyHash() {
   const { view, noteId, snipId } = parseHash(location.hash);
+  if (view.type !== S.view.type || view.id !== S.view.id) {
+    S.search = ''; $('#search').value = ''; S.searchAll = false;
+    $('#note-list').scrollTop = 0; // cada carpeta empieza arriba
+  }
   S.view = view;
   closeDrawer();
   renderSection();
@@ -316,6 +373,47 @@ function applyHash() {
   if (noteId) openNote(noteId, { fromHash: true });
   else if (snipId) { S.noteId = null; openSnippet(snipId, { fromHash: true }); }
   else { closeSnippet({ fromHash: true }); closeEditor({ fromHash: true }); }
+}
+
+// Retroceso por varias entradas (subir varios niveles de carpeta de golpe)
+let backNav = null; // { level, done, timer }
+function onPopState() {
+  if (backNav) { backStep(); return; }
+  applyHash();
+}
+function backStep() {
+  clearTimeout(backNav.timer);
+  const st = history.state || {};
+  if ((st.d || 0) > 0 && ((st.lv ?? 0) > backNav.level || st.nt)) {
+    backNav.timer = setTimeout(() => { if (backNav) { const f = backNav.done; backNav = null; f(); } }, 600);
+    history.back();
+    return;
+  }
+  const f = backNav.done; backNav = null; f();
+}
+const backTo = (level) => new Promise((done) => { backNav = { level, done, timer: null }; backStep(); });
+
+/** Navega a una vista del explorador de Notas manteniendo el historial como la ruta de carpetas. */
+async function goView(view) {
+  const chain = chainFor(view);
+  const st = history.state || {};
+  const d = st.d || 0;
+  if (d === 0) { pushChain(chain, 0, 0); applyHash(); return; }
+  const cur = chainFor(S.view);
+  let p = 0;
+  while (p < cur.length && p < chain.length && cur[p] === chain[p]) p++;
+  const keep = Math.max(0, p - 1);
+  if (p > 0 && cur.length === p && !st.nt && (st.lv ?? 0) === keep) { pushChain(chain, p, d); applyHash(); return; }
+  await backTo(keep);
+  const st2 = history.state || {};
+  const d2 = st2.d || 0;
+  if (d2 === 0) pushChain(chain, 0, 0);
+  else {
+    const L = Math.min(st2.lv ?? 0, chain.length - 1);
+    history.replaceState({ d: d2, lv: L, nt: 0 }, '', chain[L]);
+    pushChain(chain, L + 1, d2);
+  }
+  applyHash();
 }
 
 function goHome() {
@@ -332,20 +430,26 @@ function goHome() {
   applyHash();
 }
 
+/** Cambia de vista. Devuelve una promesa (la navegación del explorador puede tardar unos milisegundos). */
 function setView(view) {
-  if (view.type === 'home') { goHome(); return; }
-  const fromHome = S.view.type === 'home';
+  if (view.type === 'home') { goHome(); return Promise.resolve(); }
   saveSoon.flush();
+  closeDrawer();
+  if (isExplorer(view.type)) {
+    S.search = ''; $('#search').value = ''; S.searchAll = false;
+    return goView(view);
+  }
+  const fromHome = S.view.type === 'home';
   closeSnippet({ fromHash: true });
   S.view = view;
   S.search = ''; $('#search').value = '';
-  closeDrawer();
   S.noteId = null;
   showEditorEmpty();
   showList();
   renderSection();
   pushHash(!fromHome);
   renderSidebar(); renderList();
+  return Promise.resolve();
 }
 
 /** Inicio ocupa la zona de lista + nota; el resto de vistas usan la lista y el editor. */
@@ -367,20 +471,19 @@ function renderSidebar() {
   $$('.nav-item').forEach((b) => b.classList.toggle('active', S.view.type === b.dataset.view));
 
   // Recuento por carpeta (incluye subcarpetas)
-  const direct = new Map();
-  for (const n of live) if (n.folderId) direct.set(n.folderId, (direct.get(n.folderId) || 0) + 1);
-  const total = (id) => [...descendantIds(id)].reduce((s, f) => s + (direct.get(f) || 0), 0);
+  const totals = folderTotals(live);
+  const total = (id) => totals.get(id) || 0;
 
   const tree = $('#folder-tree');
   const rows = [];
   const walk = (parentId, depth) => {
-    for (const f of childFolders(parentId)) {
+    for (const f of sortedChildren(parentId)) {
       const kids = childFolders(f.id).length > 0;
       const open = S.expanded.has(f.id);
       const row = el('div', {
         class: `tree-row ${S.view.type === 'folder' && S.view.id === f.id ? 'active' : ''}`,
         style: { '--depth': depth }, role: 'button', tabindex: '0',
-        onclick: (e) => { if (!e.target.closest('.caret,.more')) setView({ type: 'folder', id: f.id }); },
+        onclick: (e) => { if (!longPressed(e.currentTarget) && !e.target.closest('.caret,.more')) setView({ type: 'folder', id: f.id }); },
         onkeydown: (e) => { if (e.key === 'Enter') setView({ type: 'folder', id: f.id }); }
       },
         el('span', {
@@ -391,6 +494,8 @@ function renderSidebar() {
         el('span', { class: 'lbl' }, f.name),
         el('span', { class: 'count' }, total(f.id) || ''),
         el('button', { class: 'more', title: 'Opciones', 'aria-label': 'Opciones de carpeta', onclick: (e) => { e.stopPropagation(); folderMenu(e.currentTarget, f); } }, '⋯'));
+      dropTarget(row, f.id);
+      bindContext(row, (a) => folderMenu(a, f));
       rows.push(row);
       if (kids && open) walk(f.id, depth + 1);
     }
@@ -422,6 +527,58 @@ function toggleFolder(id) {
 }
 
 // ---------- Carpetas ----------
+/** Recuento de notas por carpeta, incluidas sus subcarpetas: Map(id → total) */
+function folderTotals(live = liveNotes()) {
+  const direct = new Map();
+  for (const n of live) if (n.folderId) direct.set(n.folderId, (direct.get(n.folderId) || 0) + 1);
+  const kids = new Map();
+  for (const f of store.folders.values()) {
+    const k = f.parentId || null;
+    if (!kids.has(k)) kids.set(k, []);
+    kids.get(k).push(f.id);
+  }
+  const out = new Map();
+  const seen = new Set();
+  const sum = (id) => {
+    if (out.has(id)) return out.get(id);
+    if (seen.has(id)) return 0; // protección ante ciclos
+    seen.add(id);
+    const t = (direct.get(id) || 0) + (kids.get(id) || []).reduce((acc, k) => acc + sum(k), 0);
+    out.set(id, t);
+    return t;
+  };
+  for (const id of store.folders.keys()) sum(id);
+  return out;
+}
+
+/** Subcarpetas ordenadas según la preferencia (manual = campo `order`, o por nombre) */
+function sortedChildren(parentId) {
+  const list = childFolders(parentId);
+  if (S.folderSort === 'name') list.sort((a, b) => a.name.localeCompare(b.name, 'es', { numeric: true, sensitivity: 'base' }));
+  return list;
+}
+
+function setFolderSort(mode) {
+  S.folderSort = mode;
+  localStorage.setItem('drfolio.folderSort', mode);
+  renderSidebar(); renderList();
+}
+
+/** Subir / bajar una carpeta entre sus hermanas (orden manual). Renumera el campo `order`. */
+function shiftFolder(f, dir) {
+  if (S.folderSort !== 'manual') { setFolderSort('manual'); toast('Orden manual activado', 'ok'); }
+  const sibs = childFolders(f.parentId || null);
+  const i = sibs.findIndex((x) => x.id === f.id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= sibs.length) return;
+  [sibs[i], sibs[j]] = [sibs[j], sibs[i]];
+  sibs.forEach((x, k) => {
+    const order = (k + 1) * 1000;
+    if (x.order !== order) { x.order = order; patch('folders', x.id, { order }); }
+  });
+  renderSidebar(); renderList();
+}
+
 async function newFolder(parentId) {
   const name = await prompt(parentId ? 'Nueva subcarpeta' : 'Nueva carpeta', '', { placeholder: 'Nombre (p. ej. Urgencias)' });
   if (!name) return;
@@ -432,10 +589,14 @@ async function newFolder(parentId) {
   return id;
 }
 
-function folderMenu(anchor, f) {
+function folderMenu(anchor, f, { here = false } = {}) {
+  const sibs = childFolders(f.parentId || null);
+  const i = sibs.findIndex((x) => x.id === f.id);
+  const inView = S.view.type === 'folder' && S.view.id === f.id;
   menu(anchor, [
+    here || inView ? null : { icon: '📂', label: 'Abrir', onClick: () => setView({ type: 'folder', id: f.id }) },
     { icon: '＋', label: 'Nueva subcarpeta', onClick: () => newFolder(f.id) },
-    { icon: '✎', label: 'Nueva nota aquí', onClick: () => { setView({ type: 'folder', id: f.id }); newNote(); } },
+    { icon: '✎', label: 'Nueva nota aquí', onClick: () => (inView ? newNote() : setView({ type: 'folder', id: f.id }).then(() => newNote())) },
     '-',
     { icon: '✏️', label: 'Renombrar', onClick: async () => {
       const name = await prompt('Renombrar carpeta', f.name);
@@ -446,10 +607,113 @@ function folderMenu(anchor, f) {
       if (c !== undefined) patch('folders', f.id, { color: c || null });
     } },
     { icon: '↗', label: 'Mover a…', onClick: () => moveFolder(f) },
+    i > 0 ? { icon: '⬆', label: 'Subir', onClick: () => shiftFolder(f, -1) } : null,
+    i >= 0 && i < sibs.length - 1 ? { icon: '⬇', label: 'Bajar', onClick: () => shiftFolder(f, 1) } : null,
     '-',
     { icon: '🗑', label: 'Eliminar carpeta', danger: true, onClick: () => deleteFolder(f) }
+  ].filter(Boolean));
+}
+
+/** Menú ⋯ de la raíz «Notas» */
+function rootMenu(anchor) {
+  menu(anchor, [
+    { icon: '＋', label: 'Nueva carpeta', onClick: () => newFolder(null) },
+    { icon: '✎', label: 'Nueva nota', onClick: () => newNote() },
+    '-',
+    { icon: S.folderSort === 'manual' ? '●' : '○', label: 'Ordenar carpetas: manual', onClick: () => setFolderSort('manual') },
+    { icon: S.folderSort === 'name' ? '●' : '○', label: 'Ordenar carpetas: por nombre', onClick: () => setFolderSort('name') }
   ]);
 }
+
+// ---------- Mantener pulsado (móvil) / clic derecho (PC) ----------
+/** Ancla de menú en un punto de la pantalla */
+const pointAnchor = (x, y) => ({ getBoundingClientRect: () => ({ left: x, right: x, top: y, bottom: y, width: 0, height: 0 }) });
+/** Abre open(ancla) al mantener pulsado (táctil, 500 ms) o con clic derecho. Tras ello, el clic se ignora. */
+function bindContext(node, open, { touch = true } = {}) {
+  let timer = null, sx = 0, sy = 0;
+  const fire = (x, y) => { node.dataset.lp = String(Date.now()); open(pointAnchor(x, y)); };
+  node.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    if (Date.now() - Number(node.dataset.lp || 0) < 900) return;
+    fire(e.clientX, e.clientY);
+  });
+  if (!touch) return;
+  const cancel = () => { clearTimeout(timer); timer = null; };
+  node.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse') return;
+    sx = e.clientX; sy = e.clientY;
+    cancel();
+    timer = setTimeout(() => { timer = null; navigator.vibrate?.(12); fire(sx, sy); }, 500);
+  });
+  node.addEventListener('pointermove', (e) => { if (timer && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) cancel(); });
+  ['pointerup', 'pointercancel', 'pointerleave', 'dragstart'].forEach((ev) => node.addEventListener(ev, cancel));
+}
+/** true si el clic llega justo al soltar tras mantener pulsado (hay que ignorarlo) */
+const longPressed = (node) => Date.now() - Number(node.dataset.lp || 0) < 900;
+
+// ---------- Arrastrar notas (y carpetas) a una carpeta (ordenador / tablet) ----------
+const DRAG_TYPE = 'application/x-drfolio';
+let dragging = null; // { kind: 'note'|'folder', id }
+const canDrag = () => matchMedia('(pointer: fine), (min-width: 640px)').matches;
+function makeDraggable(node, kind, id) {
+  if (!canDrag()) return;
+  node.draggable = true;
+  node.addEventListener('dragstart', (e) => {
+    dragging = { kind, id };
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData(DRAG_TYPE, `${kind}:${id}`); // tipo propio: el editor no lo pega como texto
+    document.body.classList.add('dragging');
+  });
+  node.addEventListener('dragend', () => {
+    dragging = null;
+    document.body.classList.remove('dragging');
+    $$('.drop-over').forEach((x) => x.classList.remove('drop-over'));
+  });
+}
+const canDropOn = (folderId) => {
+  if (!dragging) return false;
+  if (dragging.kind === 'note') return true;
+  return folderId !== dragging.id && !(folderId && descendantIds(dragging.id).has(folderId));
+};
+/** Zona donde soltar: folderId = carpeta destino, null = «Notas» (sin carpeta / nivel principal) */
+function dropTarget(node, folderId) {
+  node.addEventListener('dragover', (e) => {
+    if (!canDropOn(folderId)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    node.classList.add('drop-over');
+  });
+  node.addEventListener('dragleave', (e) => { if (!node.contains(e.relatedTarget)) node.classList.remove('drop-over'); });
+  node.addEventListener('drop', (e) => {
+    node.classList.remove('drop-over');
+    if (!canDropOn(folderId)) return;
+    e.preventDefault(); e.stopPropagation();
+    const { kind, id } = dragging;
+    dragging = null;
+    if (kind === 'note') moveNoteTo(id, folderId);
+    else moveFolderTo(id, folderId);
+  });
+}
+function moveNoteTo(id, folderId) {
+  const n = store.notes.get(id);
+  if (!n || n.trashed || (n.folderId || null) === (folderId || null)) return;
+  n.folderId = folderId || null; // reflejo inmediato
+  patch('notes', id, { folderId: folderId || null, updatedAt: Date.now() });
+  toast(`Nota movida a ${folderId ? `«${store.folders.get(folderId)?.name || 'carpeta'}»` : '«Notas» (sin carpeta)'}`, 'ok');
+  renderList(); renderSidebar();
+  if (S.noteId === id) renderNoteChrome();
+}
+function moveFolderTo(id, parentId) {
+  const f = store.folders.get(id);
+  if (!f || (f.parentId || null) === (parentId || null)) return;
+  f.parentId = parentId || null;
+  const order = Date.now();
+  f.order = order;
+  patch('folders', id, { parentId: parentId || null, order, updatedAt: Date.now() });
+  toast(`Carpeta movida a ${parentId ? `«${store.folders.get(parentId)?.name || 'carpeta'}»` : 'el nivel principal'}`, 'ok');
+  renderList(); renderSidebar();
+}
+
 
 async function moveFolder(f) {
   const banned = descendantIds(f.id);
@@ -457,7 +721,7 @@ async function moveFolder(f) {
     ...flatFolders().filter((x) => !banned.has(x.id)).map((x) => ({ id: x.id, label: x.name, depth: x.depth }))];
   const target = await picker(`Mover «${f.name}» a…`, items);
   if (!target) return;
-  patch('folders', f.id, { parentId: target === '__root' ? null : target, updatedAt: Date.now() });
+  patch('folders', f.id, { parentId: target === '__root' ? null : target, order: Date.now(), updatedAt: Date.now() });
 }
 
 async function deleteFolder(f) {
@@ -474,7 +738,7 @@ async function deleteFolder(f) {
   for (const k of kids) patch('folders', k.id, { parentId: f.parentId || null });
   for (const n of notes) patch('notes', n.id, { folderId: f.parentId || null });
   remove('folders', f.id);
-  if (S.view.type === 'folder' && S.view.id === f.id) setView({ type: 'all', id: null });
+  if (S.view.type === 'folder' && S.view.id === f.id) setView(f.parentId ? { type: 'folder', id: f.parentId } : { type: 'notes', id: null });
 }
 
 // ---------- Etiquetas ----------
@@ -549,6 +813,8 @@ function notesForView() {
   else {
     list = liveNotes();
     if (v.type === 'pinned') list = list.filter((n) => n.pinned);
+    else if (v.type === 'recent') list = list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 50);
+    else if (v.type === 'notes') list = list.filter((n) => !n.folderId);
     else if (v.type === 'folder') { const ids = descendantIds(v.id); list = list.filter((n) => ids.has(n.folderId)); }
     else if (v.type === 'tag') list = list.filter((n) => (n.tags || []).includes(v.id));
   }
@@ -557,6 +823,7 @@ function notesForView() {
     const words = q.split(/\s+/);
     list = list.filter((n) => { const s = searchable(n); return words.every((w) => s.includes(w)); });
   }
+  if (v.type === 'recent') return list;
   const cmp = {
     updated: (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0),
     created: (a, b) => (b.createdAt || 0) - (a.createdAt || 0),
@@ -567,6 +834,8 @@ function notesForView() {
 
 function viewTitle() {
   const v = S.view;
+  if (v.type === 'notes') return 'Notas';
+  if (v.type === 'recent') return 'Recientes';
   if (v.type === 'pinned') return 'Fijadas';
   if (v.type === 'trash') return 'Papelera';
   if (v.type === 'snippets') return 'Prerredactados';
@@ -590,31 +859,199 @@ function snippetNode(n, search = S.search) {
 
 function renderList() {
   if (S.view.type === 'home') return;
+  const v = S.view;
+  const explorer = isExplorer(v.type);
   $('#list-title').textContent = viewTitle();
   const box = $('#note-list');
-  $('#btn-new-note').title = S.view.type === 'snippets' ? 'Nuevo prerredactado' : 'Nueva nota';
-  if (S.view.type === 'snippets') {
+  $('#btn-new-note').title = v.type === 'snippets' ? 'Nuevo prerredactado' : 'Nueva nota';
+  $('#btn-layout').classList.toggle('hidden', !explorer || v.type === 'trash');
+  $('#btn-layout').textContent = S.layout === 'grid' ? '☷' : '⊞';
+  $('#btn-layout').title = S.layout === 'grid' ? 'Ver como lista' : 'Ver como cuadrícula';
+  $('#btn-list-more').classList.toggle('hidden', !(v.type === 'notes' || v.type === 'folder'));
+  $('#sort').classList.toggle('hidden', v.type === 'recent');
+  $('#search').placeholder = v.type === 'folder' ? `Buscar en «${store.folders.get(v.id)?.name || 'carpeta'}»…`
+    : v.type === 'notes' ? 'Buscar en todas las notas…  (Ctrl+K)' : 'Buscar…  (Ctrl+K)';
+  renderCrumbs();
+  if (v.type === 'snippets') {
     $('#list-trash-bar').classList.add('hidden');
     renderSnippetList(box, { search: S.search, sort: S.sort });
     return;
   }
   $('#snip-cats').classList.add('hidden');
-  $('#list-trash-bar').classList.toggle('hidden', S.view.type !== 'trash' || !notesForView().length);
+  $('#list-trash-bar').classList.toggle('hidden', v.type !== 'trash' || !notesForView().length);
   if (!store.loaded.notes) { box.replaceChildren(el('div', { class: 'list-empty' }, 'Cargando notas…')); return; }
+  if (v.type === 'folder' && !store.folders.has(v.id)) {
+    box.replaceChildren(el('div', { class: 'list-empty' }, store.loaded.folders ? 'Esta carpeta ya no existe.' : 'Cargando carpetas…'));
+    return;
+  }
+  if (v.type === 'notes' || v.type === 'folder') { renderExplorer(box); return; }
   const notes = notesForView();
   if (!notes.length) {
     box.replaceChildren(el('div', { class: 'list-empty' },
-      S.search ? 'No hay notas que coincidan.' : S.view.type === 'trash' ? 'La papelera está vacía.' : 'Aún no hay notas aquí.'));
+      S.search ? 'No hay notas que coincidan.' : v.type === 'trash' ? 'La papelera está vacía.' : 'Aún no hay notas aquí.'));
     return;
   }
-  box.replaceChildren(...notes.map((n) => noteCard(n)));
+  if (v.type === 'trash') { box.replaceChildren(...notes.map((n) => noteCard(n))); return; }
+  box.replaceChildren(el('div', { class: `fx ${S.layout === 'grid' ? 'grid' : ''}` }, notesBlock(notes)));
+}
+
+/** Ruta de navegación: Notas › Urgencias › Cardio (cada tramo vuelve a ese nivel; también se puede soltar ahí una nota) */
+function renderCrumbs() {
+  const v = S.view;
+  const bar = $('#crumbs');
+  if (!isExplorer(v.type) || v.type === 'notes') { bar.classList.add('hidden'); bar.replaceChildren(); return; }
+  const segs = [{ label: 'Notas', view: { type: 'notes', id: null }, drop: null }];
+  if (v.type === 'folder') {
+    for (const f of folderPath(v.id)) segs.push({ label: f.name, view: { type: 'folder', id: f.id }, drop: f.id });
+  } else segs.push({ label: viewTitle() });
+  const nodes = [];
+  segs.forEach((sg, i) => {
+    if (i) nodes.push(el('span', { class: 'sep', 'aria-hidden': 'true' }, '›'));
+    const last = i === segs.length - 1;
+    if (last) { nodes.push(el('span', { class: 'cur', 'aria-current': 'page' }, sg.label)); return; }
+    const b = el('button', { type: 'button', onclick: () => setView(sg.view) }, i === 0 ? '🗂 Notas' : sg.label);
+    if ('drop' in sg) dropTarget(b, sg.drop);
+    nodes.push(b);
+  });
+  bar.replaceChildren(...nodes);
+  bar.classList.remove('hidden');
+  bar.scrollLeft = bar.scrollWidth; // en móvil, que se vea el final de la ruta
+}
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const matchesWords = (text, words) => { const s = norm(text); return words.every((w) => s.includes(w)); };
+
+function sortNotes(list) {
+  const cmp = {
+    updated: (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0),
+    created: (a, b) => (b.createdAt || 0) - (a.createdAt || 0),
+    title: (a, b) => (a.title || 'Sin título').localeCompare(b.title || 'Sin título', 'es')
+  }[S.sort] || ((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  return list.sort((a, b) => (!!b.pinned - !!a.pinned) || cmp(a, b));
+}
+
+/** Explorador: raíz «Notas» o una carpeta (subcarpetas primero, luego sus notas) */
+function renderExplorer(box) {
+  const v = S.view;
+  const folderId = v.type === 'folder' ? v.id : null;
+  const totals = folderTotals();
+  const wrap = el('div', { class: `fx ${S.layout === 'grid' ? 'grid' : ''}` });
+  const q = norm(S.search.trim());
+
+  if (q) { renderExplorerSearch(wrap, folderId, q.split(/\s+/), totals); box.replaceChildren(wrap); return; }
+
+  if (!folderId) {
+    const live = liveNotes();
+    const tile = (ico, label, count, type) => el('button', { class: 'fx-tile', type: 'button', onclick: () => setView({ type, id: null }) },
+      el('span', { class: 'fx-tile-ico' }, ico), el('span', { class: 'fx-tile-lbl' }, label),
+      count != null ? el('span', { class: 'fx-tile-n' }, count) : null);
+    wrap.append(el('div', { class: 'fx-short' },
+      tile('🗂', 'Todas las notas', live.length, 'all'),
+      tile('📌', 'Fijadas', live.filter((n) => n.pinned).length, 'pinned'),
+      tile('🕘', 'Recientes', null, 'recent')));
+  }
+
+  wrap.append(el('div', { class: 'fx-actions' },
+    el('button', { class: 'btn primary', type: 'button', onclick: () => newNote() }, '＋ Nota'),
+    el('button', { class: 'btn', type: 'button', onclick: () => newFolder(folderId) }, folderId ? '＋ Subcarpeta' : '＋ Carpeta')));
+
+  const folders = sortedChildren(folderId);
+  const notes = sortNotes(liveNotes().filter((n) => (n.folderId || null) === folderId));
+
+  if (folders.length) {
+    const sortSel = el('select', { 'aria-label': 'Ordenar carpetas', onchange: (e) => setFolderSort(e.target.value) },
+      el('option', { value: 'manual' }, 'Orden manual'), el('option', { value: 'name' }, 'Por nombre'));
+    sortSel.value = S.folderSort;
+    wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `${folderId ? 'Subcarpetas' : 'Carpetas'} · ${folders.length}`), sortSel),
+      el('div', { class: 'fx-folders' }, folders.map((f) => folderItem(f, totals))));
+  } else if (!folderId) {
+    wrap.append(el('div', { class: 'fx-hint' }, 'Aún no tienes carpetas. Crea la primera con «＋ Carpeta» (p. ej. Urgencias).'));
+  }
+
+  if (notes.length) {
+    wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `${folderId ? 'Notas' : 'Notas sin carpeta'} · ${notes.length}`)), notesBlock(notes));
+  } else if (folderId) {
+    wrap.append(el('div', { class: 'fx-hint' }, folders.length ? 'No hay notas sueltas en esta carpeta (mira en sus subcarpetas).' : 'Carpeta vacía. Crea una nota o una subcarpeta.'));
+  }
+  box.replaceChildren(wrap);
+}
+
+/** Buscar en la carpeta actual (y sus subcarpetas) o en todas */
+function renderExplorerSearch(wrap, folderId, words, totals) {
+  const scoped = folderId && !S.searchAll;
+  const ids = scoped ? descendantIds(folderId) : null;
+  if (folderId) {
+    const name = store.folders.get(folderId)?.name || 'carpeta';
+    wrap.append(el('div', { class: 'fx-scope' },
+      el('span', {}, scoped ? `Buscando en «${name}» y sus subcarpetas` : 'Buscando en todas las notas'),
+      el('button', { class: 'btn sm', type: 'button', onclick: () => { S.searchAll = !S.searchAll; renderList(); } },
+        scoped ? 'Buscar en todas' : `Solo en «${name}»`)));
+  }
+  const folders = flatFolders().filter((f) => f.id !== folderId && (!ids || ids.has(f.id)) && matchesWords(f.name, words))
+    .map((f) => store.folders.get(f.id)).filter(Boolean);
+  const notes = sortNotes(liveNotes().filter((n) => (!ids || ids.has(n.folderId)) && words.every((w) => searchable(n).includes(w))));
+  if (folders.length) wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `Carpetas · ${folders.length}`)),
+    el('div', { class: 'fx-folders' }, folders.slice(0, 30).map((f) => folderItem(f, totals, { showPath: true }))));
+  wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `Notas · ${notes.length}`)));
+  if (notes.length) wrap.append(notesBlock(notes.slice(0, 200)));
+  else wrap.append(el('div', { class: 'fx-hint' }, 'No hay notas que coincidan.'));
+}
+
+function notesBlock(notes) {
+  return el('div', { class: 'fx-notes' }, notes.map((n) => noteCard(n)));
+}
+
+/** Tarjeta / fila de carpeta: tocar = abrir; mantener pulsado, clic derecho o ⋯ = opciones; soltar nota = mover */
+function folderItem(f, totals, { showPath = false } = {}) {
+  const subs = childFolders(f.id).length;
+  const n = totals.get(f.id) || 0;
+  const open = (e) => { if (!longPressed(item) && !e.target.closest('.fx-more')) setView({ type: 'folder', id: f.id }); };
+  const parent = showPath && f.parentId ? folderPath(f.parentId).map((x) => x.name).join(' › ') : '';
+  const item = el('div', {
+    class: 'fx-folder', role: 'button', tabindex: '0', style: f.color ? { '--fc': f.color } : {},
+    'aria-label': `Carpeta ${f.name}, ${plural(n, 'nota', 'notas')}`,
+    onclick: open,
+    onkeydown: (e) => { if (e.key === 'Enter') setView({ type: 'folder', id: f.id }); }
+  },
+    el('span', { class: 'fx-ico', 'aria-hidden': 'true' }),
+    el('span', { class: 'fx-txt' },
+      el('span', { class: 'fx-name' }, f.name),
+      el('span', { class: 'fx-meta' }, plural(n, 'nota', 'notas'), subs ? ` · ${plural(subs, 'subcarpeta', 'subcarpetas')}` : ''),
+      parent ? el('span', { class: 'fx-meta' }, `en ${parent}`) : null),
+    el('button', {
+      class: 'fx-more', type: 'button', title: 'Opciones', 'aria-label': `Opciones de ${f.name}`,
+      onclick: (e) => { e.stopPropagation(); folderMenu(e.currentTarget, f); }
+    }, '⋯'));
+  bindContext(item, (a) => folderMenu(a, f));
+  dropTarget(item, f.id);
+  makeDraggable(item, 'folder', f.id);
+  return item;
+}
+
+/** Menú contextual de una nota en la lista (clic derecho / mantener pulsado) */
+function noteListMenu(anchor, n) {
+  if (n.trashed) {
+    menu(anchor, [
+      { icon: '↩', label: 'Restaurar', onClick: () => restoreNote(n.id) },
+      { icon: '✕', label: 'Eliminar definitivamente', danger: true, onClick: () => deleteForever(n.id) }
+    ]);
+    return;
+  }
+  menu(anchor, [
+    { icon: '📄', label: 'Abrir', onClick: () => openNote(n.id, { push: true }) },
+    { icon: '📁', label: 'Mover a carpeta…', onClick: () => moveNote(n.id) },
+    { icon: '📌', label: n.pinned ? 'Quitar de fijadas' : 'Fijar', onClick: () => patch('notes', n.id, { pinned: !n.pinned }) },
+    { icon: '⧉', label: 'Duplicar', onClick: () => duplicateNote(n.id) },
+    '-',
+    { icon: '🗑', label: 'Mover a la papelera', danger: true, onClick: () => trashNote(n.id) }
+  ]);
 }
 
 function noteCard(n, { search = S.search, sort = S.sort } = {}) {
   const path = n.folderId ? folderPath(n.folderId) : [];
-  return el('button', {
+  const card = el('button', {
       class: `note-card ${n.id === S.noteId ? 'active' : ''}`, type: 'button',
-      onclick: () => openNote(n.id, { push: true })
+      onclick: () => { if (!longPressed(card)) openNote(n.id, { push: true }); }
     },
       el('div', { class: 't' }, n.pinned && !n.trashed ? '📌' : null, el('span', {}, n.title || 'Sin título')),
       el('div', { class: 's' }, snippetNode(n, search)),
@@ -623,6 +1060,10 @@ function noteCard(n, { search = S.search, sort = S.sort } = {}) {
         path.length ? el('span', { class: 'f' }, `· ${path[path.length - 1].name}`) : null,
         (n.tags || []).slice(0, 3).map((t) => store.tags.get(t)).filter(Boolean).map((t) => el('span', { class: 'mini-tag' }, t.name)),
         (n.refs || []).length ? el('span', {}, `· 📚 ${n.refs.length}`) : null));
+  // En el móvil se mantiene pulsado para el menú; en ordenador/tablet se arrastra a una carpeta (y clic derecho = menú)
+  bindContext(card, (a) => noteListMenu(a, n), { touch: !canDrag() });
+  if (!n.trashed) makeDraggable(card, 'note', n.id);
+  return card;
 }
 
 // ====================== Inicio ======================
@@ -690,7 +1131,7 @@ function newNote() {
   };
   store.notes.set(id, { id, ...data }); // visible al instante
   put('notes', id, data);
-  if (v.type === 'trash' || v.type === 'home') S.view = { type: 'all', id: null };
+  if (v.type === 'trash' || v.type === 'home') S.view = { type: 'notes', id: null };
   closeDrawer();
   openNote(id, { push: true, focusTitle: true });
   renderList(); renderSidebar();

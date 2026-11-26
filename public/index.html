@@ -65,7 +65,7 @@
         <button class="nav-item" data-view="trash"><span class="ico">🗑</span><span class="lbl">Papelera</span><span class="count" id="count-trash"></span></button>
       </nav>
       <div class="side-section">
-        <div class="side-title"><span>Carpetas</span><button class="icon-btn sm" id="btn-new-folder" title="Nueva carpeta" aria-label="Nueva carpeta">＋</button></div>
+        <div class="side-title"><button type="button" class="side-link" id="btn-explorer" title="Abrir el explorador de carpetas">Carpetas</button><button class="icon-btn sm" id="btn-new-folder" title="Nueva carpeta" aria-label="Nueva carpeta">＋</button></div>
         <div id="folder-tree" class="tree"></div>
       </div>
       <div class="side-section">
@@ -107,8 +107,11 @@
         <button class="icon-btn only-drawer" id="btn-menu" aria-label="Menú">☰</button>
         <button class="icon-btn only-drawer" id="btn-home" title="Inicio" aria-label="Inicio">🏠</button>
         <h2 id="list-title">Todas las notas</h2>
+        <button class="icon-btn" id="btn-layout" title="Ver como cuadrícula" aria-label="Cambiar vista lista / cuadrícula">⊞</button>
+        <button class="icon-btn hidden" id="btn-list-more" title="Opciones de la carpeta" aria-label="Opciones de la carpeta">⋯</button>
         <button class="icon-btn" id="btn-new-note" title="Nueva nota" aria-label="Nueva nota">✎</button>
       </div>
+      <nav id="crumbs" class="crumbs hidden" aria-label="Ruta de carpetas"></nav>
       <div class="list-tools">
         <input type="search" id="search" placeholder="Buscar…  (Ctrl+K)" autocomplete="off">
         <select id="sort" aria-label="Ordenar">

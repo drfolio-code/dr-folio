@@ -9,7 +9,7 @@
 //   status  'active' | 'soon' (Próximamente: visible pero desactivado)
 //   count   (opcional) clave para mostrar un recuento: 'notes' | 'snippets'
 export const MODULES = [
-  { id: 'notes', name: 'Notas', icon: '🗂', desc: 'Carpetas, etiquetas, bibliografía y PDFs', route: '#/all', status: 'active', count: 'notes' },
+  { id: 'notes', name: 'Notas', icon: '🗂', desc: 'Carpetas, etiquetas, bibliografía y PDFs', route: '#/notas', status: 'active', count: 'notes' },
   { id: 'snippets', name: 'Prerredactados', icon: '📋', desc: 'Textos para copiar con campos a rellenar', route: '#/snippets', status: 'active', count: 'snippets' },
   { id: 'vademecum', name: 'Vademécum', icon: '💊', desc: 'Fármacos, dosis y ajustes de uso habitual', route: '#/vademecum', status: 'soon' },
   { id: 'chat', name: 'Chat conmigo mismo', icon: '💬', desc: 'Envíate textos y documentos entre dispositivos', route: '#/chat', status: 'soon' }
