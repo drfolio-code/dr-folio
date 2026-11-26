@@ -57,9 +57,9 @@ function screenH() {
   const land = window.innerWidth > window.innerHeight;
   return land ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
 }
-// Ajuste del alto en el iPhone instalado (Ajustes): 'auto' | 'screen' (prueba: alto de la pantalla) | 'off'
+// Ajuste del alto en el iPhone instalado (Ajustes): 'auto' (sin corrección) | 'gap' (alternativa: compensar hueco)
 const FIT_KEY = 'drfolio.fit';
-export function fitMode() { try { const m = localStorage.getItem(FIT_KEY); return m === 'off' || m === 'screen' ? m : 'auto'; } catch { return 'auto'; } }
+export function fitMode() { try { return localStorage.getItem(FIT_KEY) === 'gap' ? 'gap' : 'auto'; } catch { return 'auto'; } }
 export function setFitMode(m) { try { localStorage.setItem(FIT_KEY, m); } catch {} update(); }
 /** Medidas para diagnosticar (se muestran en Ajustes) */
 export function screenInfo() {
@@ -68,26 +68,20 @@ export function screenInfo() {
   return `pantalla ${screen.width}×${screen.height} · ventana ${window.innerWidth}×${window.innerHeight} · cliente ${root.clientHeight} · visible ${Math.round(vv?.height || 0)}+${Math.round(vv?.offsetTop || 0)} · vh ${m('100vh')} · lvh ${m('100lvh')} · arriba ${m('env(safe-area-inset-top,0px)')} · abajo ${m('env(safe-area-inset-bottom,0px)')} · app ${r('#app')} · barra ${r('#tabbar')} · scroll ${Math.round(window.scrollY)} · ${navigator.standalone ? 'instalada' : 'navegador'} · ${root.className || '-'}`;
 }
 /**
- * App instalada en iPhone (standalone): iOS da a la página una ventana más baja que la pantalla
- * (le resta la barra de estado) y queda un hueco abajo.
- * 'auto': no suma además el margen de la barra de inicio (html.short-h, --h-gap).
- * 'screen' (prueba): html, body y la app con el alto de la pantalla (html.fit-screen, --scr-h).
+ * Alternativa (Ajustes, 'gap'): si iOS diera a la app instalada una ventana más baja que la pantalla,
+ * no se suma además el margen de la barra de inicio (html.short-h, --h-gap). Por defecto no hace falta:
+ * el hueco lo provocaba «interactive-widget» en la meta viewport (se quita en iOS, initViewport).
  */
 function fullHeight() {
-  const mode = fitMode();
   let gap = 0;
-  if (mode !== 'off' && navigator.standalone === true && screen?.width && screen?.height) {
+  if (fitMode() === 'gap' && navigator.standalone === true && screen?.width && screen?.height) {
     const land = window.innerWidth > window.innerHeight;
     const sw = land ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
     const g = screenH() - window.innerHeight;
-    // Solo si la ventana es la pantalla entera (no en iPad con varias ventanas) y le falta alto
     if (Math.abs(window.innerWidth - sw) <= 2 && g > 2 && g < 120) gap = g;
   }
-  const fit = mode === 'screen' && gap > 0, short = mode === 'auto' && gap > 0;
-  if (fit) root.style.setProperty('--scr-h', `${screenH()}px`); else root.style.removeProperty('--scr-h');
-  if (short) root.style.setProperty('--h-gap', `${gap}px`); else root.style.removeProperty('--h-gap');
-  root.classList.toggle('fit-screen', fit);
-  root.classList.toggle('short-h', short);
+  if (gap) root.style.setProperty('--h-gap', `${gap}px`); else root.style.removeProperty('--h-gap');
+  root.classList.toggle('short-h', !!gap);
 }
 
 const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
