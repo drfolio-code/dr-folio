@@ -16,8 +16,10 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | Archivo | Qué hace |
 |---|---|
 | `public/index.html` | Estructura de la interfaz (login, barra lateral, lista, editor) |
-| `public/styles.css` | Estilos (modo claro/oscuro, responsive móvil < 860 px) |
-| `public/js/app.js` | Lógica principal: vistas, carpetas, etiquetas, notas, bibliografía, ajustes |
+| `public/styles.css` | Estilos (modo claro/oscuro, responsive: ≥1100 px 3 columnas · 640–1099 lista+nota con barra lateral desplegable · <640 una columna · horizontal con poca altura = cabeceras compactas) |
+| `public/js/app.js` | Lógica principal: Inicio, vistas, carpetas, etiquetas, notas, bibliografía, ajustes |
+| `public/js/modules.js` | Lista de módulos de la pantalla de Inicio (`id, name, icon, desc, route, status: 'active'\|'soon'`). Añadir un módulo = una línea aquí |
+| `public/js/viewport.js` | Alto real visible (`--app-h`/`--app-top` con visualViewport) para que el teclado del móvil no tape el editor |
 | `public/js/editor.js` | Editor `contenteditable`: barra de formato, pegado limpio (DOMPurify), tablas, listas de tareas, enlaces entre notas, índice |
 | `public/js/snippets.js` | Prerredactados: lista, editor de texto plano, campos `{campo}` / `{campo:a\|b}`, copiar e insertar en notas |
 | `public/js/store.js` | Datos en memoria sincronizados con Firestore (`onSnapshot`) + ayudas de carpetas |
@@ -26,6 +28,11 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/js/ui.js` | Modales, menús, selectores, toasts propios (no usar alert/prompt: fallan en PWA iOS) |
 | `public/vendor/libs.js` | Firebase + DOMPurify empaquetados. Regenerar: `cd tools && npm install && npm run vendor` |
 | `public/sw.js` | Service worker (app offline, red primero) |
+
+## Rutas y navegación
+- `#/inicio` (por defecto tras el login), `#/all|pinned|trash[/n/NOTA]`, `#/folder/ID[/n/NOTA]`, `#/tag/ID[/n/NOTA]`, `#/snippets[/s/ID]`, `#nota/ID`.
+- `history.state.d` = nº de entradas por encima de Inicio: «atrás» (Android) va nota → lista → Inicio; el botón 🏠 hace `history.go(-d)`.
+- Al arrancar, `initHistory()` deja `#/inicio` debajo de la ruta abierta.
 
 ## Modelo de datos (Firestore, todo bajo `users/{uid}/`)
 - `folders/{id}`: `name, parentId|null, color, order, createdAt, updatedAt` (anidación ilimitada)

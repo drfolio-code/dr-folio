@@ -13,12 +13,15 @@ import {
   initSnippets, renderSnippetList, newSnippet, openSnippet, closeSnippet, currentSnippet,
   flushSnippet, onSnippetsChange, pickSnippetText
 } from './snippets.js';
+import { MODULES } from './modules.js';
+import { initViewport } from './viewport.js';
 
 // ====================== Estado ======================
 const S = {
-  view: { type: 'all', id: null },
+  view: { type: 'home', id: null },
   noteId: null,
   search: '',
+  homeSearch: '',
   sort: localStorage.getItem('drfolio.sort') || 'updated',
   expanded: new Set(JSON.parse(localStorage.getItem('drfolio.expanded') || '[]')),
   dirty: false,
@@ -34,6 +37,7 @@ if ('serviceWorker' in navigator) {
 }
 
 const setScreen = (s) => { document.body.dataset.screen = s; };
+initViewport();
 
 onAuth(async (user) => {
   if (!user) {
@@ -116,6 +120,7 @@ function startApp(user) {
   });
 
   bindUi();
+  initHistory();
   applyHash();
   setScreen('app');
   renderAll();
@@ -138,6 +143,7 @@ const renderSidebarSoon = debounce(() => renderSidebar(), 60);
 
 function onData(name, changed) {
   updateSync();
+  if (S.view.type === 'home' && ['notes', 'snippets', 'folders', 'tags'].includes(name)) renderHomeSoon();
   if (name === 'notes') {
     renderListSoon();
     renderSidebarSoon();
@@ -192,7 +198,14 @@ function bindUi() {
   $('#btn-settings').addEventListener('click', openSettings);
   ['#btn-new-note', '#btn-new-note-empty'].forEach((s) => $(s).addEventListener('click', () => (S.view.type === 'snippets' ? newSnippet() : newNote())));
   $('#btn-new-note-side').addEventListener('click', () => { if (S.view.type === 'snippets') setView({ type: 'all', id: null }); newNote(); });
-  $('#btn-menu').addEventListener('click', () => $('#app').classList.add('drawer'));
+  ['#btn-menu', '#btn-menu-home'].forEach((s) => $(s).addEventListener('click', () => $('#app').classList.add('drawer')));
+  $('#btn-home').addEventListener('click', goHome);
+  $('#btn-settings-home').addEventListener('click', openSettings);
+  $('#home-search').addEventListener('input', debounce(() => { S.homeSearch = $('#home-search').value; renderHomeNotes(); }, 120));
+  $('#home-search').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { $('#home-search').value = ''; S.homeSearch = ''; renderHomeNotes(); }
+    if (e.key === 'Enter') { e.preventDefault(); $('#home-search').blur(); }
+  });
   $('#scrim').addEventListener('click', closeDrawer);
   $('#btn-back').addEventListener('click', () => closeEditor());
 
@@ -236,7 +249,7 @@ function bindUi() {
   document.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveSoon.flush(); flushSnippet(); setSaveStatus('Guardado ✓'); }
-    else if (mod && e.key.toLowerCase() === 'k' && !editor.isFocused()) { e.preventDefault(); showList(); $('#search').focus(); }
+    else if (mod && e.key.toLowerCase() === 'k' && !editor.isFocused()) { e.preventDefault(); if (S.view.type === 'home') $('#home-search').focus(); else { showList(); $('#search').focus(); } }
     else if (mod && e.altKey && e.key.toLowerCase() === 'n') { e.preventDefault(); if (S.view.type === 'snippets') newSnippet(); else newNote(); }
     else if (e.key === 'Escape' && !modalOpen()) closeDrawer();
   });
@@ -250,8 +263,11 @@ function bindUi() {
 const closeDrawer = () => $('#app').classList.remove('drawer');
 const showList = () => { $('#app').dataset.view = 'list'; };
 
-// ---------- Rutas (#/folder/ID/n/NOTA) ----------
+// ---------- Rutas (#/inicio, #/folder/ID/n/NOTA) ----------
+// history.state.d = cuántas entradas hay por encima de Inicio. Así el botón «atrás»
+// (Android) recorre nota → lista → Inicio, y el botón Inicio vuelve atrás de golpe.
 function hashFor(view, noteId) {
+  if (view.type === 'home') return '#/inicio';
   let h = `#/${view.type}${view.id ? `/${view.id}` : ''}`;
   if (noteId) h += `/n/${noteId}`;
   else if (view.type === 'snippets' && currentSnippet()) h += `/s/${currentSnippet()}`;
@@ -260,14 +276,23 @@ function hashFor(view, noteId) {
 function pushHash(replace = false) {
   const h = hashFor(S.view, S.noteId);
   if (location.hash === h) return;
-  if (replace) history.replaceState(null, '', h); else history.pushState(null, '', h);
+  const d = history.state?.d || 0;
+  if (replace) history.replaceState({ d }, '', h); else history.pushState({ d: d + 1 }, '', h);
 }
-function applyHash() {
-  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-  let view = { type: 'all', id: null };
+/** Al arrancar deja Inicio debajo de la ruta abierta, para que «atrás» vuelva a Inicio. */
+function initHistory() {
+  if (typeof history.state?.d === 'number') return; // recarga: el historial ya está montado
+  const h = location.hash;
+  const { view, noteId, snipId } = parseHash(h);
+  history.replaceState({ d: 0 }, '', '#/inicio');
+  if (view.type !== 'home' || noteId || snipId) history.pushState({ d: 1 }, '', h);
+}
+function parseHash(hash) {
+  const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  let view = { type: 'home', id: null };
   let noteId = null;
   let snipId = null;
-  if (parts[0] === 'nota' && parts[1]) noteId = parts[1];
+  if (parts[0] === 'nota' && parts[1]) { noteId = parts[1]; view = { type: 'all', id: null }; }
   else if (parts[0] === 'snippets') {
     view = { type: 'snippets', id: null };
     if (parts[1] === 's') snipId = parts[2];
@@ -279,14 +304,36 @@ function applyHash() {
     view = { type: parts[0], id: parts[1] };
     if (parts[2] === 'n') noteId = parts[3];
   }
+  return { view, noteId, snipId };
+}
+function applyHash() {
+  const { view, noteId, snipId } = parseHash(location.hash);
   S.view = view;
+  closeDrawer();
+  renderSection();
   renderSidebar(); renderList();
   if (noteId) openNote(noteId, { fromHash: true });
   else if (snipId) { S.noteId = null; openSnippet(snipId, { fromHash: true }); }
   else { closeSnippet({ fromHash: true }); closeEditor({ fromHash: true }); }
 }
 
+function goHome() {
+  saveSoon.flush(); flushSnippet();
+  closeDrawer();
+  const d = history.state?.d || 0;
+  if (d > 0) {
+    history.go(-d);
+    // Por si el historial no tuviera esas entradas
+    setTimeout(() => { if (S.view.type !== 'home') { history.replaceState({ d: 0 }, '', '#/inicio'); applyHash(); } }, 500);
+    return;
+  }
+  history.replaceState({ d: 0 }, '', '#/inicio');
+  applyHash();
+}
+
 function setView(view) {
+  if (view.type === 'home') { goHome(); return; }
+  const fromHome = S.view.type === 'home';
   saveSoon.flush();
   closeSnippet({ fromHash: true });
   S.view = view;
@@ -295,8 +342,16 @@ function setView(view) {
   S.noteId = null;
   showEditorEmpty();
   showList();
-  pushHash();
+  renderSection();
+  pushHash(!fromHome);
   renderSidebar(); renderList();
+}
+
+/** Inicio ocupa la zona de lista + nota; el resto de vistas usan la lista y el editor. */
+function renderSection() {
+  const home = S.view.type === 'home';
+  $('#app').dataset.section = home ? 'home' : 'work';
+  if (home) renderHome();
 }
 
 // ====================== Barra lateral ======================
@@ -519,9 +574,9 @@ function viewTitle() {
   return 'Todas las notas';
 }
 
-function snippetNode(n) {
+function snippetNode(n, search = S.search) {
   const text = (n.text || '').replace(/\s+/g, ' ').trim();
-  const q = norm(S.search.trim()).split(/\s+/).filter(Boolean)[0];
+  const q = norm(search.trim()).split(/\s+/).filter(Boolean)[0];
   if (!q || !text) return text.slice(0, 160) || 'Sin contenido';
   const nt = norm(text);
   const i = nt.indexOf(q);
@@ -533,6 +588,7 @@ function snippetNode(n) {
 }
 
 function renderList() {
+  if (S.view.type === 'home') return;
   $('#list-title').textContent = viewTitle();
   const box = $('#note-list');
   $('#btn-new-note').title = S.view.type === 'snippets' ? 'Nuevo prerredactado' : 'Nueva nota';
@@ -550,20 +606,70 @@ function renderList() {
       S.search ? 'No hay notas que coincidan.' : S.view.type === 'trash' ? 'La papelera está vacía.' : 'Aún no hay notas aquí.'));
     return;
   }
-  box.replaceChildren(...notes.map((n) => {
-    const path = n.folderId ? folderPath(n.folderId) : [];
-    return el('button', {
+  box.replaceChildren(...notes.map((n) => noteCard(n)));
+}
+
+function noteCard(n, { search = S.search, sort = S.sort } = {}) {
+  const path = n.folderId ? folderPath(n.folderId) : [];
+  return el('button', {
       class: `note-card ${n.id === S.noteId ? 'active' : ''}`, type: 'button',
       onclick: () => openNote(n.id, { push: true })
     },
       el('div', { class: 't' }, n.pinned && !n.trashed ? '📌' : null, el('span', {}, n.title || 'Sin título')),
-      el('div', { class: 's' }, snippetNode(n)),
+      el('div', { class: 's' }, snippetNode(n, search)),
       el('div', { class: 'm' },
-        el('span', {}, shortDate(n.trashed ? n.trashedAt : (S.sort === 'created' ? n.createdAt : n.updatedAt))),
+        el('span', {}, shortDate(n.trashed ? n.trashedAt : (sort === 'created' ? n.createdAt : n.updatedAt))),
         path.length ? el('span', { class: 'f' }, `· ${path[path.length - 1].name}`) : null,
         (n.tags || []).slice(0, 3).map((t) => store.tags.get(t)).filter(Boolean).map((t) => el('span', { class: 'mini-tag' }, t.name)),
         (n.refs || []).length ? el('span', {}, `· 📚 ${n.refs.length}`) : null));
+}
+
+// ====================== Inicio ======================
+const renderHomeSoon = debounce(() => { if (S.view.type === 'home') renderHome(); }, 80);
+
+function renderHome() {
+  const h = new Date().getHours();
+  const saludo = h < 6 ? 'Buenas noches' : h < 14 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
+  const fecha = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  $('#home-hello').textContent = `${saludo} · ${fecha}`;
+  const counts = { notes: liveNotes().length, snippets: store.snippets.size };
+  $('#home-modules').replaceChildren(...MODULES.map((m) => {
+    const soon = m.status !== 'active';
+    const n = m.count ? counts[m.count] : null;
+    return el('button', {
+      class: `mod-card ${soon ? 'soon' : ''}`, type: 'button', disabled: soon,
+      'aria-label': soon ? `${m.name} (próximamente)` : m.name,
+      dataset: { module: m.id },
+      onclick: soon ? null : () => setView(parseHash(m.route).view)
+    },
+      el('span', { class: 'mod-ico' }, m.icon),
+      el('span', { class: 'mod-txt' },
+        el('span', { class: 'mod-name' }, m.name),
+        el('span', { class: 'mod-desc' }, m.desc)),
+      soon ? el('span', { class: 'mod-badge' }, 'Próximamente')
+        : n ? el('span', { class: 'mod-count' }, n) : null);
   }));
+  renderHomeNotes();
+}
+
+function renderHomeNotes() {
+  const box = $('#home-notes');
+  const q = norm(S.homeSearch.trim());
+  if (!store.loaded.notes) { box.replaceChildren(el('div', { class: 'list-empty' }, 'Cargando notas…')); return; }
+  let list = liveNotes();
+  if (q) {
+    const words = q.split(/\s+/);
+    list = list.filter((n) => { const s = searchable(n); return words.every((w) => s.includes(w)); });
+  }
+  list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const total = list.length;
+  list = list.slice(0, q ? 30 : 5);
+  $('#home-list-title').textContent = q ? `Resultados (${total})` : 'Últimas notas';
+  if (!list.length) {
+    box.replaceChildren(el('div', { class: 'list-empty' }, q ? 'No hay notas que coincidan.' : 'Aún no hay notas. Entra en «Notas» y crea la primera.'));
+    return;
+  }
+  box.replaceChildren(...list.map((n) => noteCard(n, { search: S.homeSearch, sort: 'updated' })));
 }
 
 // ====================== Notas ======================
@@ -583,7 +689,7 @@ function newNote() {
   };
   store.notes.set(id, { id, ...data }); // visible al instante
   put('notes', id, data);
-  if (v.type === 'trash') S.view = { type: 'all', id: null };
+  if (v.type === 'trash' || v.type === 'home') S.view = { type: 'all', id: null };
   closeDrawer();
   openNote(id, { push: true, focusTitle: true });
   renderList(); renderSidebar();
@@ -600,6 +706,7 @@ function openNote(id, { push = false, focusTitle = false, fromHash = false } = {
   }
   if (S.noteId !== id) saveSoon.flush();
   if (S.view.type === 'snippets') { closeSnippet({ fromHash: true }); S.view = { type: 'all', id: null }; renderSidebar(); }
+  if (S.view.type === 'home') { S.view = { type: 'all', id: null }; renderSection(); renderSidebar(); }
   S.noteId = id;
   S.dirty = false;
   showPane('note');
