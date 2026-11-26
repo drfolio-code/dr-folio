@@ -4,6 +4,7 @@ import { store, put, patch, remove, newId, folderPath, childFolders, descendantI
 import { el, $, debounce, norm, shortDate, longDate } from './util.js';
 import { toast, modal, confirm, menu, picker } from './ui.js';
 import { icon } from './icons.js';
+import { fitTitle } from './viewport.js';
 
 const FIELD_RE = /\{([^{}\n:|]{1,40})(?::([^{}\n]{1,300}))?\}/g;
 
@@ -429,6 +430,7 @@ export function closeSnippet({ fromHash = false } = {}) {
 
 function fillForm(s) {
   $('#snip-title').value = s.title || '';
+  requestAnimationFrame(() => fitTitle($('#snip-title')));
   $('#snip-body').value = s.body || '';
   renderChrome(s);
 }

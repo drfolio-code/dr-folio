@@ -23,7 +23,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/js/icons.js` | Iconos SVG propios: `icon(nombre)`, `iconOr(x)`; sprite inyectado al arrancar. En HTML: `<svg class="i"><use href="#i-NOMBRE"/></svg>`. Color = currentColor |
 | `public/vendor/icons.js` | Dibujos de Lucide (ISC), solo los usados. Generado por `tools/build-icons.mjs` (`npm run vendor:icons`): para añadir un icono, añade su nombre a `USED` |
 | `public/js/modules.js` | Módulos (`id, name, short, icon (nombre de icono SVG), desc, route, status: 'active'\|'soon', count, tab`) + accesos fijos `NAV_HOME`/`NAV_SEARCH`. De aquí salen Inicio, la franja (todos) y la barra inferior (`tab: true`). Añadir un módulo = una línea aquí |
-| `public/js/viewport.js` | Alto real visible (`--app-h`/`--app-top` con visualViewport) para que el teclado del móvil no tape el editor. `body.kb-open` = teclado abierto (iOS: visualViewport; Android: alto menor que antes de escribir) → oculta la barra inferior |
+| `public/js/viewport.js` | Teclado del móvil: `body.kb-open` (iOS: visualViewport; Android: alto menor que antes de escribir) → oculta la barra inferior y **solo entonces** la app usa `--app-h`/`--app-top` (alto visible real). Títulos de varias líneas: `initTitles`/`fitTitle` (textarea que crece; sin saltos de línea) |
 | `public/js/editor.js` | Editor `contenteditable`: barra de formato, pegado limpio (DOMPurify), tablas, listas de tareas, enlaces entre notas, índice, botones «📋 Copiar sección» en lectura (`allText()`) |
 | `public/js/util.js` | Ayudas: `el`, `$`, `debounce`, `norm`, fechas, `htmlToText` (búsqueda) y `nodesToPlain` (texto para pegar en informes: tablas con tabuladores, listas «- »/«1. ») |
 | `public/js/snippets.js` | Prerredactados: tarjetas, favoritos, orden, mover, editor de texto plano, campos `{campo}` / `{campo:a\|b}`, copiar, selector para insertar en notas (carpetas, favoritos, más usados, buscar) y migración categoría → carpeta |
@@ -71,6 +71,14 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - Recordatorio (`backupReminder`, en `#home-backup`): si no hay copia o han pasado > 7 días desde `drfolio.lastBackup` (ms, por dispositivo), o si hay una restauración a medias.
 - Probado con Firebase simulado (sustituye `vendor/libs.js` por un Firestore en memoria) con Playwright: no hay tests en el repo.
 - v1.10.0 se probó con el **emulador de Firebase** (`firebase-tools`, firestore + auth, proyecto `drfolio-6af54`, usuario creado con el UID del propietario) y Playwright: se redirige `db.js` a `connectAuthEmulator`/`connectFirestoreEmulator`, se añade `http://127.0.0.1:*` al CSP y se bloquea cualquier petición a Google. Chromium necesita `--disable-features=LocalNetworkAccessChecks`.
+
+## Ajuste a la pantalla del móvil (v1.11.0)
+- `#app`, `.screen` y los modales a pantalla completa usan `position: fixed; inset: 0` (no el alto de JS): en iOS instalada (standalone) `visualViewport.height` puede venir sin la barra de estado y dejaba un hueco abajo. Con `body.kb-open` pasan a `top: var(--app-top); height: var(--app-h)`.
+- `html { -webkit-text-size-adjust: 100% }`: iOS ya no agranda el texto al girar a horizontal (era lo que cortaba letras).
+- Zonas seguras: variables `--safe-*` (env()). Modales con `padding: max(16px, --safe-*)`. En horizontal, `#app` deja el notch a izquierda/derecha con padding.
+- Textos: sin alturas fijas; tarjetas crecen o recortan con «…» (`line-clamp`); `.mod-name` con guiones (`hyphens: auto`). Títulos de nota/prerredactado (`#ed-title`, `#snip-title`) son `<textarea rows=1>` que crecen (`field-sizing: content` o `fitTitle`).
+- Horizontal móvil (≤520 px alto): lista `--list-w: clamp(290px, 42vw, 400px)`, accesos del explorador icono arriba + nombre en 2 líneas, «Últimas notas» y resultados de Buscar (`.home-notes`) en rejilla de 2 columnas si caben.
+- Probado con Playwright (Firebase simulado en memoria que sustituye `vendor/libs.js`, zonas seguras simuladas sobrescribiendo `--safe-*`) en 375×667, 390×844, 430×932, 667×375, 844×390 y 932×430, y con la letra al 130 %.
 
 ## Rutas y navegación
 - `#/inicio` (por defecto tras el login), `#/buscar`, `#/notas[/n/NOTA]` (explorador raíz), `#/all|pinned|recent|trash[/n/NOTA]`, `#/folder/ID[/n/NOTA]`, `#/tag/ID[/n/NOTA]`, `#nota/ID`.

@@ -15,7 +15,7 @@ import {
   snipSort, setSnipSort, SNIP_SORTS, migrateCategories, copyText
 } from './snippets.js';
 import { MODULES, NAV_HOME, NAV_SEARCH } from './modules.js';
-import { initViewport } from './viewport.js';
+import { initViewport, initTitles, fitTitle } from './viewport.js';
 import { openPdfViewer } from './pdfviewer.js';
 import { initBackup, openBackup, backupReminder, backupPublicReason, exportJson, progress, lastBackupAt } from './backup.js';
 import {
@@ -134,6 +134,7 @@ if ('serviceWorker' in navigator) {
 
 const setScreen = (s) => { document.body.dataset.screen = s; };
 initViewport();
+initTitles($('#ed-title'), $('#snip-title'));
 
 onAuth(async (user) => {
   if (!user) {
@@ -297,7 +298,7 @@ function onCurrentNoteRemoteChange() {
       $('#ed-scroll').scrollTop = sc;
       renderToc();
     }
-    if (!editingHere && document.activeElement !== $('#ed-title')) $('#ed-title').value = n.title || '';
+    if (!editingHere && document.activeElement !== $('#ed-title')) { $('#ed-title').value = n.title || ''; fitTitle($('#ed-title')); }
     renderRefs();
   };
   if (hasFreshBody(id)) apply();
@@ -1665,6 +1666,7 @@ function openNote(id, { push = false, focusTitle = false, fromHash = false } = {
   S.reading = !focusTitle && openMode() === 'read';
   showPane('note');
   $('#ed-title').value = n.title || '';
+  requestAnimationFrame(() => fitTitle($('#ed-title')));
   // El contenido está en noteBodies/{id}: al instante si ya está en el dispositivo; si no, se descarga (1 lectura).
   // Mientras tanto la nota no se puede editar ni se guarda nada (así nunca se sobrescribe con un contenido vacío).
   const b = bodyOf(id);

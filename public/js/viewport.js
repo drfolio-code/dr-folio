@@ -61,3 +61,28 @@ export function initViewport() {
   document.addEventListener('focusin', () => setTimeout(update, 300));
   document.addEventListener('focusout', () => setTimeout(update, 300));
 }
+
+// ---------- Títulos de varias líneas (textarea que crece con el texto) ----------
+const autoSize = typeof CSS !== 'undefined' && CSS.supports?.('field-sizing', 'content');
+/** Ajusta el alto del título al texto (si el navegador no lo hace solo con field-sizing). */
+export function fitTitle(el) {
+  if (!el || autoSize || !el.offsetParent) return;
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+}
+/** Títulos: sin saltos de línea (como un campo de una línea) y con el alto justo. */
+export function initTitles(...els) {
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver((es) => es.forEach((e) => fitTitle(e.target))) : null;
+  for (const el of els) {
+    if (!el) continue;
+    el.addEventListener('input', () => {
+      if (/[\r\n]/.test(el.value)) {
+        const p = el.selectionStart;
+        el.value = el.value.replace(/[\r\n]+/g, ' ');
+        el.setSelectionRange(p, p);
+      }
+      fitTitle(el);
+    }, true);
+    ro?.observe(el);
+  }
+}
