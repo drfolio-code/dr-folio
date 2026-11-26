@@ -966,8 +966,12 @@ body.kb-open .ed-inner { padding-bottom: 24px; }
 /* Teclado abierto: la app (y los modales a pantalla completa) se ajustan a la zona visible */
 body.kb-open #app,
 body.kb-open .modal-back { top: var(--app-top, 0px); bottom: auto; height: var(--app-h, 100%); }
-/* App instalada (iPhone): alto de la pantalla entera si iOS da una ventana más baja (viewport.js) */
-html.full-h body:not(.kb-open) :is(#app, .screen, .modal-back) { bottom: auto; height: var(--app-full, 100%); }
+/* App instalada en iPhone con la ventana más baja que la pantalla (fallo de iOS, viewport.js):
+   lo que queda debajo ya cubre la barra de inicio del iPhone, así que no se añade otro margen,
+   y ese hueco se pinta del color de la barra inferior para que parezca parte de ella. */
+html.short-h { --safe-bottom: max(0px, calc(env(safe-area-inset-bottom, 0px) - var(--h-gap, 0px))); }
+html.short-h:has(body[data-screen="app"]) { background: var(--panel); }
+html.short-h #tabbar { padding-bottom: calc(6px + var(--safe-bottom)); }
 /* Modales: nunca debajo del notch ni de la barra inferior del iPhone */
 .modal-back {
   padding: max(16px, var(--safe-top)) max(16px, var(--safe-right)) max(16px, var(--safe-bottom)) max(16px, var(--safe-left));
@@ -1000,10 +1004,6 @@ textarea.ed-title { display: block; resize: none; overflow: hidden; line-height:
 .tab .lbl, .rail-btn .lbl { line-height: 1.2; }
 .ed-head { min-width: 0; }
 .ed-head .crumb { flex-shrink: 1; min-width: 0; }
-/* Inicio: la tarjeta «Próximamente» deja sitio a la etiqueta */
-.mod-card.soon .mod-ico { margin-top: 10px; }
-.mod-card.soon .mod-txt { padding-top: 0; }
-@media (min-width: 640px) { .mod-card.soon .mod-ico { margin-top: 0; } .mod-card.soon .mod-txt { padding-top: 12px; } }
 
 /* Móvil en horizontal (≤520 px de alto): todo más compacto y aprovechando el ancho */
 @media (max-height: 520px) and (orientation: landscape) and (max-width: 1099px) {
@@ -1015,7 +1015,6 @@ textarea.ed-title { display: block; resize: none; overflow: hidden; line-height:
   .fx-short:not(.n4) .fx-tile-lbl { padding-right: 0; }
   .fx-tile-lbl { font-size: 12.5px; }
   .fx-actions .btn { padding: 6px 8px; }
-  .mod-card.soon .mod-ico { margin-top: 12px; }
   .mod-badge { top: 6px; right: 8px; font-size: 10px; }
   .home-hello { font-size: 13px; }
   .home-title { margin-top: 12px; }

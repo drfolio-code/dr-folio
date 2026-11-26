@@ -53,23 +53,24 @@ function caretIntoView() {
 }
 
 /**
- * App instalada en iPhone (standalone): iOS a veces da una ventana más baja que la pantalla
- * (le resta la barra de estado) y queda un hueco debajo de la barra inferior. Si la app ocupa
- * todo el ancho de la pantalla, su alto debe ser el de la pantalla: se fija en --app-full.
+ * App instalada en iPhone (standalone): iOS a veces da a la página una ventana más baja que la
+ * pantalla (le resta la barra de estado) y no deja dibujar debajo. Se detecta ese hueco (--h-gap,
+ * html.short-h) para no sumar además el margen de la barra de inicio del iPhone.
  */
-const standalone = () => navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches;
+const standalone = () => navigator.standalone === true; // solo existe en iOS
 function fullHeight() {
-  let full = 0;
+  let gap = 0;
   if (standalone() && screen?.width && screen?.height) {
     const land = window.innerWidth > window.innerHeight;
     const sw = land ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
     const sh = land ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
     // Solo si la ventana es la pantalla entera (no en iPad con varias ventanas) y le falta alto
-    if (Math.abs(window.innerWidth - sw) <= 2 && sh > window.innerHeight + 2 && sh - window.innerHeight < 120) full = sh;
+    const g = sh - window.innerHeight;
+    if (Math.abs(window.innerWidth - sw) <= 2 && g > 10 && g < 120 && !isTyping()) gap = g;
   }
-  if (full) root.style.setProperty('--app-full', `${full}px`);
-  else root.style.removeProperty('--app-full');
-  root.classList.toggle('full-h', !!full);
+  if (gap) root.style.setProperty('--h-gap', `${gap}px`);
+  else root.style.removeProperty('--h-gap');
+  root.classList.toggle('short-h', !!gap);
 }
 
 const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
