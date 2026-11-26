@@ -152,24 +152,35 @@ const B = (attr, icon, title, extra = '') => `<button type="button" ${attr} titl
 const SEP = '<span class="sep"></span>';
 /**
  * Barra estilo Evernote (la misma para notas y prerredactados). fields = «Campo a rellenar» en ＋ (solo prerredactados).
- * ＋ Insertar · tareas | viñetas, numerada, sangría −/+, estilos (Aa), alinear | B I U S código cita | color, resaltar,
- * tamaño | ⋯ más · ocultar teclado (solo móvil). Deshacer / rehacer van en la cabecera (como Evernote en el móvil).
+ * Fila principal (lo más usado, cabe en el móvil sin deslizar): ＋ Insertar · Estilo | B I U Resaltar | Viñetas Tareas | Más.
+ * «Más» despliega en el móvil las filas de abajo (en el ordenador se ven siempre):
+ *   Texto: tachado, código, color, tamaño · Párrafo: numerada, sangría −/+, alinear, cita · Otros: subíndice, superíndice, quitar formato.
+ * Deshacer / rehacer van en la cabecera (como Evernote en el móvil).
  */
 export function toolbarHtml({ fields = false } = {}) {
   void fields;
+  const X = 'class="tb-x"';
+  const XSEP = '<span class="sep tb-x"></span><span class="tb-br" aria-hidden="true"></span>';
   return [
     B('data-act="insert" class="tb-plus"', ico('plus'), 'Insertar (imagen, tabla, enlace, índice…)'),
-    B('data-act="checklist"', ico('list-checks'), 'Lista de tareas (Ctrl+Mayús+X)'), SEP,
-    B('data-cmd="insertUnorderedList"', ico('list'), 'Lista con viñetas'), B('data-cmd="insertOrderedList"', ico('list-ordered'), 'Lista numerada'),
-    B('data-cmd="outdent"', ico('indent-decrease'), 'Reducir sangría'), B('data-cmd="indent"', ico('indent-increase'), 'Aumentar sangría'),
-    B('data-act="style"', ico('heading'), 'Estilo: texto, títulos, cita, código'), B('data-act="align"', ico('align-left'), 'Alinear'), SEP,
+    B('data-act="style"', ico('heading'), 'Estilo: texto, títulos, cita, código'), SEP,
     B('data-cmd="bold"', ico('bold'), 'Negrita (Ctrl+B)'), B('data-cmd="italic"', ico('italic'), 'Cursiva (Ctrl+I)'),
-    B('data-cmd="underline"', ico('underline'), 'Subrayado (Ctrl+U)'), B('data-cmd="strikeThrough"', ico('strikethrough'), 'Tachado'),
-    B('data-act="code"', ico('code'), 'Código en línea'), B('data-act="quote"', ico('quote'), 'Cita'), SEP,
-    B('data-act="color"', `${ico('baseline')}<span class="color-bar"></span>`, 'Color del texto'),
-    B('data-act="highlight"', ico('highlighter'), 'Resaltar'), B('data-act="size"', ico('a-large-small'), 'Tamaño de letra'), SEP,
-    B('data-act="more"', ico('ellipsis'), 'Más opciones'),
-    B('data-act="hidekb" class="tb-hidekb"', ico('keyboard-off'), 'Ocultar teclado')
+    B('data-cmd="underline"', ico('underline'), 'Subrayado (Ctrl+U)'), B('data-act="highlight"', ico('highlighter'), 'Resaltar'), SEP,
+    B('data-cmd="insertUnorderedList"', ico('list'), 'Lista con viñetas'), B('data-act="checklist"', ico('list-checks'), 'Lista de tareas (Ctrl+Mayús+X)'),
+    B('data-act="more" class="tb-more" aria-expanded="false"', ico('ellipsis'), 'Más formato'),
+    B('data-act="hidekb" class="tb-hidekb"', ico('keyboard-off'), 'Ocultar teclado'),
+    // ---- Más (móvil: se despliega; ordenador: siempre a la vista) ----
+    XSEP,
+    B(`data-cmd="strikeThrough" ${X}`, ico('strikethrough'), 'Tachado'), B(`data-act="code" ${X}`, ico('code'), 'Código en línea'),
+    B(`data-act="color" ${X}`, `${ico('baseline')}<span class="color-bar"></span>`, 'Color del texto'),
+    B(`data-act="size" ${X}`, ico('a-large-small'), 'Tamaño de letra'),
+    XSEP,
+    B(`data-cmd="insertOrderedList" ${X}`, ico('list-ordered'), 'Lista numerada'),
+    B(`data-cmd="outdent" ${X}`, ico('indent-decrease'), 'Reducir sangría'), B(`data-cmd="indent" ${X}`, ico('indent-increase'), 'Aumentar sangría'),
+    B(`data-act="align" ${X}`, ico('align-left'), 'Alinear'), B(`data-act="quote" ${X}`, ico('quote'), 'Cita'),
+    XSEP,
+    B(`data-cmd="subscript" ${X}`, ico('subscript'), 'Subíndice'), B(`data-cmd="superscript" ${X}`, ico('superscript'), 'Superíndice'),
+    B(`data-act="clear" ${X}`, ico('remove-formatting'), 'Quitar formato')
   ].join('');
 }
 
@@ -190,6 +201,12 @@ export function createEditor(opts) {
   const fileInput = E.fileInput || $('#file-image');
   const sideToc = E.toc === undefined ? $('#toc') : E.toc;
   if (!toolbar.querySelector('[data-act=insert]')) toolbar.innerHTML = toolbarHtml({ fields: !!opts.fields }); // HTML fijo, sin datos
+  function setExpanded(on) {
+    toolbar.classList.toggle('expanded', on);
+    const m = toolbar.querySelector('[data-act=more]');
+    if (m) { m.setAttribute('aria-expanded', String(on)); m.querySelector('use')?.setAttribute('href', `#i-${on ? 'chevron-down' : 'ellipsis'}`); m.classList.toggle('on', on); }
+  }
+  try { setExpanded(localStorage.getItem('drfolio.tbMore') === '1'); } catch { /* */ }
   // Móvil: la barra se desliza; un difuminado en el borde indica que hay más botones
   const edges = () => {
     toolbar.classList.toggle('more-left', toolbar.scrollLeft > 4);
@@ -290,14 +307,10 @@ export function createEditor(opts) {
       return;
     }
     if (act === 'more') {
-      barMenu(b, [
-        { icon: 'subscript', label: 'Subíndice', run: () => { restoreRange(); exec('subscript'); changed(); } },
-        { icon: 'superscript', label: 'Superíndice', run: () => { restoreRange(); exec('superscript'); changed(); } },
-        { icon: 'remove-formatting', label: 'Quitar formato', run: () => runAct('clear', b) },
-        '-',
-        { icon: 'undo-2', label: 'Deshacer', run: () => api.undo() },
-        { icon: 'redo-2', label: 'Rehacer', run: () => api.redo() }
-      ]);
+      // Móvil: muestra / oculta las filas de «Más» (se recuerda en el dispositivo)
+      setExpanded(!toolbar.classList.contains('expanded'));
+      try { localStorage.setItem('drfolio.tbMore', toolbar.classList.contains('expanded') ? '1' : '0'); } catch { /* */ }
+      restoreRange();
       return;
     }
     if (act === 'hidekb') {

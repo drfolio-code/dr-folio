@@ -996,6 +996,8 @@ body.kb-open .modal-back { top: var(--app-top, 0px); bottom: auto; height: var(-
    y ese hueco se pinta del color de la barra inferior para que parezca parte de ella. */
 html.short-h { --safe-bottom: max(0px, calc(env(safe-area-inset-bottom, 0px) - var(--h-gap, 0px))); }
 html.short-h:has(body[data-screen="app"]), html.ios-app:has(body[data-screen="app"]) { background: var(--panel); }
+/* Ventana que empieza arriba pero no llega abajo (iPhone instalado, tras el teclado): la app ocupa la pantalla entera */
+html.tall-fix body:not(.kb-open) #app, html.tall-fix body:not(.kb-open) .screen { bottom: auto; height: var(--screen-h, 100%); }
 html.short-h #tabbar { padding-bottom: calc(16px + var(--safe-bottom)); }
 /* Modales: nunca debajo del notch ni de la barra inferior del iPhone */
 .modal-back {
@@ -1073,4 +1075,28 @@ textarea.ed-title { display: block; resize: none; overflow: hidden; line-height:
   #editor-wrap > .ed-scroll, #snip-wrap > .ed-scroll { order: 5; }
   body.kb-open .toolbar .tb-hidekb { display: inline-flex; align-items: center; justify-content: center; }
   #snip-wrap:not(.reading) #snip-copy .lbl, .ed-head .save-status { display: none; }
+}
+
+/* ===== Barra organizada (v1.15.0) ===== */
+.toolbar .tb-br { display: none; }
+.toolbar .tb-more { display: none; }
+@media (max-width: 639px), (max-height: 520px) and (orientation: landscape) and (max-width: 1099px) {
+  /* Móvil: fila principal sin deslizar; «Más» despliega filas debajo, agrupadas */
+  #editor-wrap > .toolbar, #snip-wrap > .toolbar { flex-wrap: wrap; overflow-x: visible; justify-content: flex-start; column-gap: 0; row-gap: 2px; -webkit-mask-image: none; mask-image: none; }
+  /* Rejilla de 9 columnas: la fila principal y las de «Más» quedan alineadas (10 con el teclado abierto) */
+  #editor-wrap > .toolbar > button, #snip-wrap > .toolbar > button { flex: 0 0 calc(100% / 9 - 0.2px); min-width: 0; padding: 0; }
+  body.kb-open #editor-wrap > .toolbar > button, body.kb-open #snip-wrap > .toolbar > button { flex-basis: calc(10% - 0.2px); }
+  #editor-wrap > .toolbar > .sep, #snip-wrap > .toolbar > .sep { display: none; }
+  /* El círculo del ＋ lo dibuja el icono: el botón ocupa su columna como los demás */
+  .toolbar .tb-plus, .toolbar .tb-plus:hover { background: transparent; border-radius: 6px; width: auto; color: #fff; }
+  .toolbar .tb-plus .i { background: var(--accent); border-radius: 50%; padding: 7px; box-sizing: content-box; }
+  .toolbar .tb-more { display: inline-flex; align-items: center; justify-content: center; }
+  .toolbar .tb-x { display: none; }
+  .toolbar.expanded .tb-x { display: inline-flex; align-items: center; justify-content: center; }
+  .toolbar.expanded .tb-br { display: block; flex-basis: 100%; height: 0; }
+  .toolbar.expanded .sep.tb-x { display: none; }
+  .toolbar.expanded { border-radius: 18px !important; }
+  /* Editando: los avisos arriba, para no tapar la barra */
+  body:has(#app.editing) #toast-root { bottom: auto; top: calc(64px + var(--safe-top, 0px)); }
+  .toolbar.expanded .tb-br { border-top: 1px solid var(--border); margin: 2px 6px; }
 }
