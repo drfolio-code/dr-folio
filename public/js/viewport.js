@@ -24,6 +24,8 @@ function update() {
   const kb = typing && ((!!vv && window.innerHeight - h > 120) || base.h - h > 150);
   document.body.classList.toggle('kb-open', kb);
   if (kb) setTimeout(caretIntoView, 60);
+  // Sin teclado, la página nunca debe quedar desplazada (iOS a veces la deja movida al cerrar el teclado)
+  else if (window.scrollY || (vv && vv.offsetTop > 0)) window.scrollTo(0, 0);
 }
 
 function isTyping() {
@@ -73,6 +75,8 @@ function fullHeight() {
   }
   if (gap) root.style.setProperty('--h-gap', `${gap}px`); else root.style.removeProperty('--h-gap');
   root.classList.toggle('short-h', !!gap);
+  // App instalada en iPhone: el fondo de la página es el de la barra inferior, así nunca se ve una franja suelta
+  root.classList.toggle('ios-app', navigator.standalone === true);
 }
 
 const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
@@ -88,7 +92,10 @@ export function initViewport() {
   window.addEventListener('resize', schedule);
   window.addEventListener('orientationchange', () => setTimeout(update, 250));
   document.addEventListener('focusin', () => setTimeout(update, 300));
-  document.addEventListener('focusout', () => setTimeout(update, 300));
+  // Al cerrar el teclado iOS no siempre avisa con «resize»: se vuelve a medir varias veces
+  document.addEventListener('focusout', () => { setTimeout(update, 300); setTimeout(update, 800); setTimeout(update, 1600); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(update, 200); });
+  window.addEventListener('pageshow', () => setTimeout(update, 200));
 }
 
 // ---------- Títulos de varias líneas (textarea que crece con el texto) ----------
