@@ -59,12 +59,12 @@
     <!-- Franja de módulos (tablet y ordenador) -->
     <nav id="rail" aria-label="Módulos">
       <img src="icons/icon-192.png?v=6" alt="Dr.Folio" class="rail-logo">
-      <button class="rail-create" id="rail-create" type="button" title="Crear (nota, prerredactado o carpeta)" aria-label="Crear">＋</button>
+      <button class="rail-create" id="rail-create" type="button" title="Crear (nota, prerredactado o carpeta)" aria-label="Crear"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></button>
       <div id="rail-items" class="rail-items"></div>
       <span class="spacer"></span>
-      <button class="rail-btn" id="rail-side" type="button" title="Mostrar u ocultar el panel" aria-label="Mostrar u ocultar el panel"><span class="ico">◧</span><span class="lbl">Panel</span></button>
-      <button class="rail-btn" id="rail-settings" type="button" title="Ajustes"><span class="ico">⚙︎</span><span class="lbl">Ajustes</span></button>
-      <button class="rail-btn" id="rail-logout" type="button" title="Cerrar sesión"><span class="ico">⏻</span><span class="lbl">Salir</span></button>
+      <button class="rail-btn" id="rail-side" type="button" title="Mostrar u ocultar el panel" aria-label="Mostrar u ocultar el panel"><span class="ico"><svg class="i" aria-hidden="true"><use href="#i-panel-left"/></svg></span><span class="lbl">Panel</span></button>
+      <button class="rail-btn" id="rail-settings" type="button" title="Ajustes"><span class="ico"><svg class="i" aria-hidden="true"><use href="#i-settings"/></svg></span><span class="lbl">Ajustes</span></button>
+      <button class="rail-btn" id="rail-logout" type="button" title="Cerrar sesión"><span class="ico"><svg class="i" aria-hidden="true"><use href="#i-log-out"/></svg></span><span class="lbl">Salir</span></button>
       <span class="sync sync-ind rail-sync"></span>
     </nav>
 
@@ -85,8 +85,8 @@
         <h2>Dr.Folio</h2>
         <span class="sync sync-ind home-sync"></span>
         <span class="spacer"></span>
-        <button class="icon-btn" id="btn-settings-home" title="Ajustes" aria-label="Ajustes">⚙︎</button>
-        <button class="icon-btn only-phone" id="btn-logout-home" title="Cerrar sesión" aria-label="Cerrar sesión">⏻</button>
+        <button class="icon-btn" id="btn-settings-home" title="Ajustes" aria-label="Ajustes"><svg class="i" aria-hidden="true"><use href="#i-settings"/></svg></button>
+        <button class="icon-btn only-phone" id="btn-logout-home" title="Cerrar sesión" aria-label="Cerrar sesión"><svg class="i" aria-hidden="true"><use href="#i-log-out"/></svg></button>
       </div>
       <div class="home-scroll">
         <div class="home-inner">
@@ -94,7 +94,7 @@
           <div id="home-backup"></div>
           <div id="home-modules" class="home-modules"></div>
           <div class="home-search">
-            <button type="button" id="home-search" class="home-search-btn">🔎  Buscar en notas y prerredactados…</button>
+            <button type="button" id="home-search" class="home-search-btn"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg> Buscar en notas y prerredactados…</button>
           </div>
           <h3 class="home-title" id="home-list-title">Últimas notas</h3>
           <div id="home-notes" class="home-notes"></div>
@@ -105,7 +105,7 @@
     <!-- Búsqueda global -->
     <section id="find">
       <div class="home-head">
-        <h2>🔎 Buscar</h2>
+        <h2><svg class="i" aria-hidden="true"><use href="#i-search"/></svg> Buscar</h2>
       </div>
       <div class="find-bar">
         <input type="search" id="find-input" placeholder="Buscar en notas y prerredactados…" autocomplete="off" enterkeyhint="search" aria-label="Buscar">
@@ -120,9 +120,9 @@
     <section id="list">
       <div class="list-head">
         <h2 id="list-title">Todas las notas</h2>
-        <button class="icon-btn" id="btn-layout" title="Ver como cuadrícula" aria-label="Cambiar vista lista / cuadrícula">⊞</button>
-        <button class="icon-btn hidden" id="btn-list-more" title="Opciones de la carpeta" aria-label="Opciones de la carpeta">⋯</button>
-        <button class="icon-btn" id="btn-new-note" title="Nueva nota" aria-label="Nueva nota">✎</button>
+        <button class="icon-btn" id="btn-layout" title="Ver como cuadrícula" aria-label="Cambiar vista lista / cuadrícula"><svg class="i" aria-hidden="true"><use href="#i-layout-grid"/></svg></button>
+        <button class="icon-btn hidden" id="btn-list-more" title="Opciones de la carpeta" aria-label="Opciones de la carpeta"><svg class="i" aria-hidden="true"><use href="#i-ellipsis"/></svg></button>
+        <button class="icon-btn" id="btn-new-note" title="Nueva nota" aria-label="Nueva nota"><svg class="i" aria-hidden="true"><use href="#i-square-pen"/></svg></button>
       </div>
       <nav id="crumbs" class="crumbs hidden" aria-label="Ruta de carpetas"></nav>
       <div class="list-tools">
@@ -153,18 +153,18 @@
       <div id="snip-wrap" class="hidden">
         <div class="ed-head">
           <button class="icon-btn only-single" id="snip-back" aria-label="Volver">←</button>
-          <span class="crumb">📋 Prerredactado</span>
+          <span class="crumb"><svg class="i" aria-hidden="true"><use href="#i-clipboard-list"/></svg> Prerredactado</span>
           <span class="spacer"></span>
           <span id="snip-status" class="save-status"></span>
-          <button class="icon-btn snip-star" id="snip-fav" title="Añadir a favoritos" aria-label="Favorito">☆</button>
-          <button class="btn sm primary" id="snip-copy">⧉ Copiar</button>
-          <button class="icon-btn" id="snip-menu" title="Más opciones" aria-label="Más opciones">⋯</button>
+          <button class="icon-btn snip-star" id="snip-fav" title="Añadir a favoritos" aria-label="Favorito"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg></button>
+          <button class="btn sm primary" id="snip-copy"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg> Copiar</button>
+          <button class="icon-btn" id="snip-menu" title="Más opciones" aria-label="Más opciones"><svg class="i" aria-hidden="true"><use href="#i-ellipsis"/></svg></button>
         </div>
         <div class="ed-scroll">
           <div class="ed-inner">
             <input id="snip-title" class="ed-title" placeholder="Título (p. ej. Exploración neurológica normal)" autocomplete="off" maxlength="200">
             <div class="snip-meta">
-              <button class="folder-pill" id="snip-folder" type="button" title="Mover a otra carpeta">📁 Sin carpeta</button>
+              <button class="folder-pill" id="snip-folder" type="button" title="Mover a otra carpeta"><svg class="i" aria-hidden="true"><use href="#i-folder"/></svg> Sin carpeta</button>
             </div>
             <textarea id="snip-body" class="snip-body" placeholder="Escribe aquí el texto que quieras copiar.&#10;&#10;Campos a rellenar: {edad}, {lado:derecho|izquierdo}" spellcheck="true"></textarea>
             <p class="muted small">Consejo: escribe <code>{campo}</code> para un hueco a rellenar al copiar, o <code>{campo:opción1|opción2}</code> para elegir entre opciones.</p>
@@ -183,9 +183,9 @@
             <button class="icon-btn" id="btn-font-down" title="Letra más pequeña" aria-label="Letra más pequeña">A−</button>
             <button class="icon-btn" id="btn-font-up" title="Letra más grande" aria-label="Letra más grande">A+</button>
           </span>
-          <button class="btn sm edit-btn" id="btn-edit" type="button" title="Editar la nota" aria-label="Editar la nota"><span class="ico">✏️</span><span class="lbl">Editar</span></button>
-          <button class="icon-btn" id="btn-pin" title="Fijar" aria-label="Fijar">📌</button>
-          <button class="icon-btn" id="btn-note-menu" title="Más opciones" aria-label="Más opciones">⋯</button>
+          <button class="btn sm edit-btn" id="btn-edit" type="button" title="Editar la nota" aria-label="Editar la nota"><span class="ico"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></span><span class="lbl">Editar</span></button>
+          <button class="icon-btn" id="btn-pin" title="Fijar" aria-label="Fijar"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg></button>
+          <button class="icon-btn" id="btn-note-menu" title="Más opciones" aria-label="Más opciones"><svg class="i" aria-hidden="true"><use href="#i-ellipsis"/></svg></button>
         </div>
 
         <div id="trash-banner" class="trash-banner hidden">
@@ -208,21 +208,21 @@
           <button data-cmd="italic" title="Cursiva (Ctrl+I)"><i>I</i></button>
           <button data-cmd="underline" title="Subrayado (Ctrl+U)"><u>U</u></button>
           <button data-cmd="strikeThrough" title="Tachado"><s>S</s></button>
-          <button data-act="highlight" title="Resaltar">🖍</button>
+          <button data-act="highlight" title="Resaltar"><svg class="i" aria-hidden="true"><use href="#i-highlighter"/></svg></button>
           <button data-act="color" title="Color del texto">A<span class="color-bar"></span></button>
           <span class="sep"></span>
           <button data-cmd="insertUnorderedList" title="Lista">•≡</button>
           <button data-cmd="insertOrderedList" title="Lista numerada">1≡</button>
-          <button data-act="checklist" title="Lista de tareas">☑</button>
+          <button data-act="checklist" title="Lista de tareas"><svg class="i" aria-hidden="true"><use href="#i-list-checks"/></svg></button>
           <button data-cmd="outdent" title="Reducir sangría">⇤</button>
           <button data-cmd="indent" title="Aumentar sangría">⇥</button>
           <span class="sep"></span>
           <button data-act="table" title="Insertar tabla">▦</button>
-          <button data-act="image" title="Insertar imagen">🖼</button>
-          <button data-act="link" title="Enlace web">🔗</button>
+          <button data-act="image" title="Insertar imagen"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg></button>
+          <button data-act="link" title="Enlace web"><svg class="i" aria-hidden="true"><use href="#i-link"/></svg></button>
           <button data-act="notelink" title="Enlazar otra nota">↪︎</button>
           <button data-act="tocblock" title="Insertar índice de la nota">☰</button>
-          <button data-act="snippet" title="Insertar prerredactado">📋</button>
+          <button data-act="snippet" title="Insertar prerredactado"><svg class="i" aria-hidden="true"><use href="#i-clipboard-list"/></svg></button>
           <button data-cmd="insertHorizontalRule" title="Separador">―</button>
           <span class="sep"></span>
           <button data-cmd="removeFormat" title="Quitar formato">⌫</button>

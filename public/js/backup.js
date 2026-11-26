@@ -5,15 +5,18 @@
 //     withFiles, counts: {colección: n}, data: { folders, tags, notes, files, snippets, snippetFolders },
 //     fileData: { fileId: base64 } }            ← solo si withFiles
 // También se aceptan las copias antiguas (≤ v1.8.0): colecciones en la raíz y fileData como «data:…;base64,…».
-// El modelo de datos de Firestore no cambia: cada documento se guarda tal cual (sin el campo id).
+// Cada documento se guarda tal cual (sin el campo id). Las notas van COMPLETAS, como antes de v1.10.0
+// (datos de notes/{id} + html/text/refs de noteBodies/{id}, sin los campos calculados): el formato no cambia.
 import { writeBatch, doc, collection } from '../vendor/libs.js';
 import { db } from './db.js';
 import { store, ref, allLoaded } from './store.js';
+import { ensureAllBodies, fullNote, deriveLight, rememberBody, DERIVED_FIELDS } from './bodies.js';
 import { fileBlob, blobToBase64, base64ToBytes } from './files.js';
 import { sanitize, escapeHtml } from './editor.js';
 import { APP_VERSION, LIMITS } from './config.js';
 import { el, download, formatBytes, longDate } from './util.js';
 import { modal, toast } from './ui.js';
+import { icon } from './icons.js';
 
 export const BACKUP_FORMAT = 'drfolio-backup';
 export const BACKUP_VERSION = 1;
@@ -70,14 +73,15 @@ export function backupReminder() {
 }
 
 // ====================== Ventana de progreso ======================
-function progress(title) {
+export function progress(title) {
   const txt = el('p', { class: 'bk-txt' }, 'Preparando…');
   const bar = el('div', { style: { width: '0%' } });
   const sub = el('p', { class: 'muted small bk-sub' }, '');
   const extra = el('div', { class: 'bk-extra' });
   let closeFn = null;
-  modal({ title, body: [txt, el('div', { class: 'meter bk-meter' }, bar), sub, extra], actions: [], cls: 'backup', onOpen: (_, c) => { closeFn = c; } });
+  const closed = modal({ title, body: [txt, el('div', { class: 'meter bk-meter' }, bar), sub, extra], actions: [], cls: 'backup', onOpen: (_, c) => { closeFn = c; } });
   return {
+    closed,
     set(frac, text, subText) {
       bar.style.width = `${Math.max(0, Math.min(100, frac * 100)).toFixed(1)}%`;
       if (text != null) txt.textContent = text;
@@ -116,8 +120,10 @@ function deliverButtons(blob, name, { onSaved } = {}) {
 // ====================== Exportar JSON ======================
 /** Construye la copia completa como Blob (por partes: no crea una cadena gigante en memoria) */
 export async function buildBackup({ withFiles, onProgress = () => {} }) {
+  onProgress(0, 'Descargando el contenido de las notas…');
+  await ensureAllBodies(); // las notas solo se exportan completas
   const data = {};
-  for (const c of COLS) data[c] = [...store[c].values()];
+  for (const c of COLS) data[c] = c === 'notes' ? [...store.notes.values()].map(fullNote) : [...store[c].values()];
   const counts = Object.fromEntries(COLS.map((c) => [c, data[c].length]));
   const head = {
     format: BACKUP_FORMAT, formatVersion: BACKUP_VERSION, app: 'Dr.Folio', appVersion: APP_VERSION,
@@ -146,9 +152,14 @@ export async function buildBackup({ withFiles, onProgress = () => {} }) {
   return { blob: new Blob(parts, { type: 'application/json' }), counts, missing };
 }
 
-async function exportJson(withFiles) {
+/** Copia completa (.json). Devuelve una promesa que se resuelve al cerrar la ventana. */
+export function exportJson(withFiles) {
   hooks.beforeRun();
   const p = progress('Copia de seguridad');
+  runExportJson(p, withFiles);
+  return p.closed;
+}
+async function runExportJson(p, withFiles) {
   try {
     const { blob, counts, missing } = await buildBackup({ withFiles, onProgress: (f, t, s) => p.set(f, t, s) });
     const name = `drfolio-copia-${stamp()}${withFiles ? '-completa' : '-sin-archivos'}.json`;
@@ -163,10 +174,10 @@ async function exportJson(withFiles) {
 
 function summaryTable(counts, extra = {}) {
   const rows = [
-    ['notes', '📝'], ['folders', '🗂'], ['tags', '🏷'], ['snippets', '📋'], ['snippetFolders', '📁'], ['files', '📎']
+    ['notes', 'notebook-text'], ['folders', 'folder'], ['tags', 'tag'], ['snippets', 'clipboard-list'], ['snippetFolders', 'folder'], ['files', 'image']
   ];
   return el('table', { class: 'bk-table' }, el('tbody', {},
-    rows.map(([c, ico]) => el('tr', {}, el('td', {}, `${ico} ${COL_NAMES[c]}`), el('td', {}, (counts[c] || 0).toLocaleString('es-ES'),
+    rows.map(([c, ico]) => el('tr', {}, el('td', {}, icon(ico), ` ${COL_NAMES[c]}`), el('td', {}, (counts[c] || 0).toLocaleString('es-ES'),
       extra[c] ? el('span', { class: 'muted small' }, ` ${extra[c]}`) : null)))));
 }
 
@@ -299,7 +310,9 @@ async function exportZip() {
       return out.join(' › ');
     };
     // Rutas de notas y adjuntos
-    const notes = [...store.notes.values()].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es'));
+    p.set(0, 'Descargando el contenido de las notas…');
+    await ensureAllBodies();
+    const notes = [...store.notes.values()].map(fullNote).sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es'));
     const ctx = { noteDir: new Map(), notePath: new Map(), filePath: new Map(), folderNames };
     const wanted = []; // [{noteId, fileId, path}]
     for (const n of notes) {
@@ -436,6 +449,7 @@ export function parseBackup(text) {
 function fixDoc(c, d) {
   const x = { ...d };
   if (c === 'notes') {
+    for (const f of DERIVED_FIELDS) delete x[f]; // se recalculan al escribir
     x.html = sanitize(typeof x.html === 'string' ? x.html : '');
     x.title = typeof x.title === 'string' ? x.title : '';
     x.text = typeof x.text === 'string' ? x.text : '';
@@ -467,7 +481,8 @@ export function planRestore(parsed, mode) {
   const plan = { mode, add: {}, upd: {}, del: {}, writes: [], deletes: [], noData: 0, writeOps: 0, deleteOps: 0 };
   for (const c of COLS) {
     plan.add[c] = 0; plan.upd[c] = 0; plan.del[c] = 0;
-    const local = store[c];
+    const local = c === 'notes' ? new Map([...store.notes.values()].map((n) => [n.id, fullNote(n)])) : store[c];
+    const per = c === 'notes' ? 2 : 1; // nota = notes/{id} + noteBodies/{id}
     const inBackup = new Set();
     for (const d of data[c]) {
       inBackup.add(d.id);
@@ -480,14 +495,14 @@ export function planRestore(parsed, mode) {
         plan.writes.push({ c, d, chunks }); plan.add[c]++; plan.writeOps += chunks + 1;
         continue;
       }
-      if (!l) { plan.writes.push({ c, d }); plan.add[c]++; plan.writeOps++; continue; }
+      if (!l) { plan.writes.push({ c, d }); plan.add[c]++; plan.writeOps += per; continue; }
       const write = mode === 'merge' ? tsOf(d) > tsOf(l) : !sameDoc(d, l);
-      if (write) { plan.writes.push({ c, d }); plan.upd[c]++; plan.writeOps++; }
+      if (write) { plan.writes.push({ c, d }); plan.upd[c]++; plan.writeOps += per; }
     }
     if (mode === 'replace') {
       for (const l of local.values()) {
         if (inBackup.has(l.id)) continue;
-        const ops = c === 'files' ? (l.chunks || 0) + 1 : 1;
+        const ops = c === 'files' ? (l.chunks || 0) + 1 : per;
         plan.deletes.push({ c, id: l.id, chunks: c === 'files' ? l.chunks || 0 : 0 });
         plan.del[c]++; plan.deleteOps += ops;
       }
@@ -503,8 +518,8 @@ export function quotaToday() {
   const q = ls.get(QUOTA_KEY);
   return q && q.day === quotaDay() ? q : { day: quotaDay(), w: 0, d: 0 };
 }
-function addQuota(w, d) { const q = quotaToday(); q.w += w; q.d += d; ls.set(QUOTA_KEY, q); }
-const budget = () => { const q = quotaToday(); return { w: Math.max(0, DAY_WRITES - DAY_RESERVE - q.w), d: Math.max(0, DAY_WRITES - DAY_RESERVE - q.d) }; };
+export function addQuota(w, d) { const q = quotaToday(); q.w += w; q.d += d; ls.set(QUOTA_KEY, q); }
+export const budget = () => { const q = quotaToday(); return { w: Math.max(0, DAY_WRITES - DAY_RESERVE - q.w), d: Math.max(0, DAY_WRITES - DAY_RESERVE - q.d) }; };
 
 function bytesToBase64(bytes) {
   let s = '';
@@ -531,27 +546,41 @@ async function runPlan(plan, onProgress) {
         group.push({ op: 'set', r: ref('files', x.d.id), data: { ...clean(x.d), chunks: n, size: bytes.length }, bytes: 1000 });
         return group;
       } });
+    } else if (x.c === 'notes') {
+      // Nota completa de la copia → notes/{id} (ligera) + noteBodies/{id} (contenido), con el mismo updatedAt
+      ops.push({ w: 2, d: 0, make: () => {
+        const { html, text, refs, ...rest } = clean(x.d);
+        const body = { html: html || '', text: text || '', refs: refs || [], updatedAt: Number(rest.updatedAt) || Number(rest.createdAt) || 0 };
+        const light = { ...rest, ...deriveLight(body) };
+        const size = JSON.stringify(body).length;
+        return [
+          { op: 'set', r: ref('noteBodies', x.d.id), data: body, bytes: size + 200, after: () => rememberBody(x.d.id, body) },
+          { op: 'set', r: ref('notes', x.d.id), data: light, bytes: JSON.stringify(light).length + 200 }
+        ];
+      } });
     } else {
       ops.push({ w: 1, d: 0, make: () => { const data = clean(x.d); return [{ op: 'set', r: ref(x.c, x.d.id), data, bytes: JSON.stringify(data).length + 200 }]; } });
     }
   }
   // Primero se escribe y después se borra: si se corta, nunca queda menos de lo que había
   for (const x of plan.deletes) {
-    ops.push({ w: 0, d: x.chunks + 1, make: () => {
+    ops.push({ w: 0, d: x.chunks + (x.c === 'notes' ? 2 : 1), make: () => {
       const group = [];
       const chunkCol = collection(db, 'users', store.uid, 'files', x.id, 'chunks');
       for (let i = 0; i < x.chunks; i++) group.push({ op: 'del', r: doc(chunkCol, String(i).padStart(3, '0')), bytes: 100 });
+      if (x.c === 'notes') group.push({ op: 'del', r: ref('noteBodies', x.id), bytes: 100 });
       group.push({ op: 'del', r: ref(x.c, x.id), bytes: 100 });
       return group;
     } });
   }
   const total = plan.writeOps + plan.deleteOps;
   let done = 0;
-  let batch = null, n = 0, bytes = 0, bw = 0, bd = 0;
+  let batch = null, n = 0, bytes = 0, bw = 0, bd = 0, after = [];
   const left = budget();
   const commit = async () => {
     if (!n) return;
     await batch.commit();
+    after.forEach((f) => f()); after = [];
     addQuota(bw, bd); left.w -= bw; left.d -= bd;
     done += n; onProgress(done, total);
     batch = null; n = 0; bytes = 0; bw = 0; bd = 0;
@@ -563,6 +592,7 @@ async function runPlan(plan, onProgress) {
       if (batch && (n >= 450 || bytes + g.bytes > 8 * 1024 * 1024)) await commit();
       if (!batch) batch = writeBatch(db);
       if (g.op === 'set') batch.set(g.r, g.data); else batch.delete(g.r);
+      if (g.after) after.push(g.after);
       n++; bytes += g.bytes;
       if (g.op === 'set') bw++; else bd++;
     }
@@ -577,6 +607,7 @@ async function startRestore(file) {
   if (!allLoaded() || Object.values(store.fromCache).some(Boolean)) {
     toast('Espera a que se sincronicen tus datos (indicador verde) y vuelve a intentarlo', 'error', 4500); return;
   }
+  try { await ensureAllBodies(); } catch (e) { toast(e.message, 'error', 5000); return; } // para comparar con la copia
   let parsed;
   try { parsed = parseBackup(await file.text()); } catch (e) {
     modal({ title: 'No se puede restaurar', body: el('p', {}, e.message), actions: [{ label: 'Cerrar', primary: true }] }); return;

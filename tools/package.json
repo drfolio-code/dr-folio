@@ -1,18 +1,20 @@
 {
   "name": "dr-folio-tools",
   "private": true,
-  "description": "Solo para regenerar public/vendor/ (libs.js y pdfjs/). La app no necesita compilación.",
+  "description": "Solo para regenerar public/vendor/ (libs.js, jszip.js, pdfjs/ e icons.js). La app no necesita compilación.",
   "scripts": {
-    "vendor": "npm run vendor:libs && npm run vendor:jszip && npm run vendor:pdfjs",
+    "vendor": "npm run vendor:libs && npm run vendor:jszip && npm run vendor:pdfjs && npm run vendor:icons",
     "vendor:libs": "esbuild vendor-entry.js --bundle --format=esm --minify --target=es2020 --outfile=../public/vendor/libs.js",
     "vendor:pdfjs": "node copy-pdfjs.mjs",
-    "vendor:jszip": "esbuild jszip-entry.js --bundle --format=esm --minify --target=es2020 --outfile=../public/vendor/jszip.js"
+    "vendor:jszip": "esbuild jszip-entry.js --bundle --format=esm --minify --target=es2020 --outfile=../public/vendor/jszip.js",
+    "vendor:icons": "node build-icons.mjs"
   },
   "devDependencies": {
     "dompurify": "3.5.0",
     "esbuild": "0.28.2",
     "firebase": "13.4.0",
     "jszip": "3.10.1",
+    "lucide-static": "0.460.0",
     "pdfjs-dist": "6.5.438"
   }
 }

@@ -3,8 +3,9 @@
 // Estructura en Firestore (todo bajo users/{uid}/):
 //   folders/{id}  { name, parentId|null, color, order, createdAt, updatedAt }
 //   tags/{id}     { name, color, createdAt }
-//   notes/{id}    { title, html, text, folderId|null, tags:[tagId], pinned, trashed, trashedAt,
-//                   refs:[{id, cite, url, fileId, fileName, fileSize}], createdAt, updatedAt }
+//   notes/{id}    { title, folderId|null, tags:[tagId], pinned, trashed, trashedAt, createdAt, updatedAt,
+//                   preview, words, refsCount, links:[noteId], files:[fileId], size }   ← datos ligeros (ver bodies.js)
+//   noteBodies/{id} { html, text, refs:[{id, cite, url, fileId, fileName, fileSize}], updatedAt }  ← se carga al abrir
 //   files/{id}    { noteId, name, mime, size, kind:'image'|'file', chunks, createdAt }
 //   files/{id}/chunks/{000..}  { d: base64 }
 //   snippets/{id} { title, body, category (antiguo), folderId|null, favorite, order, uses, lastUsedAt, createdAt, updatedAt }
@@ -22,7 +23,8 @@ export const store = {
   snippetFolders: new Map(),
   pending: {},     // escrituras pendientes de subir por colección
   loaded: {},      // primera carga completada por colección
-  fromCache: {}
+  fromCache: {},
+  stats: { reads: {}, bodyReads: 0 } // documentos recibidos del servidor (≈ lecturas facturadas) desde que se abrió la app
 };
 
 const COLS = ['folders', 'tags', 'notes', 'files', 'snippets', 'snippetFolders'];
@@ -40,8 +42,10 @@ export function startSync(uid, onChange, onError) {
     const un = onSnapshot(col(name), { includeMetadataChanges: true }, (snap) => {
       const map = store[name];
       const changed = new Set();
+      const fromServer = !snap.metadata.fromCache;
       for (const ch of snap.docChanges()) {
         changed.add(ch.doc.id);
+        if (fromServer && !ch.doc.metadata.hasPendingWrites) store.stats.reads[name] = (store.stats.reads[name] || 0) + 1;
         if (ch.type === 'removed') map.delete(ch.doc.id);
         else map.set(ch.doc.id, { id: ch.doc.id, ...ch.doc.data() });
       }
@@ -67,6 +71,8 @@ export const allLoaded = () => COLS.every((c) => store.loaded[c]);
 let errorHandler = (e) => console.error(e);
 export const setWriteErrorHandler = (fn) => { errorHandler = fn; };
 const guard = (p) => { p.catch((e) => errorHandler(e)); return p; };
+/** Sube un lote (writeBatch) sin esperar: igual que put/patch, se aplica al instante en local */
+export const commitBatch = (batch) => guard(batch.commit());
 
 export const put = (name, id, data) => guard(setDoc(ref(name, id), data, { merge: true }));
 export const patch = (name, id, data) => guard(updateDoc(ref(name, id), data));
@@ -126,7 +132,7 @@ export function tagByName(name) {
 export function usageBytes() {
   let b = 0;
   for (const f of store.files.values()) b += Math.ceil((f.size || 0) * 1.37) + 300;
-  for (const n of store.notes.values()) b += (n.html?.length || 0) + (n.text?.length || 0) + 500;
+  for (const n of store.notes.values()) b += (n.size ?? ((n.html?.length || 0) + (n.text?.length || 0))) + 700;
   for (const f of store.folders.values()) b += 200 + (f.name?.length || 0);
   for (const t of store.tags.values()) b += 150 + (t.name?.length || 0);
   for (const f of store.snippetFolders.values()) b += 200 + (f.name?.length || 0);

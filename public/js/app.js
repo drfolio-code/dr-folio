@@ -17,7 +17,13 @@ import {
 import { MODULES, NAV_HOME, NAV_SEARCH } from './modules.js';
 import { initViewport } from './viewport.js';
 import { openPdfViewer } from './pdfviewer.js';
-import { initBackup, openBackup, backupReminder, backupPublicReason } from './backup.js';
+import { initBackup, openBackup, backupReminder, backupPublicReason, exportJson, progress, lastBackupAt } from './backup.js';
+import {
+  initBodies, bodyOf, loadBody, hasFreshBody, syncBodies, bodyState, bodiesAvailable, writeNote, deleteNoteDocs,
+  isLegacy, deriveLight, pruneBodies, clearBodies, dropBody
+} from './bodies.js';
+import { legacyNotes, migrateNotes } from './migrate.js';
+import { icon, iconOr } from './icons.js';
 
 // ====================== Estado ======================
 const S = {
@@ -35,6 +41,8 @@ const S = {
   dirty: false,
   loadedHtml: null,
   reading: false,                                                     // nota abierta en modo lectura
+  bodyReady: false,                                                   // el contenido de la nota abierta ya está cargado (si no, no se edita ni se guarda)
+  contentSearch: false,                                               // ordenador público: «Buscar también en el contenido» activado
   started: false,
   loggingOut: false
 };
@@ -47,7 +55,7 @@ const TREES = {
   notes: {
     id: 'notes', col: 'folders', itemCol: 'notes', map: () => store.folders,
     root: 'notes', folder: 'folder', views: ['all', 'pinned', 'recent', 'tag', 'trash'],
-    rootHash: '#/notas', rootName: 'Notas', rootIcon: '🗂',
+    rootHash: '#/notas', rootName: 'Notas', rootIcon: 'notebook-text',
     one: 'nota', many: 'notas',
     items: () => liveNotes(),
     newItem: () => newNote(),
@@ -62,7 +70,7 @@ const TREES = {
     folderSelect: true,
     shortcuts: () => {
       const live = liveNotes();
-      return [['🗂', 'Todas las notas', live.length, 'all'], ['📌', 'Fijadas', live.filter((n) => n.pinned).length, 'pinned'], ['🕘', 'Recientes', null, 'recent']];
+      return [['notebook-text', 'Todas las notas', live.length, 'all'], ['pin', 'Fijadas', live.filter((n) => n.pinned).length, 'pinned'], ['clock', 'Recientes', null, 'recent']];
     },
     txt: {
       Many: 'Notas', newBtn: '＋ Nota', newOne: 'Nueva nota', newHere: 'Nueva nota aquí', folderHint: 'Nombre (p. ej. Urgencias)',
@@ -77,7 +85,7 @@ const TREES = {
   snippets: {
     id: 'snippets', col: 'snippetFolders', itemCol: 'snippets', map: () => store.snippetFolders,
     root: 'snippets', folder: 'sfolder', views: ['sall', 'sfav', 'sused', 'srecent'],
-    rootHash: '#/snippets', rootName: 'Prerredactados', rootIcon: '📋',
+    rootHash: '#/snippets', rootName: 'Prerredactados', rootIcon: 'clipboard-list',
     one: 'prerredactado', many: 'prerredactados',
     items: () => allSnippets(),
     newItem: () => newSnippetHere(),
@@ -92,8 +100,8 @@ const TREES = {
     folderSelect: false, // el orden se elige arriba, en «Ordenar»
     shortcuts: () => {
       const all = allSnippets();
-      return [['📋', 'Todos', all.length, 'sall'], ['⭐', 'Favoritos', all.filter((s) => s.favorite).length, 'sfav'],
-        ['🔥', 'Más usados', null, 'sused'], ['🕘', 'Recientes', null, 'srecent']];
+      return [['clipboard-list', 'Todos', all.length, 'sall'], ['star', 'Favoritos', all.filter((s) => s.favorite).length, 'sfav'],
+        ['flame', 'Más usados', null, 'sused'], ['clock', 'Recientes', null, 'srecent']];
     },
     txt: {
       Many: 'Prerredactados', newBtn: '＋ Prerredactado', newOne: 'Nuevo prerredactado', newHere: 'Nuevo prerredactado aquí',
@@ -221,6 +229,9 @@ function startApp(user) {
   setScreen('app');
   renderAll();
 
+  // Contenido de las notas: en dispositivos de confianza, copia local (IndexedDB) + descarga en segundo plano
+  initBodies({ persist: getMode() !== 'public', onChange: onBodiesProgress }).then(() => { scheduleBodySync(); renderFindSoon(); });
+
   startSync(user.uid, onData, (name, err) => {
     console.error(name, err);
     toast(err.code === 'permission-denied'
@@ -246,6 +257,9 @@ function onData(name, changed) {
   if (['notes', 'snippets'].includes(name)) renderNavSoon();
   if (name === 'snippets' || name === 'snippetFolders') migrateCategories();
   if (name === 'notes') {
+    for (const id of changed) if (!store.notes.has(id)) dropBody(id);
+    if (!store.fromCache.notes) { pruneBodies(); maybeMigrate(); }
+    scheduleBodySync();
     renderListSoon();
     renderSidebarSoon();
     if (S.noteId && changed.has(S.noteId)) onCurrentNoteRemoteChange();
@@ -267,19 +281,89 @@ function onData(name, changed) {
 }
 
 function onCurrentNoteRemoteChange() {
-  const n = store.notes.get(S.noteId);
+  const id = S.noteId;
+  const n = store.notes.get(id);
   if (!n) { closeEditor(); return; }
   renderNoteChrome();
   // Si la nota cambió en otro dispositivo y aquí no estás editando, actualizamos el contenido
-  const editingHere = S.dirty || editor.isFocused() || document.activeElement === $('#ed-title');
-  if (!editingHere && n.html !== S.loadedHtml) {
-    const sc = $('#ed-scroll').scrollTop;
-    editor.setContent(n.html);
-    S.loadedHtml = n.html;
-    $('#ed-scroll').scrollTop = sc;
-    renderToc();
+  const apply = () => {
+    if (S.noteId !== id) return;
+    const b = bodyOf(id);
+    const editingHere = S.dirty || editor.isFocused() || document.activeElement === $('#ed-title');
+    if (b && !editingHere && S.bodyReady && b.html !== S.loadedHtml) {
+      const sc = $('#ed-scroll').scrollTop;
+      editor.setContent(b.html);
+      S.loadedHtml = b.html;
+      $('#ed-scroll').scrollTop = sc;
+      renderToc();
+    }
+    if (!editingHere && document.activeElement !== $('#ed-title')) $('#ed-title').value = n.title || '';
+    renderRefs();
+  };
+  if (hasFreshBody(id)) apply();
+  else loadBody(id).then(apply, () => {}); // el contenido nuevo se descarga (1 lectura)
+}
+
+// ---------- Contenido de las notas en segundo plano ----------
+// Confianza: se descargan los que falten o hayan cambiado (queda en IndexedDB → buscar en todo sin conexión).
+// Ordenador público: solo si se pide «Buscar también en el contenido».
+const scheduleBodySync = debounce(() => {
+  if (!bodyState.ready || !store.loaded.notes || store.fromCache.notes || migrating) return;
+  if (bodyState.persist || S.contentSearch) syncBodies();
+}, 1500);
+const onBodiesProgress = debounce(() => {
+  if (S.view.type === 'search') renderFind();
+  else if (S.search && treeOf(S.view.type)?.id === 'notes') renderList();
+}, 400);
+
+// ---------- Migración al formato de dos documentos (v1.10.0) ----------
+let migrateAsked = false, migrating = false, migrateFailAt = 0;
+function maybeMigrate() {
+  if (migrating || getMode() === 'public' || !navigator.onLine || store.fromCache.notes || Date.now() - migrateFailAt < 60000) return;
+  const n = legacyNotes().length;
+  if (!n) { if (store.loaded.notes) localStorage.setItem('drfolio.migrated', '1'); return; }
+  // Ya migrado alguna vez en este dispositivo o muy pocas: en silencio (p. ej. notas creadas con una versión antigua)
+  if (localStorage.getItem('drfolio.migrated') || n <= 10) { runMigration(false); return; }
+  if (migrateAsked) return;
+  migrateAsked = true;
+  setTimeout(askMigration, 1200);
+}
+async function askMigration() {
+  const n = legacyNotes().length;
+  if (!n || migrating) return;
+  const recent = lastBackupAt() && Date.now() - lastBackupAt() < 3 * 86400000;
+  const go = await modal({
+    title: 'Actualización: notas más rápidas',
+    body: [
+      el('p', {}, `Dr.Folio va a reorganizar tus ${n.toLocaleString('es-ES')} notas para que la app abra más rápido y gaste menos del plan gratuito: el contenido de cada nota se guarda aparte y se descarga al abrirla.`),
+      el('p', {}, 'No se borra nada y puedes seguir usando la app mientras tanto. Si se corta, continúa sola la próxima vez. Puedes hacerlo en varios dispositivos a la vez.'),
+      el('p', { class: recent ? 'muted small' : 'bk-warn' }, recent
+        ? `Tu última copia de seguridad es del ${longDate(lastBackupAt())}.`
+        : 'Recomendado: haz antes una copia de seguridad (Ajustes → Copia de seguridad).')
+    ],
+    actions: [{ label: 'Más tarde', value: 'later' }, { label: 'Hacer copia primero', value: 'backup' }, { label: 'Actualizar ahora', primary: true, value: 'go' }]
+  });
+  if (go === 'backup') { await exportJson(true); setTimeout(askMigration, 300); return; }
+  if (go === 'go') runMigration(true);
+}
+async function runMigration(visible) {
+  if (migrating) return;
+  migrating = true;
+  const p = visible ? progress('Actualizando las notas') : null;
+  try {
+    const res = await migrateNotes({ onProgress: (d, t) => p?.set(t ? d / t : 1, `Notas: ${d.toLocaleString('es-ES')} de ${t.toLocaleString('es-ES')}`, 'Puedes seguir usando la app') });
+    if (!res.stopped) localStorage.setItem('drfolio.migrated', '1');
+    p?.finish(res.stopped === 'quota'
+      ? `⏸ Pausado por el límite gratuito de hoy (${res.done.toLocaleString('es-ES')} de ${res.total.toLocaleString('es-ES')}). Mañana continuará solo.`
+      : `✓ Notas actualizadas (${res.total.toLocaleString('es-ES')})`,
+    res.versions ? [el('p', { class: 'bk-warn' }, `${res.versions} nota(s) tenían dos versiones distintas: la más reciente se queda y la otra está como «… (otra versión)».`)] : []);
+  } catch (e) {
+    console.error(e);
+    migrateFailAt = Date.now();
+    p?.finish(`⚠️ Se interrumpió: ${e.message || e}`, [el('p', {}, 'No se ha perdido nada. Lo que falta se hará la próxima vez que abras la app.')]);
   }
-  if (!editingHere && document.activeElement !== $('#ed-title')) $('#ed-title').value = n.title || '';
+  migrating = false;
+  scheduleBodySync();
 }
 
 function updateSync() {
@@ -587,7 +671,7 @@ function buildNav() {
     class: `${cls} ${soon ? 'soon' : ''}`, type: 'button', dataset: { nav: item.id },
     title: soon ? `${item.name} · Próximamente` : item.name, 'aria-label': soon ? `${item.name} (próximamente)` : item.name,
     onclick: () => navTo(item)
-  }, el('span', { class: 'ico' }, item.icon), el('span', { class: 'lbl' }, item.short || item.name));
+  }, el('span', { class: 'ico' }, iconOr(item.icon)), el('span', { class: 'lbl' }, item.short || item.name));
   // Franja: Inicio, Buscar y todos los módulos (los «Próximamente» en gris)
   const rail = [NAV_HOME, NAV_SEARCH, ...MODULES].map((m) => navBtn('rail-btn', m, m.status && m.status !== 'active'));
   $('#rail-items').replaceChildren(...rail);
@@ -596,7 +680,7 @@ function buildNav() {
   // Barra inferior: Inicio · módulos con tab · ＋ Crear (en medio) · Buscar
   const tabs = [NAV_HOME, ...MODULES.filter((m) => m.tab && m.status === 'active'), NAV_SEARCH].map((m) => navBtn('tab', m, false));
   const create = el('button', { class: 'tab tab-create', type: 'button', 'aria-label': 'Crear', title: 'Crear', onclick: (e) => createMenu(e.currentTarget) },
-    el('span', { class: 'ico' }, '＋'), el('span', { class: 'lbl' }, 'Crear'));
+    el('span', { class: 'ico' }, icon('plus')), el('span', { class: 'lbl' }, 'Crear'));
   tabs.splice(Math.ceil(tabs.length / 2), 0, create);
   $('#tabbar').replaceChildren(...tabs);
 }
@@ -640,15 +724,15 @@ function createMenu(anchor) {
   const sf = v.type === 'sfolder' ? store.snippetFolders.get(v.id) : null;
   const inF = (f) => (f ? ` en «${f.name}»` : '');
   const folderItem = (T, f) => ({
-    icon: '📁', label: f ? `Subcarpeta${inF(f)}` : `Carpeta de ${T.many}`,
+    icon: 'folder-plus', label: f ? `Subcarpeta${inF(f)}` : `Carpeta de ${T.many}`,
     onClick: async () => {
       const id = await newFolder(f?.id || null, T);
       if (id && sec !== T.id) setView({ type: T.folder, id });
     }
   });
   menu(anchor, [
-    { icon: '📝', label: `Nota${inF(nf)}`, onClick: () => newNote() },
-    { icon: '📋', label: `Prerredactado${inF(sf)}`, onClick: () => (sec === 'snippets' ? newSnippetHere() : setView({ type: 'snippets', id: null }).then(() => newSnippet())) },
+    { icon: 'notebook-text', label: `Nota${inF(nf)}`, onClick: () => newNote() },
+    { icon: 'clipboard-list', label: `Prerredactado${inF(sf)}`, onClick: () => (sec === 'snippets' ? newSnippetHere() : setView({ type: 'snippets', id: null }).then(() => newSnippet())) },
     '-',
     ...(sec === 'notes' ? [folderItem(TREES.notes, nf)] : sec === 'snippets' ? [folderItem(TREES.snippets, sf)]
       : [folderItem(TREES.notes, null), folderItem(TREES.snippets, null)])
@@ -660,13 +744,13 @@ function createMenu(anchor) {
 const byUpdated = (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0);
 const SEARCH_SOURCES = [
   {
-    id: 'notes', name: 'Notas', icon: '🗂', all: 'Ver todas las notas',
+    id: 'notes', name: 'Notas', icon: 'notebook-text', all: 'Ver todas las notas',
     loaded: () => store.loaded.notes,
     run: (words) => liveNotes().filter((n) => words.every((w) => searchable(n).includes(w))).sort(byUpdated),
     card: (n, q) => noteCard(n, { search: q, sort: 'updated' })
   },
   {
-    id: 'snippets', name: 'Prerredactados', icon: '📋', all: 'Ver todos los prerredactados',
+    id: 'snippets', name: 'Prerredactados', icon: 'clipboard-list', all: 'Ver todos los prerredactados',
     loaded: () => store.loaded.snippets,
     run: (words) => allSnippets().filter((s) => snippetMatches(s, words)).sort(byUpdated),
     card: (s, q) => snippetCard(s, { search: q, showPath: true, onLongPress: longPressed, onOpen: openSnippetFromSearch })
@@ -704,11 +788,11 @@ function renderFind() {
     class: `find-chip ${S.findFilter === id ? 'on' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(S.findFilter === id),
     onclick: () => { S.findFilter = id; renderFind(); $('#find-scroll').scrollTop = 0; }
   }, label, words.length ? el('span', { class: 'n' }, n) : null);
-  $('#find-filters').replaceChildren(chip('all', 'Todo', total), ...res.map((r) => chip(r.src.id, `${r.src.icon} ${r.src.name}`, r.list.length)));
+  $('#find-filters').replaceChildren(chip('all', 'Todo', total), ...res.map((r) => chip(r.src.id, [icon(r.src.icon), ` ${r.src.name}`], r.list.length)));
 
   const box = $('#find-results');
   if (!words.length) {
-    box.replaceChildren(el('div', { class: 'find-hint' }, el('p', { class: 'big' }, '🔎'),
+    box.replaceChildren(el('div', { class: 'find-hint' }, el('p', { class: 'big' }, icon('search')),
       el('p', {}, 'Busca a la vez en tus notas y prerredactados.'),
       el('p', { class: 'small' }, 'Sin tildes ni mayúsculas: «tension» encuentra «Tensión». Varias palabras = deben aparecer todas.')));
     return;
@@ -716,19 +800,42 @@ function renderFind() {
   if (res.every((r) => !r.src.loaded())) { box.replaceChildren(el('div', { class: 'list-empty' }, 'Cargando…')); return; }
   const shown = res.filter((r) => S.findFilter === 'all' || r.src.id === S.findFilter);
   const out = [];
+  const cs = contentSearchBar();
+  if (cs && (S.findFilter === 'all' || S.findFilter === 'notes')) out.push(cs);
   for (const { src, list } of shown) {
     if (S.findFilter === 'all' && !list.length) continue;
     const max = S.findFilter === 'all' ? 5 : 300;
-    out.push(el('div', { class: 'find-sec' }, el('span', {}, `${src.icon} ${src.name} · ${list.length}`)));
+    out.push(el('div', { class: 'find-sec' }, el('span', {}, icon(src.icon), ` ${src.name} · ${list.length}`)));
     if (!list.length) { out.push(el('div', { class: 'fx-hint' }, `No hay ${src.name.toLowerCase()} que coincidan.`)); continue; }
-    out.push(el('div', { class: 'home-notes' }, list.slice(0, max).map((it) => src.card(it, q))));
+    out.push(lazyBlock('home-notes', list.slice(0, max), (it) => src.card(it, q), `find:${src.id}:${S.findFilter}:${q}`));
     if (list.length > max) {
       out.push(el('button', { class: 'btn find-more', type: 'button', onclick: () => { S.findFilter = src.id; renderFind(); $('#find-scroll').scrollTop = 0; } },
         S.findFilter === 'all' ? `${src.all} (${list.length})` : `Mostrando ${max} de ${list.length}. Afina la búsqueda.`));
     }
   }
-  if (!out.length) out.push(el('div', { class: 'list-empty' }, `Sin resultados para «${q.trim()}».`));
+  if (!out.some((x) => !x.classList.contains('cs-bar'))) out.push(el('div', { class: 'list-empty' }, `Sin resultados para «${q.trim()}».`));
   box.replaceChildren(...out);
+}
+
+/**
+ * Aviso sobre la búsqueda en el CONTENIDO de las notas (título, etiquetas y vista previa siempre son instantáneos):
+ *  - Confianza: mientras se descarga en segundo plano, «Preparando la búsqueda en el contenido… X de N».
+ *  - Ordenador público: botón «Buscar también en el contenido» (descarga los cuerpos bajo demanda).
+ */
+function contentSearchBar() {
+  const total = store.notes.size;
+  const have = bodiesAvailable();
+  if (!total || have >= total) return null;
+  if (bodyState.persist || S.contentSearch) {
+    if (!bodyState.syncing && !bodyState.error) return null;
+    return el('div', { class: 'cs-bar muted small' }, bodyState.error && !bodyState.syncing
+      ? `Sin conexión: se busca en el contenido de ${have.toLocaleString('es-ES')} de ${total.toLocaleString('es-ES')} notas (y en todos los títulos y etiquetas).`
+      : `Preparando la búsqueda en el contenido… ${have.toLocaleString('es-ES')} de ${total.toLocaleString('es-ES')} notas`);
+  }
+  return el('div', { class: 'cs-bar' },
+    el('span', { class: 'muted small' }, 'Se busca en títulos, etiquetas y el principio de cada nota.'),
+    el('button', { class: 'btn sm', type: 'button', onclick: () => { S.contentSearch = true; syncBodies(); renderFind(); renderList(); } },
+      icon('search'), ' Buscar también en el contenido'));
 }
 
 // ====================== Barra lateral ======================
@@ -747,22 +854,22 @@ function renderSidebar() {
   const v = S.view;
   const navItem = (ico, lbl, count, type) => el('button', {
     class: `nav-item ${v.type === type ? 'active' : ''}`, type: 'button', onclick: () => setView({ type, id: null })
-  }, el('span', { class: 'ico' }, ico), el('span', { class: 'lbl' }, lbl), el('span', { class: 'count' }, count || ''));
+  }, el('span', { class: 'ico' }, iconOr(ico)), el('span', { class: 'lbl' }, lbl), el('span', { class: 'count' }, count || ''));
   const body = [el('button', { class: 'btn primary block', type: 'button', onclick: () => T.newItem() }, `＋ ${T.txt.newOne}`)];
 
   if (sec === 'notes') {
     body.push(el('nav', { class: 'side-nav' },
-      navItem('🗂', 'Todas las notas', live.length, 'all'),
-      navItem('📌', 'Fijadas', live.filter((n) => n.pinned).length, 'pinned'),
-      navItem('🕘', 'Recientes', null, 'recent'),
-      navItem('🗑', 'Papelera', [...store.notes.values()].filter((n) => n.trashed).length, 'trash')));
+      navItem('notebook-text', 'Todas las notas', live.length, 'all'),
+      navItem('pin', 'Fijadas', live.filter((n) => n.pinned).length, 'pinned'),
+      navItem('clock', 'Recientes', null, 'recent'),
+      navItem('trash-2', 'Papelera', [...store.notes.values()].filter((n) => n.trashed).length, 'trash')));
   } else {
     const all = allSnippets();
     body.push(el('nav', { class: 'side-nav' },
-      navItem('📋', 'Todos', all.length, 'sall'),
-      navItem('⭐', 'Favoritos', all.filter((x) => x.favorite).length, 'sfav'),
-      navItem('🔥', 'Más usados', null, 'sused'),
-      navItem('🕘', 'Recientes', null, 'srecent')));
+      navItem('clipboard-list', 'Todos', all.length, 'sall'),
+      navItem('star', 'Favoritos', all.filter((x) => x.favorite).length, 'sfav'),
+      navItem('flame', 'Más usados', null, 'sused'),
+      navItem('clock', 'Recientes', null, 'srecent')));
   }
 
   // Carpetas del árbol de la sección (recuento con subcarpetas)
@@ -782,7 +889,7 @@ function renderSidebar() {
         el('span', { class: 'dot', style: f.color ? { background: f.color } : {} }),
         el('span', { class: 'lbl' }, f.name),
         el('span', { class: 'count' }, totals.get(f.id) || ''),
-        el('button', { class: 'more', title: 'Opciones', 'aria-label': 'Opciones de carpeta', onclick: (e) => { e.stopPropagation(); folderMenu(e.currentTarget, f, { T }); } }, '⋯'));
+        el('button', { class: 'more', title: 'Opciones', 'aria-label': 'Opciones de carpeta', onclick: (e) => { e.stopPropagation(); folderMenu(e.currentTarget, f, { T }); } }, icon('ellipsis')));
       dropTarget(row, f.id, T);
       bindContext(row, (a) => folderMenu(a, f, { T }));
       rows.push(row);
@@ -794,7 +901,7 @@ function renderSidebar() {
   dropTarget(rootLink, null, T);
   body.push(el('div', { class: 'side-section' },
     el('div', { class: 'side-title' }, rootLink,
-      el('button', { class: 'icon-btn sm', type: 'button', title: 'Nueva carpeta', 'aria-label': 'Nueva carpeta', onclick: () => newFolder(null, T) }, '＋')),
+      el('button', { class: 'icon-btn sm', type: 'button', title: 'Nueva carpeta', 'aria-label': 'Nueva carpeta', onclick: () => newFolder(null, T) }, icon('plus'))),
     el('div', { class: 'tree' }, rows.length ? rows : el('div', { class: 'side-empty' }, 'Crea tu primera carpeta con ＋'))));
 
   if (sec === 'notes') {
@@ -806,10 +913,10 @@ function renderSidebar() {
         class: `tag-item ${v.type === 'tag' && v.id === t.id ? 'active' : ''}`, role: 'button', tabindex: '0',
         onclick: (e) => { if (!e.target.closest('.more')) setView({ type: 'tag', id: t.id }); }
       },
-        el('span', { class: 'hash', style: t.color ? { color: t.color } : {} }, '#'),
+        el('span', { class: 'hash', style: t.color ? { color: t.color } : {} }, icon('tag')),
         el('span', { class: 'lbl' }, t.name),
         el('span', { class: 'count' }, tagCount.get(t.id) || ''),
-        el('button', { class: 'more', 'aria-label': 'Opciones de etiqueta', onclick: (e) => { e.stopPropagation(); tagMenu(e.currentTarget, t); } }, '⋯')
+        el('button', { class: 'more', 'aria-label': 'Opciones de etiqueta', onclick: (e) => { e.stopPropagation(); tagMenu(e.currentTarget, t); } }, icon('ellipsis'))
       )) : el('div', { class: 'side-empty' }, 'Añade etiquetas desde una nota'))));
   }
   $('#side-body').replaceChildren(...body);
@@ -891,23 +998,23 @@ function folderMenu(anchor, f, { here = false, T = TREES.notes } = {}) {
   const i = sibs.findIndex((x) => x.id === f.id);
   const inView = S.view.type === T.folder && S.view.id === f.id;
   menu(anchor, [
-    here || inView ? null : { icon: '📂', label: 'Abrir', onClick: () => setView({ type: T.folder, id: f.id }) },
-    { icon: '＋', label: 'Nueva subcarpeta', onClick: () => newFolder(f.id, T) },
-    { icon: '✎', label: T.txt.newHere, onClick: () => (inView ? T.newItem() : setView({ type: T.folder, id: f.id }).then(() => T.newItem())) },
+    here || inView ? null : { icon: 'folder-open', label: 'Abrir', onClick: () => setView({ type: T.folder, id: f.id }) },
+    { icon: 'folder-plus', label: 'Nueva subcarpeta', onClick: () => newFolder(f.id, T) },
+    { icon: 'file-plus', label: T.txt.newHere, onClick: () => (inView ? T.newItem() : setView({ type: T.folder, id: f.id }).then(() => T.newItem())) },
     '-',
-    { icon: '✏️', label: 'Renombrar', onClick: async () => {
+    { icon: 'pencil', label: 'Renombrar', onClick: async () => {
       const name = await prompt('Renombrar carpeta', f.name);
       if (name) patch(T.col, f.id, { name, updatedAt: Date.now() });
     } },
-    { icon: '🎨', label: 'Color', onClick: async () => {
+    { icon: 'palette', label: 'Color', onClick: async () => {
       const c = await colorPicker('Color de la carpeta', ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', ''], 'label');
       if (c !== undefined) patch(T.col, f.id, { color: c || null });
     } },
-    { icon: '↗', label: 'Mover a…', onClick: () => moveFolder(f, T) },
-    i > 0 ? { icon: '⬆', label: 'Subir', onClick: () => shiftFolder(f, -1, T) } : null,
-    i >= 0 && i < sibs.length - 1 ? { icon: '⬇', label: 'Bajar', onClick: () => shiftFolder(f, 1, T) } : null,
+    { icon: 'folder-input', label: 'Mover a…', onClick: () => moveFolder(f, T) },
+    i > 0 ? { icon: 'arrow-up', label: 'Subir', onClick: () => shiftFolder(f, -1, T) } : null,
+    i >= 0 && i < sibs.length - 1 ? { icon: 'arrow-down', label: 'Bajar', onClick: () => shiftFolder(f, 1, T) } : null,
     '-',
-    { icon: '🗑', label: 'Eliminar carpeta', danger: true, onClick: () => deleteFolder(f, T) }
+    { icon: 'trash-2', label: 'Eliminar carpeta', danger: true, onClick: () => deleteFolder(f, T) }
   ].filter(Boolean));
 }
 
@@ -915,8 +1022,8 @@ function folderMenu(anchor, f, { here = false, T = TREES.notes } = {}) {
 function rootMenu(anchor, T = TREES.notes) {
   const cur = T.sortValue();
   menu(anchor, [
-    { icon: '＋', label: 'Nueva carpeta', onClick: () => newFolder(null, T) },
-    { icon: '✎', label: T.txt.newOne, onClick: () => T.newItem() },
+    { icon: 'folder-plus', label: 'Nueva carpeta', onClick: () => newFolder(null, T) },
+    { icon: 'file-plus', label: T.txt.newOne, onClick: () => T.newItem() },
     '-',
     ...T.sortOptions.map(([value, label]) => ({ icon: cur === value ? '●' : '○', label: `Ordenar: ${label.toLowerCase()}`, onClick: () => setFolderSort(value, T) }))
   ]);
@@ -1044,19 +1151,19 @@ async function deleteFolder(f, T = TREES.notes) {
 // ---------- Etiquetas ----------
 function tagMenu(anchor, t) {
   menu(anchor, [
-    { icon: '✏️', label: 'Renombrar', onClick: async () => {
+    { icon: 'pencil', label: 'Renombrar', onClick: async () => {
       const name = await prompt('Renombrar etiqueta', t.name);
       if (!name || name === t.name) return;
       const other = tagByName(name);
       if (other && other.id !== t.id) { toast('Ya existe una etiqueta con ese nombre', 'error'); return; }
       patch('tags', t.id, { name });
     } },
-    { icon: '🎨', label: 'Color', onClick: async () => {
+    { icon: 'palette', label: 'Color', onClick: async () => {
       const c = await colorPicker('Color de la etiqueta', ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', ''], 'label');
       if (c !== undefined) patch('tags', t.id, { color: c || null });
     } },
     '-',
-    { icon: '🗑', label: 'Eliminar etiqueta', danger: true, onClick: async () => {
+    { icon: 'trash-2', label: 'Eliminar etiqueta', danger: true, onClick: async () => {
       if (!await confirm('Eliminar etiqueta', `Se quitará «${t.name}» de todas las notas. Las notas no se borran.`, { okLabel: 'Eliminar', danger: true })) return;
       for (const n of store.notes.values()) {
         if ((n.tags || []).includes(t.id)) patch('notes', n.id, { tags: n.tags.filter((x) => x !== t.id) });
@@ -1094,14 +1201,17 @@ function removeTagFromNote(tagId) {
 }
 
 // ====================== Lista de notas ======================
-const searchCache = new Map(); // id -> {u, s}
+// Texto de búsqueda de una nota: título + etiquetas + vista previa (siempre, al instante)
+// y, si el contenido está descargado (confianza o «Buscar también en el contenido»), todo el texto y la bibliografía.
+const searchCache = new Map(); // id -> {k, s}
 function searchable(n) {
   const c = searchCache.get(n.id);
-  const key = `${n.updatedAt}|${(n.tags || []).join(',')}`;
-  if (c && c.k === key) return c.s;
+  const b = bodyOf(n.id);
   const tagNames = (n.tags || []).map((t) => store.tags.get(t)?.name || '').join(' ');
-  const refs = (n.refs || []).map((r) => `${r.cite || ''} ${r.fileName || ''}`).join(' ');
-  const s = norm(`${n.title || ''}\n${tagNames}\n${n.text || ''}\n${refs}`);
+  const key = `${n.updatedAt}|${n.title}|${tagNames}|${b ? b.v || b.updatedAt || 1 : 0}`;
+  if (c && c.k === key) return c.s;
+  const refs = b ? (b.refs || []).map((r) => `${r.cite || ''} ${r.fileName || ''}`).join(' ') : '';
+  const s = norm(`${n.title || ''}\n${tagNames}\n${b ? b.text || '' : n.preview || ''}\n${refs}`);
   searchCache.set(n.id, { k: key, s });
   return s;
 }
@@ -1140,7 +1250,7 @@ function viewTitle() {
   if (v.type === 'trash') return 'Papelera';
   if (v.type === 'snippets') return 'Prerredactados';
   if (v.type === 'sall') return 'Todos los prerredactados';
-  if (v.type === 'sfav') return '⭐ Favoritos';
+  if (v.type === 'sfav') return 'Favoritos';
   if (v.type === 'sused') return 'Más usados';
   if (v.type === 'srecent') return 'Recientes';
   if (v.type === 'folder') return store.folders.get(v.id)?.name || 'Carpeta';
@@ -1150,7 +1260,8 @@ function viewTitle() {
 }
 
 function snippetNode(n, search = S.search) {
-  const text = (n.text || '').replace(/\s+/g, ' ').trim();
+  const b = bodyOf(n.id);
+  const text = ((b ? b.text : n.preview) || '').replace(/\s+/g, ' ').trim();
   const q = norm(search.trim()).split(/\s+/).filter(Boolean)[0];
   if (!q || !text) return text.slice(0, 160) || 'Sin contenido';
   const nt = norm(text);
@@ -1183,7 +1294,7 @@ function renderList() {
   const box = $('#note-list');
   $('#btn-new-note').title = snip ? 'Nuevo prerredactado' : 'Nueva nota';
   $('#btn-layout').classList.toggle('hidden', !T || v.type === 'trash');
-  $('#btn-layout').textContent = S.layout === 'grid' ? '☷' : '⊞';
+  $('#btn-layout').replaceChildren(icon(S.layout === 'grid' ? 'list' : 'layout-grid'));
   $('#btn-layout').title = S.layout === 'grid' ? 'Ver como lista' : 'Ver como cuadrícula';
   $('#btn-list-more').classList.toggle('hidden', !T || !(v.type === T.root || v.type === T.folder));
   syncSortSelect(T);
@@ -1205,8 +1316,43 @@ function renderList() {
       S.search ? 'No hay notas que coincidan.' : v.type === 'trash' ? 'La papelera está vacía.' : 'Aún no hay notas aquí.'));
     return;
   }
-  if (v.type === 'trash') { box.replaceChildren(...notes.map((n) => noteCard(n))); return; }
+  if (v.type === 'trash') { box.replaceChildren(lazyBlock('trash-list', notes, (n) => noteCard(n))); return; }
   box.replaceChildren(el('div', { class: `fx ${S.layout === 'grid' ? 'grid' : ''}` }, notesBlock(notes)));
+}
+
+// ---------- Listas largas: se pintan por partes ----------
+// Con miles de notas no se crean miles de tarjetas de golpe: primero LAZY_PAGE y el resto según te acercas al final
+// (o con «Mostrar más»). Se recuerda cuántas había a la vista para que al refrescar la lista no salte el desplazamiento.
+const LAZY_PAGE = 60;
+const lazyShown = new Map(); // clave de la lista → nº de elementos pintados
+let lazyIO = null;
+function lazyKey() { return `${S.view.type}/${S.view.id}|${S.search}|${S.sort}|${snipSort()}|${S.layout}|${S.searchAll}`; }
+function lazyBlock(cls, list, make, key = lazyKey()) {
+  const box = el('div', { class: cls });
+  let shown = 0;
+  const more = el('button', { class: 'btn lazy-more', type: 'button', onclick: () => add(LAZY_PAGE * 3) });
+  const add = (k) => {
+    const end = Math.min(list.length, shown + k);
+    const frag = document.createDocumentFragment();
+    for (let i = shown; i < end; i++) frag.append(make(list[i]));
+    box.insertBefore(frag, more.isConnected && more.parentNode === box ? more : null);
+    shown = end;
+    lazyShown.set(key, shown);
+    if (shown >= list.length) { more.remove(); lazyIO?.unobserve(more); }
+    else { more.textContent = `Mostrar más (${(list.length - shown).toLocaleString('es-ES')})`; if (!more.isConnected) box.append(more); }
+  };
+  add(Math.max(LAZY_PAGE, lazyShown.get(key) || 0));
+  if (shown < list.length && 'IntersectionObserver' in window) {
+    lazyIO ||= new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.target.isConnected) lazyIO.unobserve(e.target);
+        else if (e.isIntersecting) e.target.click();
+      }
+    }, { rootMargin: '800px 0px' });
+    lazyIO.observe(more);
+  }
+  if (lazyShown.size > 200) lazyShown.clear();
+  return box;
 }
 
 /** Prerredactados: explorador de carpetas o una de las vistas fijas (Todos, Favoritos, Más usados, Recientes) */
@@ -1245,7 +1391,7 @@ function renderCrumbs() {
     if (i) nodes.push(el('span', { class: 'sep', 'aria-hidden': 'true' }, '›'));
     const last = i === segs.length - 1;
     if (last) { nodes.push(el('span', { class: 'cur', 'aria-current': 'page' }, sg.label)); return; }
-    const b = el('button', { type: 'button', onclick: () => setView(sg.view) }, i === 0 ? `${T.rootIcon} ${T.rootName}` : sg.label);
+    const b = el('button', { type: 'button', onclick: () => setView(sg.view) }, i === 0 ? [icon(T.rootIcon), ` ${T.rootName}`] : sg.label);
     if ('drop' in sg) dropTarget(b, sg.drop, T);
     nodes.push(b);
   });
@@ -1280,16 +1426,16 @@ function renderExplorer(box, T) {
     const tiles = T.shortcuts();
     wrap.append(el('div', { class: `fx-short n${tiles.length}` }, tiles.map(([ico, label, count, type]) =>
       el('button', { class: 'fx-tile', type: 'button', onclick: () => setView({ type, id: null }) },
-        el('span', { class: 'fx-tile-ico' }, ico), el('span', { class: 'fx-tile-lbl' }, label),
+        el('span', { class: 'fx-tile-ico' }, iconOr(ico)), el('span', { class: 'fx-tile-lbl' }, label),
         count != null ? el('span', { class: 'fx-tile-n' }, count) : null))));
     // En el móvil no hay barra lateral: Papelera y Etiquetas, aquí
     if (T.id === 'notes') {
       const nTrash = [...store.notes.values()].filter((n) => n.trashed).length;
       wrap.append(el('div', { class: 'fx-extra' },
         el('button', { class: 'fx-tile', type: 'button', onclick: () => setView({ type: 'trash', id: null }) },
-          el('span', { class: 'fx-tile-ico' }, '🗑'), el('span', { class: 'fx-tile-lbl' }, 'Papelera'), el('span', { class: 'fx-tile-n' }, nTrash || '')),
+          el('span', { class: 'fx-tile-ico' }, icon('trash-2')), el('span', { class: 'fx-tile-lbl' }, 'Papelera'), el('span', { class: 'fx-tile-n' }, nTrash || '')),
         el('button', { class: 'fx-tile', type: 'button', onclick: pickTag },
-          el('span', { class: 'fx-tile-ico' }, '🏷'), el('span', { class: 'fx-tile-lbl' }, 'Etiquetas'), el('span', { class: 'fx-tile-n' }, store.tags.size || ''))));
+          el('span', { class: 'fx-tile-ico' }, icon('tag')), el('span', { class: 'fx-tile-lbl' }, 'Etiquetas'), el('span', { class: 'fx-tile-n' }, store.tags.size || ''))));
     }
   }
 
@@ -1346,6 +1492,8 @@ function renderExplorerSearch(wrap, folderId, words, totals, T) {
   const folders = flatFolders(null, m).filter((f) => f.id !== folderId && (!ids || ids.has(f.id)) && matchesWords(f.name, words))
     .map((f) => m.get(f.id)).filter(Boolean);
   const items = T.sortItems(T.items().filter((n) => (!ids || ids.has(n.folderId)) && T.matches(n, words)));
+  const cs = T.id === 'notes' ? contentSearchBar() : null;
+  if (cs) wrap.append(cs);
   if (folders.length) wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `Carpetas · ${folders.length}`)),
     el('div', { class: 'fx-folders' }, folders.slice(0, 30).map((f) => folderItem(f, totals, { showPath: true }, T))));
   wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `${T.txt.Many} · ${items.length}`)));
@@ -1354,17 +1502,17 @@ function renderExplorerSearch(wrap, folderId, words, totals, T) {
 }
 
 function notesBlock(notes) {
-  return el('div', { class: 'fx-notes' }, notes.map((n) => noteCard(n)));
+  return lazyBlock('fx-notes', notes, (n) => noteCard(n));
 }
 
 function snippetsBlock(list, { showPath = false } = {}) {
-  return el('div', { class: 'fx-notes' }, list.map((s) => {
+  return lazyBlock('fx-notes', list, (s) => {
     const card = snippetCard(s, { search: S.search, showPath, onLongPress: longPressed });
     // Como las notas: en el móvil se mantiene pulsado para el menú; en ordenador/tablet se arrastra (y clic derecho = menú)
     bindContext(card, (a) => snippetItemMenu(a, s), { touch: !canDrag() });
     makeDraggable(card, 'item', s.id, TREES.snippets);
     return card;
-  }));
+  });
 }
 
 /** Tarjeta / fila de carpeta: tocar = abrir; mantener pulsado, clic derecho o ⋯ = opciones; soltar = mover */
@@ -1387,7 +1535,7 @@ function folderItem(f, totals, { showPath = false } = {}, T = TREES.notes) {
     el('button', {
       class: 'fx-more', type: 'button', title: 'Opciones', 'aria-label': `Opciones de ${f.name}`,
       onclick: (e) => { e.stopPropagation(); folderMenu(e.currentTarget, f, { T }); }
-    }, '⋯'));
+    }, icon('ellipsis')));
   bindContext(item, (a) => folderMenu(a, f, { T }));
   dropTarget(item, f.id, T);
   makeDraggable(item, 'folder', f.id, T);
@@ -1398,18 +1546,18 @@ function folderItem(f, totals, { showPath = false } = {}, T = TREES.notes) {
 function noteListMenu(anchor, n) {
   if (n.trashed) {
     menu(anchor, [
-      { icon: '↩', label: 'Restaurar', onClick: () => restoreNote(n.id) },
-      { icon: '✕', label: 'Eliminar definitivamente', danger: true, onClick: () => deleteForever(n.id) }
+      { icon: 'undo-2', label: 'Restaurar', onClick: () => restoreNote(n.id) },
+      { icon: 'x', label: 'Eliminar definitivamente', danger: true, onClick: () => deleteForever(n.id) }
     ]);
     return;
   }
   menu(anchor, [
-    { icon: '📄', label: 'Abrir', onClick: () => openNote(n.id, { push: true }) },
-    { icon: '📁', label: 'Mover a carpeta…', onClick: () => moveNote(n.id) },
-    { icon: '📌', label: n.pinned ? 'Quitar de fijadas' : 'Fijar', onClick: () => patch('notes', n.id, { pinned: !n.pinned }) },
-    { icon: '⧉', label: 'Duplicar', onClick: () => duplicateNote(n.id) },
+    { icon: 'file-text', label: 'Abrir', onClick: () => openNote(n.id, { push: true }) },
+    { icon: 'folder-input', label: 'Mover a carpeta…', onClick: () => moveNote(n.id) },
+    { icon: 'pin', label: n.pinned ? 'Quitar de fijadas' : 'Fijar', onClick: () => patch('notes', n.id, { pinned: !n.pinned }) },
+    { icon: 'copy-plus', label: 'Duplicar', onClick: () => duplicateNote(n.id) },
     '-',
-    { icon: '🗑', label: 'Mover a la papelera', danger: true, onClick: () => trashNote(n.id) }
+    { icon: 'trash-2', label: 'Mover a la papelera', danger: true, onClick: () => trashNote(n.id) }
   ]);
 }
 
@@ -1419,13 +1567,13 @@ function noteCard(n, { search = S.search, sort = S.sort } = {}) {
       class: `note-card ${n.id === S.noteId ? 'active' : ''}`, type: 'button',
       onclick: () => { if (!longPressed(card)) openNote(n.id, { push: true }); }
     },
-      el('div', { class: 't' }, n.pinned && !n.trashed ? '📌' : null, el('span', {}, n.title || 'Sin título')),
+      el('div', { class: 't' }, n.pinned && !n.trashed ? icon('pin', 'pin-mark') : null, el('span', {}, n.title || 'Sin título')),
       el('div', { class: 's' }, snippetNode(n, search)),
       el('div', { class: 'm' },
         el('span', {}, shortDate(n.trashed ? n.trashedAt : (sort === 'created' ? n.createdAt : n.updatedAt))),
         path.length ? el('span', { class: 'f' }, `· ${path[path.length - 1].name}`) : null,
         (n.tags || []).slice(0, 3).map((t) => store.tags.get(t)).filter(Boolean).map((t) => el('span', { class: 'mini-tag' }, t.name)),
-        (n.refs || []).length ? el('span', {}, `· 📚 ${n.refs.length}`) : null));
+        refsCountOf(n) ? el('span', { class: 'refs-n' }, '· ', icon('book-marked'), ` ${refsCountOf(n)}`) : null));
   // En el móvil se mantiene pulsado para el menú; en ordenador/tablet se arrastra a una carpeta (y clic derecho = menú)
   bindContext(card, (a) => noteListMenu(a, n), { touch: !canDrag() });
   if (!n.trashed) makeDraggable(card, 'item', n.id);
@@ -1450,7 +1598,7 @@ function renderHome() {
       dataset: { module: m.id },
       onclick: soon ? null : () => setView(parseHash(m.route).view)
     },
-      el('span', { class: 'mod-ico' }, m.icon),
+      el('span', { class: 'mod-ico' }, iconOr(m.icon)),
       el('span', { class: 'mod-txt' },
         el('span', { class: 'mod-name' }, m.name),
         el('span', { class: 'mod-desc' }, m.desc)),
@@ -1479,16 +1627,14 @@ function newNote() {
   const now = Date.now();
   const v = S.view;
   const data = {
-    title: '', html: '', text: '',
+    title: '',
     folderId: v.type === 'folder' ? v.id : null,
     tags: v.type === 'tag' ? [v.id] : [],
     pinned: v.type === 'pinned',
     trashed: false, trashedAt: null,
-    refs: [],
     createdAt: now, updatedAt: now
   };
-  store.notes.set(id, { id, ...data }); // visible al instante
-  put('notes', id, data);
+  writeNote(id, data, { html: '', text: '', refs: [] }); // nota ligera + contenido vacío (visible al instante)
   if (v.type === 'trash' || !treeOf(v.type) || isSnipView(v.type)) {
     // Desde Inicio, Buscar, Prerredactados o la Papelera: la nota se crea en la raíz de Notas
     if (isSnipView(v.type)) closeSnippet({ fromHash: true });
@@ -1519,21 +1665,55 @@ function openNote(id, { push = false, focusTitle = false, fromHash = false } = {
   S.reading = !focusTitle && openMode() === 'read';
   showPane('note');
   $('#ed-title').value = n.title || '';
-  editor.setContent(n.html || '');
-  S.loadedHtml = n.html || '';
+  // El contenido está en noteBodies/{id}: al instante si ya está en el dispositivo; si no, se descarga (1 lectura).
+  // Mientras tanto la nota no se puede editar ni se guarda nada (así nunca se sobrescribe con un contenido vacío).
+  const b = bodyOf(id);
+  const fresh = hasFreshBody(id);
+  S.bodyReady = fresh;
+  showBody(b, fresh ? '' : b ? 'Actualizando…' : 'Cargando…');
   $('#ed-scroll').scrollTop = 0;
   renderNoteChrome();
-  renderToc();
-  setSaveStatus('');
   renderList();
   if (!fromHash) pushHash(!push);
   if (focusTitle) $('#ed-title').focus();
   updateWakeLock();
+  if (!fresh) {
+    loadBody(id).then((body) => {
+      if (S.noteId !== id) return;
+      const changed = !b || body.html !== b.html;
+      S.bodyReady = true;
+      if (changed) showBody(body, ''); else setSaveStatus('');
+      renderNoteChrome();
+      if (S.dirty) saveSoon();
+    }, () => {
+      if (S.noteId !== id) return;
+      if (b) { // sin conexión: se usa la copia del dispositivo (como antes con la caché de Firestore)
+        S.bodyReady = true;
+        setSaveStatus('Sin conexión · copia del dispositivo');
+        renderNoteChrome();
+      } else {
+        setSaveStatus('');
+        $('#content').dataset.placeholder = 'No se pudo cargar el contenido: sin conexión. Vuelve a abrir la nota cuando tengas internet.';
+      }
+    });
+  }
+}
+
+/** Pinta el contenido de la nota abierta (o el aviso de carga si aún no está) */
+function showBody(b, status) {
+  const c = $('#content');
+  c.dataset.placeholder = b ? 'Empieza a escribir…  Puedes pegar texto e imágenes.' : 'Cargando la nota…';
+  editor.setContent(b ? b.html : '');
+  S.loadedHtml = b ? b.html : '';
+  renderToc();
+  renderRefs();
+  setSaveStatus(status);
 }
 
 function closeEditor({ fromHash = false } = {}) {
   saveSoon.flush();
   S.noteId = null;
+  S.bodyReady = false;
   S.reading = false;
   showEditorEmpty();
   showList();
@@ -1560,7 +1740,7 @@ function renderNoteChrome() {
   if (!n) return;
   const trashed = !!n.trashed;
   const reading = S.reading && !trashed;
-  const ro = trashed || reading;
+  const ro = trashed || reading || !S.bodyReady;
   $('#editor-wrap').classList.toggle('readonly', ro);
   $('#editor-wrap').classList.toggle('reading', reading);
   editor.setReadOnly(ro);
@@ -1569,15 +1749,16 @@ function renderNoteChrome() {
   const eb = $('#btn-edit');
   eb.classList.toggle('hidden', trashed);
   eb.classList.toggle('primary', !reading);
+  eb.disabled = !S.bodyReady;
   eb.title = reading ? 'Editar la nota' : 'Terminar de editar (modo lectura)';
   eb.setAttribute('aria-label', eb.title);
-  eb.querySelector('.ico').textContent = reading ? '✏️' : '✓';
+  eb.querySelector('.ico').replaceChildren(icon(reading ? 'pencil' : 'check'));
   eb.querySelector('.lbl').textContent = reading ? 'Editar' : 'Listo';
   $('#trash-banner').classList.toggle('hidden', !trashed);
   $('#btn-pin').classList.toggle('on', !!n.pinned);
   $('#btn-pin').title = n.pinned ? 'Quitar de fijadas' : 'Fijar';
   const path = n.folderId ? folderPath(n.folderId) : [];
-  $('#ed-folder').textContent = path.length ? `📁 ${path.map((f) => f.name).join(' › ')}` : '📁 Sin carpeta';
+  $('#ed-folder').replaceChildren(icon('folder'), ` ${path.length ? path.map((f) => f.name).join(' › ') : 'Sin carpeta'}`);
 
   $('#tag-chips').replaceChildren(...(n.tags || []).map((tid) => store.tags.get(tid)).filter(Boolean).map((t) =>
     el('span', { class: 'chip', style: t.color ? { color: t.color } : {} },
@@ -1586,7 +1767,7 @@ function renderNoteChrome() {
 
   renderRefs();
   renderBacklinks();
-  const words = (n.text || '').split(/\s+/).filter(Boolean).length;
+  const words = n.words ?? deriveLight(bodyOf(n.id) || {}).words;
   $('#ed-meta').textContent = `Creada: ${longDate(n.createdAt)} · Modificada: ${longDate(n.updatedAt)} · ${words} palabras`;
 }
 
@@ -1612,7 +1793,7 @@ function applyReadSize() {
 
 function setReading(on) {
   const n = store.notes.get(S.noteId);
-  if (!n || n.trashed) return;
+  if (!n || n.trashed || (!on && !S.bodyReady)) return;
   if (on) {
     saveSoon.flush();
     document.activeElement?.blur?.();
@@ -1660,7 +1841,7 @@ function setSaveStatus(t) { $('#save-status').textContent = t; }
 
 const saveSoon = debounce(saveNow, 800);
 function saveNow() {
-  if (!S.noteId || !S.dirty) return;
+  if (!S.noteId || !S.dirty || !S.bodyReady) return; // sin el contenido cargado no se guarda nunca
   const n = store.notes.get(S.noteId);
   if (!n || n.trashed) { S.dirty = false; return; }
   const html = editor.getContent();
@@ -1672,9 +1853,8 @@ function saveNow() {
   S.dirty = false;
   S.loadedHtml = html;
   const text = editor.getText().slice(0, 30000);
-  const data = { title, html, text, updatedAt: Date.now() };
-  Object.assign(n, data); // reflejo inmediato en la lista
-  patch('notes', n.id, data);
+  const refs = bodyOf(n.id)?.refs || [];
+  writeNote(n.id, { title, updatedAt: Date.now() }, { html, text, refs }); // nota ligera + contenido, en un mismo lote
   setSaveStatus(navigator.onLine ? 'Guardado ✓' : 'Guardado en el dispositivo');
 }
 
@@ -1702,7 +1882,7 @@ function renderToc() {
 // ---------- Enlaces entre notas ----------
 function renderBacklinks() {
   const id = S.noteId;
-  const back = liveNotes().filter((n) => n.id !== id && (n.html || '').includes(`data-note="${id}"`));
+  const back = liveNotes().filter((n) => n.id !== id && (n.links ? n.links.includes(id) : (n.html || '').includes(`data-note="${id}"`)));
   $('#backlinks').classList.toggle('hidden', !back.length);
   $('#backlink-list').replaceChildren(...back.map((n) => el('button', {
     class: 'chip', type: 'button', onclick: () => openNote(n.id, { push: true })
@@ -1727,20 +1907,20 @@ function noteMenu(anchor) {
   if (!n) return;
   if (n.trashed) {
     menu(anchor, [
-      { icon: '↩', label: 'Restaurar', onClick: () => restoreNote(n.id) },
-      { icon: '✕', label: 'Eliminar definitivamente', danger: true, onClick: () => deleteForever(n.id) }
+      { icon: 'undo-2', label: 'Restaurar', onClick: () => restoreNote(n.id) },
+      { icon: 'x', label: 'Eliminar definitivamente', danger: true, onClick: () => deleteForever(n.id) }
     ]);
     return;
   }
   menu(anchor, [
-    { icon: '📋', label: 'Copiar nota entera', onClick: () => copyOut(editor.allText()) },
-    S.reading ? { icon: '✏️', label: 'Editar', onClick: () => setReading(false) } : { icon: '📖', label: 'Modo lectura', onClick: () => setReading(true) },
+    { icon: 'copy', label: 'Copiar nota entera', onClick: () => copyOut(editor.allText()) },
+    S.reading ? { icon: 'pencil', label: 'Editar', onClick: () => setReading(false) } : { icon: 'book-open', label: 'Modo lectura', onClick: () => setReading(true) },
     '-',
-    { icon: '📁', label: 'Mover a carpeta…', onClick: () => moveNote(n.id) },
-    { icon: '⧉', label: 'Duplicar', onClick: () => duplicateNote(n.id) },
-    { icon: '🖨', label: 'Imprimir / guardar PDF', onClick: () => { saveSoon.flush(); window.print(); } },
+    { icon: 'folder-input', label: 'Mover a carpeta…', onClick: () => moveNote(n.id) },
+    { icon: 'copy-plus', label: 'Duplicar', onClick: () => duplicateNote(n.id) },
+    { icon: 'printer', label: 'Imprimir / guardar PDF', onClick: () => { saveSoon.flush(); window.print(); } },
     '-',
-    { icon: '🗑', label: 'Mover a la papelera', danger: true, onClick: () => trashNote(n.id) }
+    { icon: 'trash-2', label: 'Mover a la papelera', danger: true, onClick: () => trashNote(n.id) }
   ]);
 }
 
@@ -1756,17 +1936,17 @@ async function moveNote(id) {
   toast('Nota movida', 'ok');
 }
 
-function duplicateNote(id) {
+async function duplicateNote(id) {
   saveSoon.flush();
   const n = store.notes.get(id);
   if (!n) return;
+  let b;
+  try { b = await loadBody(id); } catch { toast('Sin conexión: no se puede duplicar esta nota ahora', 'error'); return; }
   const nid = newId('notes');
   const now = Date.now();
-  const { id: _old, ...rest } = n;
-  void _old;
-  const data = { ...rest, title: `${n.title || 'Sin título'} (copia)`, pinned: false, createdAt: now, updatedAt: now };
-  store.notes.set(nid, { id: nid, ...data });
-  put('notes', nid, data);
+  const data = { title: `${n.title || 'Sin título'} (copia)`, folderId: n.folderId || null, tags: [...(n.tags || [])], pinned: false,
+    trashed: false, trashedAt: null, createdAt: now, updatedAt: now };
+  writeNote(nid, data, { html: b.html, text: b.text, refs: b.refs });
   openNote(nid, { push: true });
 }
 
@@ -1786,11 +1966,15 @@ function restoreNote(id) {
 
 /** Archivos usados por una nota (imágenes del texto + adjuntos de la bibliografía) */
 function noteFileIds(n) {
+  if (Array.isArray(n.files) && !isLegacy(n)) return new Set(n.files); // campo ligero (no hace falta el contenido)
   const ids = new Set();
   for (const m of (n.html || '').matchAll(/data-file="([^"]+)"/g)) ids.add(m[1]);
   for (const r of n.refs || []) if (r.fileId) ids.add(r.fileId);
   return ids;
 }
+const refsCountOf = (n) => n.refsCount ?? (n.refs || []).length;
+/** Para borrar archivos hay que saber con seguridad qué usa cada nota */
+const filesKnown = () => [...store.notes.values()].every((n) => isLegacy(n) || Array.isArray(n.files));
 function allReferencedFiles(exceptNoteId) {
   const ids = new Set();
   for (const n of store.notes.values()) if (n.id !== exceptNoteId) noteFileIds(n).forEach((f) => ids.add(f));
@@ -1803,8 +1987,8 @@ function purgeNote(id) {
   const others = allReferencedFiles(id);
   const mine = noteFileIds(n);
   for (const f of store.files.values()) if (f.noteId === id) mine.add(f.id);
-  for (const f of mine) if (!others.has(f)) deleteFile(f);
-  remove('notes', id);
+  if (filesKnown()) for (const f of mine) if (!others.has(f)) deleteFile(f);
+  deleteNoteDocs(id); // nota + contenido
 }
 
 async function deleteForever(id) {
@@ -1836,10 +2020,13 @@ async function uploadImages(files) {
 }
 
 // ---------- Bibliografía ----------
+/** Bibliografía de la nota abierta (está en su contenido) */
+const curRefs = () => bodyOf(S.noteId)?.refs || [];
 function renderRefs() {
   const n = store.notes.get(S.noteId);
   if (!n) return;
-  const refs = n.refs || [];
+  const refs = S.bodyReady || bodyOf(n.id) ? curRefs() : [];
+  $('#btn-add-ref').disabled = !S.bodyReady;
   $('#ref-empty').classList.toggle('hidden', refs.length > 0);
   $('#ref-list').replaceChildren(...refs.map((r) => {
     const fileMeta = r.fileId ? store.files.get(r.fileId) : null;
@@ -1848,12 +2035,12 @@ function renderRefs() {
         el('div', { class: 'ref-main' },
           el('div', { class: 'ref-cite' }, r.cite || r.fileName || r.url || 'Referencia'),
           el('div', { class: 'ref-links' },
-            r.url ? el('a', { class: 'ref-chip', href: r.url, target: '_blank', rel: 'noopener noreferrer' }, `🔗 ${prettyUrl(r.url)}`) : null,
+            r.url ? el('a', { class: 'ref-chip', href: r.url, target: '_blank', rel: 'noopener noreferrer' }, icon('link'), ` ${prettyUrl(r.url)}`) : null,
             r.fileId ? el('button', {
               class: 'ref-chip', type: 'button',
               onclick: () => openViewer({ fileId: r.fileId, name: r.fileName, kind: 'file', mime: fileMeta?.mime })
-            }, `📄 ${r.fileName || 'archivo'}${r.fileSize ? ` · ${formatBytes(r.fileSize)}` : ''}${fileMeta ? '' : ' (subiendo…)'}`) : null)),
-        el('button', { class: 'more', type: 'button', 'aria-label': 'Opciones', onclick: (e) => refMenu(e.currentTarget, r) }, '⋯')));
+            }, icon('file-text'), ` ${r.fileName || 'archivo'}${r.fileSize ? ` · ${formatBytes(r.fileSize)}` : ''}${fileMeta ? '' : ' (subiendo…)'}`) : null)),
+        el('button', { class: 'more', type: 'button', 'aria-label': 'Opciones', onclick: (e) => refMenu(e.currentTarget, r) }, icon('ellipsis'))));
   }));
 }
 
@@ -1863,42 +2050,44 @@ function prettyUrl(u) {
 
 function refMenu(anchor, r) {
   const n = store.notes.get(S.noteId);
-  if (!n || n.trashed) return;
-  const refs = n.refs || [];
+  if (!n || n.trashed || !S.bodyReady) return;
+  const refs = curRefs();
   const i = refs.findIndex((x) => x.id === r.id);
   menu(anchor, [
-    { icon: '✏️', label: 'Editar', onClick: () => editRef(r) },
-    i > 0 ? { icon: '↑', label: 'Subir', onClick: () => moveRef(i, -1) } : null,
-    i < refs.length - 1 ? { icon: '↓', label: 'Bajar', onClick: () => moveRef(i, 1) } : null,
+    { icon: 'pencil', label: 'Editar', onClick: () => editRef(r) },
+    i > 0 ? { icon: 'arrow-up', label: 'Subir', onClick: () => moveRef(i, -1) } : null,
+    i < refs.length - 1 ? { icon: 'arrow-down', label: 'Bajar', onClick: () => moveRef(i, 1) } : null,
     '-',
-    { icon: '🗑', label: 'Quitar referencia', danger: true, onClick: async () => {
+    { icon: 'trash-2', label: 'Quitar referencia', danger: true, onClick: async () => {
       if (!await confirm('Quitar referencia', r.fileId ? 'Se quitará la referencia y su archivo adjunto.' : '¿Quitar esta referencia?', { okLabel: 'Quitar', danger: true })) return;
-      setRefs(refs.filter((x) => x.id !== r.id));
-      if (r.fileId && !allReferencedFiles(n.id).has(r.fileId)) deleteFile(r.fileId);
+      setRefs(curRefs().filter((x) => x.id !== r.id));
+      if (r.fileId && filesKnown() && !allReferencedFiles(n.id).has(r.fileId) && !noteFileIds(n).has(r.fileId)) deleteFile(r.fileId);
     } }
   ].filter(Boolean));
 }
 
 function moveRef(i, d) {
-  const n = store.notes.get(S.noteId);
-  const refs = [...(n.refs || [])];
+  const refs = [...curRefs()];
   [refs[i], refs[i + d]] = [refs[i + d], refs[i]];
   setRefs(refs);
 }
 
+/** Cambia la bibliografía de la nota abierta: se guarda con su contenido (y el recuento en la nota ligera) */
 function setRefs(refs) {
   const n = store.notes.get(S.noteId);
-  if (!n) return;
-  n.refs = refs;
-  patch('notes', n.id, { refs, updatedAt: Date.now() });
+  if (!n || !S.bodyReady) return;
+  saveSoon.flush(); // primero lo que estés escribiendo
+  const b = bodyOf(n.id) || { html: S.loadedHtml || '', text: '' };
+  writeNote(n.id, { updatedAt: Date.now() }, { html: b.html, text: b.text, refs });
   renderRefs();
+  renderNoteChrome();
 }
 
 let pendingRefFile = null;
 
 async function editRef(existing) {
   const n = store.notes.get(S.noteId);
-  if (!n || n.trashed) return;
+  if (!n || n.trashed || !S.bodyReady) return;
   const cite = el('textarea', { rows: 3, placeholder: 'Ej.: Byrne RA et al. 2023 ESC Guidelines for the management of acute coronary syndromes. Eur Heart J. 2023;44:3720-3826.' });
   cite.value = existing?.cite || '';
   const url = el('input', { type: 'url', placeholder: 'https://…  o  DOI 10.xxxx/…', value: existing?.url || '' });
@@ -1937,10 +2126,11 @@ async function editRef(existing) {
       const oldFile = existing?.fileId;
       r.fileId = await saveFile(file, { noteId: n.id, name: file.name, kind: 'file' });
       r.fileName = file.name; r.fileSize = file.size;
-      if (oldFile && !allReferencedFiles(n.id).has(oldFile)) deleteFile(oldFile);
+      if (oldFile && filesKnown() && !allReferencedFiles(n.id).has(oldFile) && !(bodyOf(n.id)?.html || '').includes(`data-file="${oldFile}"`)) deleteFile(oldFile);
     } catch (e) { toast(e.message, 'error'); return; }
   }
-  const refs = [...(store.notes.get(n.id).refs || [])];
+  if (S.noteId !== n.id) return;
+  const refs = [...curRefs()];
   const i = refs.findIndex((x) => x.id === r.id);
   if (i >= 0) refs[i] = r; else refs.push(r);
   setRefs(refs);
@@ -1948,10 +2138,11 @@ async function editRef(existing) {
 
 async function addAttachment(f) {
   const n = store.notes.get(S.noteId);
-  if (!n || n.trashed) return;
+  if (!n || n.trashed || !S.bodyReady) return;
   try {
     const fileId = await saveFile(f, { noteId: n.id, name: f.name, kind: 'file' });
-    setRefs([...(n.refs || []), { id: newId('notes'), cite: f.name.replace(/\.[^.]+$/, ''), url: null, fileId, fileName: f.name, fileSize: f.size }]);
+    if (S.noteId !== n.id) return;
+    setRefs([...curRefs(), { id: newId('notes'), cite: f.name.replace(/\.[^.]+$/, ''), url: null, fileId, fileName: f.name, fileSize: f.size }]);
     toast('Archivo añadido a la bibliografía', 'ok');
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -2034,6 +2225,7 @@ function openSettings() {
 }
 
 async function cleanOrphans() {
+  if (!filesKnown()) { toast('Espera a que termine la actualización de las notas y vuelve a intentarlo', 'error', 4500); return; }
   const used = allReferencedFiles(null);
   const old = Date.now() - 10 * 60 * 1000;
   const orphans = [...store.files.values()].filter((f) => !used.has(f.id) && (f.createdAt || 0) < old);
@@ -2051,6 +2243,7 @@ async function doLogout(reason) {
   flushSnippet();
   stopSync();
   revokeAll();
+  await clearBodies(); // copia local del contenido de las notas
   await logout();
   if (reason) sessionStorage.setItem('drfolio.logoutReason', reason);
   location.replace(location.pathname);

@@ -3,6 +3,7 @@
 import { store, put, patch, remove, newId, folderPath, childFolders, descendantIds, flatFolders } from './store.js';
 import { el, $, debounce, norm, shortDate, longDate } from './util.js';
 import { toast, modal, confirm, menu, picker } from './ui.js';
+import { icon } from './icons.js';
 
 const FIELD_RE = /\{([^{}\n:|]{1,40})(?::([^{}\n]{1,300}))?\}/g;
 
@@ -183,8 +184,8 @@ export function snippetCard(s, { search = '', showPath = false, onLongPress = nu
       el('div', { class: 't' }, el('span', {}, s.title || 'Sin título')),
       el('div', { class: 's' }, previewNode(s, search)),
       el('div', { class: 'm' },
-        path ? el('span', { class: 'snip-path' }, `📁 ${path}`) : null,
-        nf ? el('span', {}, `✏️ ${nf} campo${nf > 1 ? 's' : ''}`) : null,
+        path ? el('span', { class: 'snip-path' }, icon('folder'), ` ${path}`) : null,
+        nf ? el('span', {}, icon('pencil'), ` ${nf} campo${nf > 1 ? 's' : ''}`) : null,
         s.uses ? el('span', {}, `· usado ${s.uses}×`) : null,
         el('span', {}, `· ${shortDate(s.updatedAt)}`))),
     el('div', { class: 'snip-btns' },
@@ -192,11 +193,11 @@ export function snippetCard(s, { search = '', showPath = false, onLongPress = nu
         class: `icon-btn snip-quick snip-star ${s.favorite ? 'on' : ''}`, type: 'button',
         title: s.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos', 'aria-label': s.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos',
         onclick: () => toggleFavorite(s.id)
-      }, s.favorite ? '★' : '☆'),
+      }, icon('star')),
       el('button', {
         class: 'icon-btn snip-quick', type: 'button', title: 'Copiar', 'aria-label': `Copiar ${s.title || ''}`,
         onclick: () => { saveSoon.flush(); copySnippet(s.id); }
-      }, '⧉')));
+      }, icon('copy'))));
   return card;
 }
 
@@ -253,15 +254,15 @@ export function snippetItemMenu(anchor, s, { inList = true } = {}) {
   const sibs = sortSnippets(snippetsIn(s.folderId), 'manual');
   const i = sibs.findIndex((x) => x.id === s.id);
   menu(anchor, [
-    inList ? { icon: '📄', label: 'Abrir', onClick: () => openSnippet(s.id, { push: true }) } : null,
-    { icon: '⧉', label: 'Copiar', onClick: () => { saveSoon.flush(); copySnippet(s.id); } },
-    { icon: s.favorite ? '☆' : '⭐', label: s.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos', onClick: () => toggleFavorite(s.id) },
-    { icon: '📁', label: 'Mover a carpeta…', onClick: () => moveSnippet(s.id) },
-    inList && i > 0 ? { icon: '⬆', label: 'Subir', onClick: () => shiftSnippet(s, -1) } : null,
-    inList && i >= 0 && i < sibs.length - 1 ? { icon: '⬇', label: 'Bajar', onClick: () => shiftSnippet(s, 1) } : null,
-    { icon: '⧉', label: 'Duplicar', onClick: () => duplicateSnippet(s) },
+    inList ? { icon: 'file-text', label: 'Abrir', onClick: () => openSnippet(s.id, { push: true }) } : null,
+    { icon: 'copy', label: 'Copiar', onClick: () => { saveSoon.flush(); copySnippet(s.id); } },
+    { icon: 'star', label: s.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos', onClick: () => toggleFavorite(s.id) },
+    { icon: 'folder-input', label: 'Mover a carpeta…', onClick: () => moveSnippet(s.id) },
+    inList && i > 0 ? { icon: 'arrow-up', label: 'Subir', onClick: () => shiftSnippet(s, -1) } : null,
+    inList && i >= 0 && i < sibs.length - 1 ? { icon: 'arrow-down', label: 'Bajar', onClick: () => shiftSnippet(s, 1) } : null,
+    { icon: 'copy-plus', label: 'Duplicar', onClick: () => duplicateSnippet(s) },
     '-',
-    { icon: '🗑', label: 'Eliminar', danger: true, onClick: () => deleteSnippet(s) }
+    { icon: 'trash-2', label: 'Eliminar', danger: true, onClick: () => deleteSnippet(s) }
   ].filter(Boolean));
 }
 
@@ -325,9 +326,9 @@ function browseSnippets() {
   const item = (s) => {
     const path = snipPathText(s.folderId);
     return el('button', { type: 'button', class: 'pick-item', onclick: () => { chosen = s.id; closeFn(); } },
-      el('span', { class: 'pick-t' }, s.favorite ? '⭐ ' : '', s.title || 'Sin título',
+      el('span', { class: 'pick-t' }, s.favorite ? [icon('star', 'fav-mark'), ' '] : '', s.title || 'Sin título',
         s.uses ? el('span', { class: 'pick-n' }, ` · ${s.uses}×`) : null),
-      el('span', { class: 'sub' }, path ? `📁 ${path}` : 'Sin carpeta'));
+      el('span', { class: 'sub' }, path ? [icon('folder'), ` ${path}`] : 'Sin carpeta'));
   };
   const folderRow = (f) => {
     const n = allSnippets().filter((s) => s.folderId && descendantIds(f.id, SF()).has(s.folderId)).length;
@@ -339,7 +340,7 @@ function browseSnippets() {
 
   function render() {
     const q = norm(search.value.trim());
-    const segs = [el('button', { type: 'button', onclick: () => go(null) }, '📋 Prerredactados')];
+    const segs = [el('button', { type: 'button', onclick: () => go(null) }, icon('clipboard-list'), ' Prerredactados')];
     for (const f of snipPath(folderId)) segs.push(el('span', { class: 'sep' }, '›'), el('button', { type: 'button', onclick: () => go(f.id) }, f.name));
     crumbs.replaceChildren(...segs);
     crumbs.classList.toggle('hidden', !folderId || !!q);
@@ -353,8 +354,8 @@ function browseSnippets() {
       const used = allSnippets().filter((s) => s.uses && !s.favorite).sort(pickRank).slice(0, 5);
       const folders = childFolders(null, SF());
       const loose = snippetsIn(null).sort(pickRank);
-      if (favs.length) out.push(sec('⭐ Favoritos'), ...favs.map(item));
-      if (used.length) out.push(sec('🔥 Más usados'), ...used.map(item));
+      if (favs.length) out.push(sec([icon('star'), ' Favoritos']), ...favs.map(item));
+      if (used.length) out.push(sec([icon('flame'), ' Más usados']), ...used.map(item));
       if (folders.length) out.push(sec('Carpetas'), ...folders.map(folderRow));
       if (loose.length) out.push(sec('Sin carpeta'), ...loose.map(item));
     } else {
@@ -435,9 +436,8 @@ function fillForm(s) {
 /** Carpeta, favorito e información del prerredactado abierto */
 function renderChrome(s) {
   const path = snipPathText(s.folderId);
-  $('#snip-folder').textContent = path ? `📁 ${path}` : '📁 Sin carpeta';
+  $('#snip-folder').replaceChildren(icon('folder'), ` ${path || 'Sin carpeta'}`);
   const fav = $('#snip-fav');
-  fav.textContent = s.favorite ? '★' : '☆';
   fav.classList.toggle('on', !!s.favorite);
   fav.title = s.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos';
   renderInfo(s);

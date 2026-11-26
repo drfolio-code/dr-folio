@@ -1,5 +1,6 @@
 // Componentes de interfaz propios (sin alert/prompt nativos: fallan en PWA de iOS)
 import { el, $, norm } from './util.js';
+import { iconOr } from './icons.js';
 
 export function toast(msg, type = '', ms = 2800) {
   const t = el('div', { class: `toast ${type}` }, msg);
@@ -35,7 +36,7 @@ export function modal({ title, body, actions = [{ label: 'Cerrar', value: undefi
     const box = el('div', { class: `modal ${wide ? 'wide' : ''} ${cls}`, role: 'dialog', 'aria-modal': 'true' },
       el('div', { class: 'modal-head' },
         el('h3', {}, title || ''),
-        el('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Cerrar', onclick: () => close(undefined) }, '✕')),
+        el('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Cerrar', onclick: () => close(undefined) }, iconOr('x'))),
       el('div', { class: 'modal-body' }, body || ''),
       foot);
     const back = el('div', { class: `modal-back ${cls ? `has-${cls}` : ''}`, onmousedown: (e) => { if (e.target === back) close(undefined); } }, box);
@@ -80,7 +81,7 @@ export function menu(anchor, items) {
     items.map((it) => it === '-' ? el('hr') : el('button', {
       type: 'button', class: it.danger ? 'danger' : '',
       onclick: () => { closeMenu(); it.onClick(); }
-    }, it.icon ? el('span', {}, it.icon) : null, it.label)));
+    }, it.icon ? el('span', {}, iconOr(it.icon)) : null, it.label)));
   document.body.append(m);
   const r = anchor.getBoundingClientRect();
   const mw = m.offsetWidth, mh = m.offsetHeight;
