@@ -1,15 +1,15 @@
 // Editor de texto enriquecido (contenteditable) con pegado limpio, imágenes, tablas,
 // listas de tareas, enlaces entre notas e índice automático.
 import { DOMPurify } from '../vendor/libs.js';
-import { $, $$, el } from './util.js';
+import { $, $$, el, htmlToText } from './util.js';
 import { modal, colorPicker, prompt, toast } from './ui.js';
 
 // ---------------- Limpieza de HTML ----------------
 const ALLOWED_TAGS = ['p', 'div', 'br', 'span', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del', 'mark', 'sub', 'sup',
   'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'hr', 'a', 'img',
   'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption'];
-const ALLOWED_ATTR = ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'data-file', 'data-note', 'data-checked', 'class', 'style'];
-const ALLOWED_CLASSES = new Set(['checklist', 'note-link']);
+const ALLOWED_ATTR = ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'data-file', 'data-note', 'data-checked', 'data-toc', 'data-collapsed', 'class', 'style'];
+const ALLOWED_CLASSES = new Set(['checklist', 'note-link', 'note-toc']);
 let pasteMode = false;
 
 function parseColor(v) {
@@ -119,6 +119,11 @@ function preparePaste(html) {
     }
   });
   doc.querySelectorAll('en-media, en-crypt').forEach((n) => n.remove());
+  // Desenvolver <div> contenedores de bloques (Evernote/Word), así los títulos quedan a primer nivel
+  const BLOCK = 'p,div,h1,h2,h3,h4,ul,ol,table,blockquote,pre,hr';
+  [...doc.body.querySelectorAll('div')].reverse().forEach((d) => {
+    if ([...d.children].some((c) => c.matches(BLOCK))) d.replaceWith(...d.childNodes);
+  });
   return doc.body.innerHTML;
 }
 
@@ -230,6 +235,9 @@ export function createEditor(opts) {
       await insertNoteLink();
     } else if (act === 'snippet') {
       await insertSnippet();
+    } else if (act === 'tocblock') {
+      restoreRange();
+      insertTocBlock();
     }
   });
   blockSel.addEventListener('change', () => {
@@ -407,6 +415,30 @@ export function createEditor(opts) {
 
   content.addEventListener('click', (e) => {
     hideBubble();
+    // Índice insertado en la nota
+    const tocLink = e.target.closest('.note-toc a[data-h]');
+    if (tocLink && inContent(tocLink)) {
+      e.preventDefault();
+      lastTocBlock = tocLink.closest('.note-toc');
+      scrollToHeading(+tocLink.dataset.h, { fromToc: true });
+      return;
+    }
+    const tocDel = e.target.closest('.note-toc .toc-del');
+    if (tocDel && inContent(tocDel)) {
+      e.preventDefault();
+      if (!readOnly) { tocDel.closest('.note-toc').remove(); changed(); }
+      return;
+    }
+    if (e.target.closest('.note-toc')) { e.preventDefault(); return; }
+    // Plegar / desplegar secciones (flecha a la derecha del título)
+    const hd = e.target.closest('h1,h2,h3');
+    if (hd && hd.parentElement === content && e.clientX > hd.getBoundingClientRect().right - 40) {
+      e.preventDefault();
+      if (hd.dataset.collapsed === '1') hd.removeAttribute('data-collapsed'); else hd.dataset.collapsed = '1';
+      applyFolds();
+      if (!readOnly) opts.onChange();
+      return;
+    }
     // Casillas de las listas de tareas
     const li = e.target.closest('ul.checklist > li');
     if (li && inContent(li)) {
@@ -558,14 +590,104 @@ export function createEditor(opts) {
   }
 
   // ---------- Índice ----------
-  function headings() { return $$('h1,h2,h3', content).filter((h) => h.textContent.trim()); }
-  function scrollToHeading(i) {
+  function headings() { return $$('h1,h2,h3', content).filter((h) => h.textContent.trim() && !h.closest('.note-toc')); }
+  const level = (h) => +h.tagName[1];
+
+  function scrollToHeading(i, { fromToc = false } = {}) {
     const h = headings()[i];
     if (!h) return;
+    revealHeading(h);
     h.scrollIntoView({ behavior: 'smooth', block: 'start' });
     h.classList.add('flash');
     setTimeout(() => h.classList.remove('flash'), 1500);
+    if (fromToc) showTocBack(); else hideTocBack();
   }
+
+  // Índice dentro de la nota (como Evernote): se guarda vacío y se genera al mostrar
+  function insertTocBlock() {
+    if (readOnly) return;
+    exec('insertHTML', '<div class="note-toc" data-toc="1"></div><p><br></p>');
+    refreshTocBlocks();
+    changed();
+    if (!headings().length) toast('Usa «Título 1/2/3» en la nota y el índice se rellenará solo');
+  }
+
+  function refreshTocBlocks() {
+    const blocks = $$('.note-toc', content);
+    if (!blocks.length) return;
+    const hs = headings();
+    for (const b of blocks) {
+      b.contentEditable = 'false';
+      const head = el('div', { class: 'toc-head' }, el('span', {}, 'Índice'),
+        readOnly ? null : el('button', { type: 'button', class: 'toc-del', title: 'Quitar índice', 'aria-label': 'Quitar índice' }, '✕'));
+      if (!hs.length) {
+        b.replaceChildren(head, el('p', { class: 'toc-empty' }, 'Añade títulos (Título 1, 2 o 3) y aparecerán aquí.'));
+        continue;
+      }
+      const min = Math.min(...hs.map(level));
+      const root = el('ol');
+      const stack = [{ lvl: min, list: root }];
+      hs.forEach((h, i) => {
+        const lv = level(h);
+        while (stack.length > 1 && lv < stack[stack.length - 1].lvl) stack.pop();
+        let top = stack[stack.length - 1];
+        if (lv > top.lvl) {
+          const parentLi = top.list.lastElementChild;
+          const sub = el('ol');
+          (parentLi || top.list).append(sub);
+          stack.push({ lvl: lv, list: sub });
+          top = stack[stack.length - 1];
+        }
+        top.list.append(el('li', {}, el('a', { href: '#', 'data-h': String(i) }, h.textContent.trim())));
+      });
+      b.replaceChildren(head, root);
+    }
+  }
+
+  // Secciones plegables: oculta lo que hay bajo un título plegado hasta el siguiente título de igual o mayor nivel
+  function applyFolds() {
+    let hideUntil = null;
+    for (const node of content.children) {
+      const isH = /^H[1-3]$/.test(node.tagName) && node.textContent.trim();
+      if (isH) {
+        const lv = +node.tagName[1];
+        if (hideUntil !== null && lv <= hideUntil) hideUntil = null;
+        node.classList.toggle('fold-hidden', hideUntil !== null);
+        node.classList.add('foldable');
+        if (hideUntil === null && node.dataset.collapsed === '1') hideUntil = lv;
+      } else {
+        node.classList.remove('foldable');
+        node.classList.toggle('fold-hidden', hideUntil !== null);
+      }
+    }
+  }
+  function revealHeading(h) {
+    if (!h.classList.contains('fold-hidden') && h.parentElement === content) return;
+    let n = h.previousElementSibling;
+    let lv = level(h);
+    while (n) {
+      if (/^H[1-3]$/.test(n.tagName) && +n.tagName[1] < lv) {
+        if (n.dataset.collapsed === '1') n.removeAttribute('data-collapsed');
+        lv = +n.tagName[1];
+      }
+      n = n.previousElementSibling;
+    }
+    applyFolds();
+  }
+
+  // Botón flotante «↑ Índice» para volver tras saltar a una sección
+  let lastTocBlock = null;
+  const tocBack = el('button', { type: 'button', class: 'toc-back hidden', onclick: () => {
+    hideTocBack();
+    const target = lastTocBlock && content.contains(lastTocBlock) ? lastTocBlock : $('#toc');
+    (target && !target.classList.contains('hidden') ? target : $('#ed-scroll')).scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    if (!target) $('#ed-scroll').scrollTo({ top: 0, behavior: 'smooth' });
+  } }, '↑ Índice');
+  editorBox.append(tocBack);
+  function showTocBack() { tocBack.classList.remove('hidden'); }
+  function hideTocBack() { tocBack.classList.add('hidden'); }
+  const refreshSoon = (() => { let t; return () => { clearTimeout(t); t = setTimeout(() => { refreshTocBlocks(); applyFolds(); }, 300); }; })();
+  content.addEventListener('input', refreshSoon);
 
   // ---------- API ----------
   return {
@@ -574,6 +696,10 @@ export function createEditor(opts) {
       tableTools.classList.add('hidden');
       content.innerHTML = sanitize(html || '');
       savedRange = null;
+      lastTocBlock = null;
+      hideTocBack();
+      refreshTocBlocks();
+      applyFolds();
       this.resolveImages();
       this.markLinks();
     },
@@ -593,11 +719,17 @@ export function createEditor(opts) {
     getContent() {
       const clone = content.cloneNode(true);
       clone.querySelectorAll('img[data-file]').forEach((i) => i.removeAttribute('src'));
-      clone.querySelectorAll('.selected,.loading,.flash,.broken').forEach((n) => n.classList.remove('selected', 'loading', 'flash', 'broken'));
+      clone.querySelectorAll('.selected,.loading,.flash,.broken,.fold-hidden,.foldable').forEach((n) => n.classList.remove('selected', 'loading', 'flash', 'broken', 'fold-hidden', 'foldable'));
+      clone.querySelectorAll('.note-toc').forEach((n) => { n.replaceChildren(); n.removeAttribute('contenteditable'); });
       const html = sanitize(clone.innerHTML);
       return html === '<br>' || html === '<p><br></p>' ? '' : html;
     },
-    getText() { return content.innerText.replace(/\n{3,}/g, '\n\n').trim(); },
+    getText() {
+      const clone = content.cloneNode(true);
+      clone.querySelectorAll('.note-toc').forEach((n) => n.remove());
+      return htmlToText(clone.innerHTML);
+    },
+    hasTocBlock() { return !!content.querySelector('.note-toc'); },
     fileIds() { return $$('img[data-file]', content).map((i) => i.dataset.file); },
     headings,
     scrollToHeading,
@@ -605,10 +737,11 @@ export function createEditor(opts) {
       readOnly = v;
       content.contentEditable = v ? 'false' : 'true';
       if (v) tableTools.classList.add('hidden');
+      refreshTocBlocks();
     },
     focus() { content.focus(); },
     isFocused() { return document.activeElement === content || content.contains(document.activeElement); },
-    hideFloating() { hideBubble(); tableTools.classList.add('hidden'); },
+    hideFloating() { hideBubble(); tableTools.classList.add('hidden'); hideTocBack(); },
     addFilesFromPicker: insertImages
   };
 }

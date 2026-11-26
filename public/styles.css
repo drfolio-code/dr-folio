@@ -650,3 +650,39 @@ body.kb-open .ed-inner { padding-bottom: 24px; }
   .pdfv-bar .icon-btn, .pdfv-find .icon-btn { height: 32px; }
 }
 @media (max-width: 900px) { .pdfv-act span { display: none; } }
+/* ===== Índice dentro de la nota (estilo Evernote) ===== */
+.content .note-toc {
+  border: 1.5px solid var(--border); border-radius: 12px; padding: 10px 18px 12px; margin: 10px 0 18px;
+  background: var(--panel); user-select: none; -webkit-user-select: none; cursor: default;
+}
+.content .note-toc .toc-head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin-bottom: 4px; }
+.content .note-toc .toc-del { border: 0; background: transparent; color: var(--muted); width: 26px; height: 26px; border-radius: 6px; font-size: 13px; }
+.content .note-toc .toc-del:hover { background: var(--panel-2); color: var(--danger); }
+.readonly .content .note-toc .toc-del { display: none; }
+.content .note-toc ol { margin: 0; padding-left: 1.5em; }
+.content .note-toc ol ol { margin: 2px 0 4px; list-style: lower-alpha; }
+.content .note-toc ol ol ol { list-style: lower-roman; }
+.content .note-toc li { margin: 5px 0; }
+.content .note-toc a { color: var(--accent-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 1.02em; }
+.content .note-toc .toc-empty { color: var(--muted); font-size: 14px; margin: 4px 0; }
+
+/* ===== Secciones plegables ===== */
+.content > .foldable { position: relative; padding-right: 40px; }
+.content > .foldable::after {
+  content: ""; position: absolute; right: 10px; top: 50%; width: 9px; height: 9px; margin-top: -3px;
+  border: solid var(--muted); border-width: 2px 2px 0 0; transform: rotate(-45deg); cursor: pointer; transition: transform .15s;
+}
+.content > .foldable[data-collapsed="1"]::after { transform: rotate(135deg); margin-top: -8px; }
+.content > .foldable[data-collapsed="1"] { color: var(--text); }
+.content > .foldable[data-collapsed="1"]::before {
+  content: "⋯"; position: absolute; right: 30px; top: 50%; transform: translateY(-50%); font-size: .7em; color: var(--muted);
+}
+.content .fold-hidden { display: none !important; }
+
+/* Botón «↑ Índice» */
+.toc-back {
+  position: absolute; right: 16px; bottom: calc(18px + var(--safe-bottom)); z-index: 25;
+  border: 0; border-radius: 22px; padding: 10px 16px; font-weight: 700; font-size: 14px;
+  background: var(--accent); color: #fff; box-shadow: var(--shadow);
+}
+@media print { .toc-back, .content > .foldable::after { display: none !important; } .content .fold-hidden { display: block !important; } }

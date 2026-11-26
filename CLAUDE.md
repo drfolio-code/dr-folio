@@ -52,6 +52,8 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
   - `refs[]`: `{id, cite, url, fileId, fileName, fileSize}` → sección Bibliografía
   - Imágenes en el HTML: `<img data-file="ID">` (sin `src`; se resuelve al mostrar)
   - Enlaces entre notas: `<a data-note="ID" class="note-link" href="#nota/ID">`
+  - Índice insertado: `<div class="note-toc" data-toc="1"></div>` (se guarda vacío; `refreshTocBlocks()` lo rellena con los H1–H3 al mostrar)
+  - Secciones plegadas: `data-collapsed="1"` en el título (solo títulos de primer nivel del contenido); `.fold-hidden`/`.foldable` son clases de vista, no se guardan
 - `files/{id}`: `noteId, name, mime, size, kind, chunks, createdAt` + subcolección `chunks/{000..}` `{d: base64}` (700 KB por trozo)
 - `snippets/{id}`: `title, body (texto plano), category, uses, lastUsedAt, createdAt, updatedAt` (prerredactados)
 - Fechas en milisegundos (`Date.now()`), no `serverTimestamp`.

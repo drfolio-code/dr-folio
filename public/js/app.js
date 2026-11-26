@@ -1245,11 +1245,12 @@ const renderTocSoon = debounce(() => renderToc(), 400);
 function renderToc() {
   const hs = editor.headings();
   const toc = $('#toc');
-  if (hs.length < 2) { toc.classList.add('hidden'); return; }
+  // Si la nota ya lleva su propio índice insertado, no duplicamos el panel superior
+  if (hs.length < 2 || editor.hasTocBlock()) { toc.classList.add('hidden'); return; }
   toc.classList.remove('hidden');
   $('#toc-list').replaceChildren(...hs.map((h, i) => el('a', {
     class: `l${h.tagName[1]}`, role: 'button', tabindex: '0',
-    onclick: () => editor.scrollToHeading(i)
+    onclick: () => editor.scrollToHeading(i, { fromToc: true })
   }, h.textContent.trim())));
 }
 
