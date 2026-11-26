@@ -811,9 +811,10 @@ export function createEditor(opts) {
         b.replaceChildren(head, el('p', { class: 'toc-empty' }, 'Añade títulos (Título 1, 2 o 3) y aparecerán aquí.'));
         continue;
       }
+      // Numeración por niveles (1, 1.1, 1.2, 2…). Si el título ya empieza por un número («1. …»), no se repite.
       const min = Math.min(...hs.map(level));
-      const root = el('ol');
-      const stack = [{ lvl: min, list: root }];
+      const root = el('ol', { class: 'toc-num' });
+      const stack = [{ lvl: min, list: root, n: 0 }];
       hs.forEach((h, i) => {
         const lv = level(h);
         while (stack.length > 1 && lv < stack[stack.length - 1].lvl) stack.pop();
@@ -822,13 +823,14 @@ export function createEditor(opts) {
           const parentLi = top.list.lastElementChild;
           const sub = el('ol');
           (parentLi || top.list).append(sub);
-          stack.push({ lvl: lv, list: sub });
+          stack.push({ lvl: lv, list: sub, n: 0 });
           top = stack[stack.length - 1];
         }
-        top.list.append(el('li', {}, el('a', { href: '#', 'data-h': String(i) }, hText(h))));
+        top.n++;
+        const num = stack.map((x) => x.n || 1).join('.');
+        const text = hText(h).replace(/^\d+(\.\d+)*[.)ºª-]?\s+/, '') || hText(h);
+        top.list.append(el('li', {}, el('a', { href: '#', 'data-h': String(i) }, el('span', { class: 'toc-n' }, `${num}.`), ` ${text}`)));
       });
-      // Si los títulos ya llevan número («1. …»), la lista va sin números (no «1. 1. …»)
-      if (hs.some((h) => /^\d+[.)ºª-]?\s/.test(hText(h)))) root.classList.add('toc-plain');
       b.replaceChildren(head, root);
     }
   }
