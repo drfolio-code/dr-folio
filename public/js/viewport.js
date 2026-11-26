@@ -57,6 +57,15 @@ function caretIntoView() {
  * pantalla (le resta la barra de estado) y no deja dibujar debajo. Se detecta ese hueco (--h-gap,
  * html.short-h) para no sumar además el margen de la barra de inicio del iPhone.
  */
+let probe = null;
+function safeTop() {
+  if (!probe) {
+    probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none';
+    document.body.appendChild(probe);
+  }
+  return probe.getBoundingClientRect().height;
+}
 const standalone = () => navigator.standalone === true; // solo existe en iOS
 function fullHeight() {
   let gap = 0;
@@ -66,8 +75,13 @@ function fullHeight() {
     const sh = land ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
     // Solo si la ventana es la pantalla entera (no en iPad con varias ventanas) y le falta alto
     const g = sh - window.innerHeight;
+    // Con la barra de estado sólida (zona segura de arriba = 0) la ventana empieza debajo de ella: no es el fallo
+    if (safeTop() < 1) return setGap(0);
     if (Math.abs(window.innerWidth - sw) <= 2 && g > 10 && g < 120 && !isTyping()) gap = g;
   }
+  setGap(gap);
+}
+function setGap(gap) {
   if (gap) root.style.setProperty('--h-gap', `${gap}px`);
   else root.style.removeProperty('--h-gap');
   root.classList.toggle('short-h', !!gap);
