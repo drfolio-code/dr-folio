@@ -83,3 +83,67 @@ export function download(filename, blob) {
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
+
+/**
+ * Texto plano «para pegar en un informe» a partir de nodos del DOM (no usa innerText,
+ * así incluye lo plegado). Tablas: columnas separadas por tabuladores. Listas: «- » o «1. ».
+ */
+export function nodesToPlain(nodes) {
+  let out = '';
+  let prefix = null; // viñeta pendiente de escribir
+  const atStart = () => !out || out.endsWith('\n');
+  const nl = () => { if (prefix === null && !atStart()) out += '\n'; };
+  const write = (s) => {
+    if (prefix !== null) { s = s.replace(/^\s+/, ''); if (!s) return; out += prefix; prefix = null; }
+    else if (atStart() || out.endsWith(' ')) s = s.replace(/^ +/, '');
+    out += s;
+  };
+  const cellText = (c) => {
+    const parts = [];
+    const rec = (n) => {
+      if (n.nodeType === 3) parts.push(n.data);
+      else if (n.nodeType === 1 && !n.matches('img,button,.sec-copy')) {
+        if (n.tagName === 'BR') parts.push(' ');
+        else { n.childNodes.forEach(rec); if (/^(P|DIV|LI|H[1-6])$/.test(n.tagName)) parts.push(' '); }
+      }
+    };
+    rec(c);
+    return parts.join('').replace(/\s+/g, ' ').trim();
+  };
+  const walk = (n, depth, pre) => {
+    if (n.nodeType === 3) { write(pre ? n.data : n.data.replace(/[\s ]+/g, ' ')); return; }
+    if (n.nodeType !== 1 || n.matches('.note-toc,.sec-copy,img,button,script,style')) return;
+    const tag = n.tagName;
+    if (tag === 'BR') { if (prefix === null) out += '\n'; return; }
+    if (tag === 'HR') { nl(); return; }
+    if (tag === 'TABLE') {
+      nl();
+      for (const tr of n.rows) out += `${[...tr.cells].map(cellText).join('\t')}\n`;
+      return;
+    }
+    if (tag === 'UL' || tag === 'OL') {
+      nl();
+      let i = 0;
+      const check = n.classList.contains('checklist');
+      for (const li of n.children) {
+        if (li.tagName !== 'LI') { walk(li, depth, pre); continue; }
+        i++;
+        nl();
+        const mark = tag === 'OL' ? `${i}. ` : check ? (li.dataset.checked === 'true' ? '☑ ' : '☐ ') : '- ';
+        prefix = '  '.repeat(depth) + mark;
+        li.childNodes.forEach((c) => walk(c, depth + 1, pre));
+        prefix = null;
+        nl();
+      }
+      return;
+    }
+    const heading = /^H[1-6]$/.test(tag);
+    const block = heading || /^(P|DIV|BLOCKQUOTE|PRE|SECTION|DETAILS|SUMMARY|FIGURE|LI)$/.test(tag);
+    if (heading && out) { nl(); out += '\n'; }
+    else if (block) nl();
+    n.childNodes.forEach((c) => walk(c, depth, pre || tag === 'PRE'));
+    if (block) nl();
+  };
+  for (const n of nodes) walk(n, 0, false);
+  return out.split('\n').map((l) => l.replace(/[  ]+$/, '')).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}

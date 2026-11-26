@@ -1,7 +1,7 @@
 // Editor de texto enriquecido (contenteditable) con pegado limpio, imágenes, tablas,
 // listas de tareas, enlaces entre notas e índice automático.
 import { DOMPurify } from '../vendor/libs.js';
-import { $, $$, el, htmlToText } from './util.js';
+import { $, $$, el, htmlToText, nodesToPlain } from './util.js';
 import { modal, colorPicker, prompt, toast } from './ui.js';
 
 // ---------------- Limpieza de HTML ----------------
@@ -415,6 +415,14 @@ export function createEditor(opts) {
 
   content.addEventListener('click', (e) => {
     hideBubble();
+    // Modo lectura: «📋 Copiar sección»
+    const cp = e.target.closest('.sec-copy');
+    if (cp && inContent(cp)) {
+      e.preventDefault(); e.stopPropagation();
+      const h = cp.closest('h1,h2,h3');
+      if (h) opts.onCopy?.(sectionText(h), cp);
+      return;
+    }
     // Índice insertado en la nota
     const tocLink = e.target.closest('.note-toc a[data-h]');
     if (tocLink && inContent(tocLink)) {
@@ -477,6 +485,7 @@ export function createEditor(opts) {
     }
     const img = e.target.closest('img');
     if (img && inContent(img)) {
+      if (readOnly) { opts.onImage(img.dataset.file, img.src); return; }
       img.classList.add('selected');
       const fileId = img.dataset.file;
       showBubble(img, [
@@ -675,6 +684,28 @@ export function createEditor(opts) {
     applyFolds();
   }
 
+  // ---------- Copiar (modo lectura) ----------
+  /** Nodos de la sección: lo que hay bajo el título hasta el siguiente de igual o mayor nivel */
+  function sectionNodes(h) {
+    const nodes = [];
+    const lv = level(h);
+    for (let n = h.nextElementSibling; n; n = n.nextElementSibling) {
+      if (/^H[1-3]$/.test(n.tagName) && n.textContent.trim() && level(n) <= lv) break;
+      nodes.push(n);
+    }
+    return nodes;
+  }
+  function sectionText(h) { return nodesToPlain(sectionNodes(h)); }
+  function updateCopyButtons() {
+    $$('.sec-copy', content).forEach((b) => b.remove());
+    if (!readOnly) return;
+    for (const h of $$(':scope > h1, :scope > h2, :scope > h3', content)) {
+      if (!h.textContent.trim() || !sectionNodes(h).length) continue;
+      // Sin texto dentro (el icono va por CSS) para no ensuciar el índice
+      h.append(el('button', { type: 'button', class: 'sec-copy', contenteditable: 'false', title: 'Copiar sección', 'aria-label': 'Copiar sección' }));
+    }
+  }
+
   // Botón flotante «↑ Índice» para volver tras saltar a una sección
   let lastTocBlock = null;
   const tocBack = el('button', { type: 'button', class: 'toc-back hidden', onclick: () => {
@@ -700,6 +731,7 @@ export function createEditor(opts) {
       hideTocBack();
       refreshTocBlocks();
       applyFolds();
+      updateCopyButtons();
       this.resolveImages();
       this.markLinks();
     },
@@ -718,6 +750,7 @@ export function createEditor(opts) {
     },
     getContent() {
       const clone = content.cloneNode(true);
+      clone.querySelectorAll('.sec-copy').forEach((b) => b.remove());
       clone.querySelectorAll('img[data-file]').forEach((i) => i.removeAttribute('src'));
       clone.querySelectorAll('.selected,.loading,.flash,.broken,.fold-hidden,.foldable').forEach((n) => n.classList.remove('selected', 'loading', 'flash', 'broken', 'fold-hidden', 'foldable'));
       clone.querySelectorAll('.note-toc').forEach((n) => { n.replaceChildren(); n.removeAttribute('contenteditable'); });
@@ -726,9 +759,11 @@ export function createEditor(opts) {
     },
     getText() {
       const clone = content.cloneNode(true);
-      clone.querySelectorAll('.note-toc').forEach((n) => n.remove());
+      clone.querySelectorAll('.note-toc,.sec-copy').forEach((n) => n.remove());
       return htmlToText(clone.innerHTML);
     },
+    /** Texto plano de toda la nota (para «Copiar nota entera») */
+    allText() { return nodesToPlain(content.childNodes); },
     hasTocBlock() { return !!content.querySelector('.note-toc'); },
     fileIds() { return $$('img[data-file]', content).map((i) => i.dataset.file); },
     headings,
@@ -736,8 +771,9 @@ export function createEditor(opts) {
     setReadOnly(v) {
       readOnly = v;
       content.contentEditable = v ? 'false' : 'true';
-      if (v) tableTools.classList.add('hidden');
+      if (v) { tableTools.classList.add('hidden'); hideBubble(); }
       refreshTocBlocks();
+      updateCopyButtons();
     },
     focus() { content.focus(); },
     isFocused() { return document.activeElement === content || content.contains(document.activeElement); },

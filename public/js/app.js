@@ -12,7 +12,7 @@ import { toast, modal, prompt, confirm, menu, picker, colorPicker, modalOpen } f
 import {
   initSnippets, newSnippet, openSnippet, closeSnippet, currentSnippet, flushSnippet, onSnippetsChange, pickSnippetText,
   snippetCard, snippetItemMenu, snippetMatches, snippetsForView, sortSnippets, allSnippets, moveSnippetTo,
-  snipSort, setSnipSort, SNIP_SORTS, migrateCategories
+  snipSort, setSnipSort, SNIP_SORTS, migrateCategories, copyText
 } from './snippets.js';
 import { MODULES, NAV_HOME, NAV_SEARCH } from './modules.js';
 import { initViewport } from './viewport.js';
@@ -33,6 +33,7 @@ const S = {
   expanded: new Set(JSON.parse(localStorage.getItem('drfolio.expanded') || '[]')),
   dirty: false,
   loadedHtml: null,
+  reading: false,                                                     // nota abierta en modo lectura
   started: false,
   loggingOut: false
 };
@@ -194,7 +195,8 @@ function startApp(user) {
     resolveImage: fileUrl,
     noteExists: (id) => store.notes.has(id) && !store.notes.get(id).trashed,
     onDropFiles: (files) => files.forEach((f) => addAttachment(f)),
-    pickSnippet: pickSnippetText
+    pickSnippet: pickSnippetText,
+    onCopy: (text, btn) => copyOut(text, btn)
   });
 
   initSnippets({
@@ -340,6 +342,10 @@ function bindUi() {
     patch('notes', n.id, { pinned: !n.pinned });
   });
   $('#btn-note-menu').addEventListener('click', (e) => noteMenu(e.currentTarget));
+  $('#btn-edit').addEventListener('click', () => setReading(!S.reading));
+  $('#btn-font-down').addEventListener('click', () => setReadSize(readSize() - 1));
+  $('#btn-font-up').addEventListener('click', () => setReadSize(readSize() + 1));
+  applyReadSize();
   $('#btn-restore').addEventListener('click', () => restoreNote(S.noteId));
   $('#btn-delete-forever').addEventListener('click', () => deleteForever(S.noteId));
   $('#btn-add-ref').addEventListener('click', () => editRef(null));
@@ -372,7 +378,10 @@ function bindUi() {
 
   // Guardar antes de salir
   window.addEventListener('beforeunload', () => { saveSoon.flush(); flushSnippet(); });
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { saveSoon.flush(); flushSnippet(); } });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { saveSoon.flush(); flushSnippet(); }
+    updateWakeLock(); // el sistema suelta el bloqueo al ocultar la pestaña: lo pedimos otra vez al volver
+  });
   window.addEventListener('popstate', onPopState);
 }
 
@@ -545,6 +554,7 @@ function setView(view) {
   S.view = view;
   S.search = ''; $('#search').value = '';
   S.noteId = null;
+  S.reading = false;
   showEditorEmpty();
   showList();
   renderSection();
@@ -560,6 +570,7 @@ function renderSection() {
   if (sec === 'home') renderHome();
   if (sec === 'search') { if ($('#find-input').value !== S.find) $('#find-input').value = S.find; renderFind(); }
   renderNav();
+  updateWakeLock();
 }
 
 // ====================== Navegación (franja de módulos y barra inferior) ======================
@@ -1496,6 +1507,8 @@ function openNote(id, { push = false, focusTitle = false, fromHash = false } = {
   if (!treeOf(S.view.type)) { S.view = { type: 'all', id: null }; renderSection(); renderSidebar(); } // desde Inicio o Buscar
   S.noteId = id;
   S.dirty = false;
+  // Las notas nuevas (focusTitle) se abren en edición; el resto, según Ajustes (por defecto, lectura)
+  S.reading = !focusTitle && openMode() === 'read';
   showPane('note');
   $('#ed-title').value = n.title || '';
   editor.setContent(n.html || '');
@@ -1507,11 +1520,13 @@ function openNote(id, { push = false, focusTitle = false, fromHash = false } = {
   renderList();
   if (!fromHash) pushHash(!push);
   if (focusTitle) $('#ed-title').focus();
+  updateWakeLock();
 }
 
 function closeEditor({ fromHash = false } = {}) {
   saveSoon.flush();
   S.noteId = null;
+  S.reading = false;
   showEditorEmpty();
   showList();
   if (!fromHash) pushHash(true);
@@ -1525,6 +1540,7 @@ function showPane(which) {
   $('#snip-wrap').classList.toggle('hidden', which !== 'snip');
   $('#editor-empty').classList.toggle('hidden', which !== 'empty');
   if (which !== 'note') editor?.hideFloating();
+  if (which !== 'note') setTimeout(updateWakeLock);
   if (which !== 'empty') $('#app').dataset.view = 'editor';
   const snip = isSnipView();
   $('#btn-new-note-empty').textContent = snip ? '＋ Nuevo prerredactado' : '＋ Nueva nota';
@@ -1534,11 +1550,22 @@ function showPane(which) {
 function renderNoteChrome() {
   const n = store.notes.get(S.noteId);
   if (!n) return;
-  const ro = !!n.trashed;
+  const trashed = !!n.trashed;
+  const reading = S.reading && !trashed;
+  const ro = trashed || reading;
   $('#editor-wrap').classList.toggle('readonly', ro);
+  $('#editor-wrap').classList.toggle('reading', reading);
   editor.setReadOnly(ro);
   $('#ed-title').readOnly = ro;
-  $('#trash-banner').classList.toggle('hidden', !ro);
+  $('#ed-title').tabIndex = ro ? -1 : 0;
+  const eb = $('#btn-edit');
+  eb.classList.toggle('hidden', trashed);
+  eb.classList.toggle('primary', !reading);
+  eb.title = reading ? 'Editar la nota' : 'Terminar de editar (modo lectura)';
+  eb.setAttribute('aria-label', eb.title);
+  eb.querySelector('.ico').textContent = reading ? '✏️' : '✓';
+  eb.querySelector('.lbl').textContent = reading ? 'Editar' : 'Listo';
+  $('#trash-banner').classList.toggle('hidden', !trashed);
   $('#btn-pin').classList.toggle('on', !!n.pinned);
   $('#btn-pin').title = n.pinned ? 'Quitar de fijadas' : 'Fijar';
   const path = n.folderId ? folderPath(n.folderId) : [];
@@ -1553,6 +1580,71 @@ function renderNoteChrome() {
   renderBacklinks();
   const words = (n.text || '').split(/\s+/).filter(Boolean).length;
   $('#ed-meta').textContent = `Creada: ${longDate(n.createdAt)} · Modificada: ${longDate(n.updatedAt)} · ${words} palabras`;
+}
+
+// ---------- Modo lectura ----------
+// Preferencias por dispositivo (localStorage): drfolio.noteMode = read|edit, drfolio.readSize = px, drfolio.wakeLock = on|off
+const openMode = () => (localStorage.getItem('drfolio.noteMode') === 'edit' ? 'edit' : 'read');
+const READ_SIZES = [15, 16, 17, 18, 20, 22, 24, 27, 30];
+function readSize() {
+  const i = READ_SIZES.indexOf(+localStorage.getItem('drfolio.readSize'));
+  return i < 0 ? 3 : i; // por defecto 18 px
+}
+function setReadSize(i) {
+  i = Math.max(0, Math.min(READ_SIZES.length - 1, i));
+  localStorage.setItem('drfolio.readSize', String(READ_SIZES[i]));
+  applyReadSize();
+}
+function applyReadSize() {
+  const i = readSize();
+  $('#editor-wrap').style.setProperty('--read-size', `${READ_SIZES[i]}px`);
+  $('#btn-font-down').disabled = i === 0;
+  $('#btn-font-up').disabled = i === READ_SIZES.length - 1;
+}
+
+function setReading(on) {
+  const n = store.notes.get(S.noteId);
+  if (!n || n.trashed) return;
+  if (on) {
+    saveSoon.flush();
+    document.activeElement?.blur?.();
+    window.getSelection()?.removeAllRanges();
+  }
+  S.reading = on;
+  renderNoteChrome();
+  if (!on) { editor.focus(); }
+  updateWakeLock();
+}
+
+async function copyOut(text, btn) {
+  if (!text.trim()) { toast('No hay texto que copiar'); return; }
+  const ok = await copyText(text);
+  if (!ok) { toast('No se pudo copiar', 'error'); return; }
+  toast('Copiado ✓', 'ok', 1600);
+  if (btn) { btn.classList.add('done'); setTimeout(() => btn.classList.remove('done'), 1400); }
+}
+
+// Mantener la pantalla encendida mientras se lee (Wake Lock; si el navegador no lo permite, no pasa nada)
+const wakeLockWanted = () => localStorage.getItem('drfolio.wakeLock') !== 'off';
+let wakeLock = null;
+let wakeBusy = false;
+async function updateWakeLock() {
+  const want = 'wakeLock' in navigator && wakeLockWanted() && S.reading && !!S.noteId &&
+    document.visibilityState === 'visible' && !$('#editor-wrap').classList.contains('hidden') &&
+    !['home', 'search'].includes($('#app').dataset.section);
+  if (want && !wakeLock && !wakeBusy) {
+    wakeBusy = true;
+    try {
+      const w = await navigator.wakeLock.request('screen');
+      w.addEventListener('release', () => { if (wakeLock === w) wakeLock = null; });
+      wakeLock = w;
+    } catch { wakeLock = null; }
+    wakeBusy = false;
+    if (wakeLock) updateWakeLock(); // por si cambió algo mientras se pedía
+  } else if (!want && wakeLock) {
+    const w = wakeLock; wakeLock = null;
+    w.release().catch(() => {});
+  }
 }
 
 // ---------- Guardado ----------
@@ -1633,6 +1725,9 @@ function noteMenu(anchor) {
     return;
   }
   menu(anchor, [
+    { icon: '📋', label: 'Copiar nota entera', onClick: () => copyOut(editor.allText()) },
+    S.reading ? { icon: '✏️', label: 'Editar', onClick: () => setReading(false) } : { icon: '📖', label: 'Modo lectura', onClick: () => setReading(true) },
+    '-',
     { icon: '📁', label: 'Mover a carpeta…', onClick: () => moveNote(n.id) },
     { icon: '⧉', label: 'Duplicar', onClick: () => duplicateNote(n.id) },
     { icon: '🖨', label: 'Imprimir / guardar PDF', onClick: () => { saveSoon.flush(); window.print(); } },
@@ -1902,6 +1997,15 @@ function openSettings() {
       el('div', { class: 'settings-row' }, el('span', {}, 'Este dispositivo'),
         el('span', {}, publicMode ? '🟠 Ordenador público (sin copia offline)' : '🟢 De confianza (funciona sin conexión)')),
       publicMode ? el('div', { class: 'settings-row' }, el('span', {}, 'Cerrar sesión por inactividad'), idleSel) : null,
+      el('div', { class: 'settings-row' }, el('span', {}, 'Abrir notas en', el('br'), el('span', { class: 'muted small' }, 'Solo en este dispositivo')),
+        el('select', { onchange: (e) => { localStorage.setItem('drfolio.noteMode', e.target.value); toast('Guardado', 'ok'); } },
+          el('option', { value: 'read', selected: openMode() === 'read' }, '📖 Lectura'),
+          el('option', { value: 'edit', selected: openMode() === 'edit' }, '✏️ Edición'))),
+      el('div', { class: 'settings-row' }, el('span', {}, 'Pantalla encendida al leer una nota',
+        el('br'), el('span', { class: 'muted small' }, 'wakeLock' in navigator ? 'Solo en este dispositivo' : 'Este navegador no lo permite')),
+        el('select', { disabled: !('wakeLock' in navigator), onchange: (e) => { localStorage.setItem('drfolio.wakeLock', e.target.value); updateWakeLock(); toast('Guardado', 'ok'); } },
+          el('option', { value: 'on', selected: wakeLockWanted() }, 'Sí'),
+          el('option', { value: 'off', selected: !wakeLockWanted() }, 'No'))),
       el('div', {},
         el('div', { class: 'settings-row', style: { borderBottom: 0 } }, el('span', {}, 'Espacio usado'),
           el('span', {}, `${formatBytes(used)} de 1 GB · ${live} notas · ${store.snippets.size} prerredactados · ${store.files.size} archivos`)),

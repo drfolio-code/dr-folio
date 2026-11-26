@@ -20,7 +20,8 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/js/app.js` | Lógica principal: navegación (franja, barra inferior, ＋ Crear), barra lateral por sección, Inicio, Buscar, explorador de carpetas, vistas, etiquetas, notas, bibliografía, ajustes |
 | `public/js/modules.js` | Módulos (`id, name, short, icon, desc, route, status: 'active'\|'soon', count, tab`) + accesos fijos `NAV_HOME`/`NAV_SEARCH`. De aquí salen Inicio, la franja (todos) y la barra inferior (`tab: true`). Añadir un módulo = una línea aquí |
 | `public/js/viewport.js` | Alto real visible (`--app-h`/`--app-top` con visualViewport) para que el teclado del móvil no tape el editor. `body.kb-open` = teclado abierto (iOS: visualViewport; Android: alto menor que antes de escribir) → oculta la barra inferior |
-| `public/js/editor.js` | Editor `contenteditable`: barra de formato, pegado limpio (DOMPurify), tablas, listas de tareas, enlaces entre notas, índice |
+| `public/js/editor.js` | Editor `contenteditable`: barra de formato, pegado limpio (DOMPurify), tablas, listas de tareas, enlaces entre notas, índice, botones «📋 Copiar sección» en lectura (`allText()`) |
+| `public/js/util.js` | Ayudas: `el`, `$`, `debounce`, `norm`, fechas, `htmlToText` (búsqueda) y `nodesToPlain` (texto para pegar en informes: tablas con tabuladores, listas «- »/«1. ») |
 | `public/js/snippets.js` | Prerredactados: tarjetas, favoritos, orden, mover, editor de texto plano, campos `{campo}` / `{campo:a\|b}`, copiar, selector para insertar en notas (carpetas, favoritos, más usados, buscar) y migración categoría → carpeta |
 | `public/js/store.js` | Datos en memoria sincronizados con Firestore (`onSnapshot`) + ayudas de carpetas (`childFolders`, `folderPath`, `descendantIds`, `flatFolders`: último parámetro = mapa del árbol, por defecto `store.folders`) |
 | `public/js/files.js` | Imágenes/PDF guardados **en Firestore en trozos base64** (no hay Storage en Spark) |
@@ -39,6 +40,13 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - Tocar la sección activa vuelve a su raíz (`navTo`). **＋ Crear** (`createMenu`): Nota / Prerredactado / Carpeta, en la carpeta abierta.
 - **Buscar** `#/buscar` (`openFind`, `renderFind`): sección de primer nivel (atrás → Inicio). Fuentes en `SEARCH_SOURCES` (`id, name, icon, all, loaded, run(words), card`): para el Vademécum, añadir una entrada. Filtros Todo/por tipo (`S.findFilter`). Desde aquí, notas y prerredactados se abren encima y «atrás» vuelve a Buscar (`snippetCard({onOpen})`).
 - **Ordenador público**: `#pubbar` arriba siempre, con «Cerrar sesión» (`#app.public`).
+
+## Modo lectura (v1.8.0)
+- Las notas se abren en **lectura** (`S.reading`): sin barra de formato ni cursor, letra `--read-size` (A−/A+). Botón `#btn-edit` «✏️ Editar» ↔ «✓ Listo» (al volver a lectura guarda con `saveSoon.flush()`). Las notas nuevas (`focusTitle`) se abren en edición.
+- Reutiliza el solo-lectura de la papelera: `#editor-wrap.readonly` (+ `.reading` si no está en la papelera) y `editor.setReadOnly()`. En lectura funcionan índice, plegar (no se guarda), enlaces, imágenes (se abren directamente), PDF y bibliografía.
+- `.sec-copy`: botón sin texto (icono por CSS, para no ensuciar el índice) que se añade a cada H1–H3 de primer nivel al pasar a lectura y se quita en edición; `getContent()`/`getText()` también lo eliminan. Copia la sección **sin el título** (hasta el siguiente título de igual o mayor nivel), incluido lo plegado. ⋯ → «Copiar nota entera». Aviso «Copiado ✓» (`copyOut`, usa `copyText` de snippets.js).
+- Pantalla encendida (Wake Lock, `updateWakeLock`): solo en lectura con la nota visible; se vuelve a pedir al volver a la pestaña.
+- Preferencias por dispositivo (`localStorage`): `drfolio.noteMode` = `read|edit`, `drfolio.readSize` = px (15–30, por defecto 18), `drfolio.wakeLock` = `on|off` (Ajustes).
 
 ## Rutas y navegación
 - `#/inicio` (por defecto tras el login), `#/buscar`, `#/notas[/n/NOTA]` (explorador raíz), `#/all|pinned|recent|trash[/n/NOTA]`, `#/folder/ID[/n/NOTA]`, `#/tag/ID[/n/NOTA]`, `#nota/ID`.
@@ -80,7 +88,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - Datos de pacientes identificables: **no**. La app es para conocimiento clínico personal.
 
 ## Hoja de ruta
-1. ✅ Notas: carpetas/subcarpetas, etiquetas, editor enriquecido, imágenes, bibliografía con PDF, índice, enlaces entre notas, offline
+1. ✅ Notas: carpetas/subcarpetas, etiquetas, editor enriquecido, imágenes, bibliografía con PDF, índice, enlaces entre notas, offline, modo lectura con copiar sección
 2. ✅ Prerredactados (plantillas de texto para copiar, con campos rellenables)
 3. Vademécum personal
 4. Chat conmigo mismo (enviarse textos y documentos)
