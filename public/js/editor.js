@@ -46,7 +46,7 @@ function cleanStyle(style) {
       const c = parseColor(val);
       if (!c || c.a === 0) continue;
       const sat = Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b);
-      if (sat < 25 || lum(c) < 0.15) continue; // blancos, grises y negros: fuera
+      if (pasteMode && (sat < 25 || lum(c) < 0.15)) continue; // al pegar: fuera blancos, grises y negros
       keep.push(`background-color:${val}`);
     }
   }
@@ -212,13 +212,13 @@ export function createEditor(opts) {
     const act = b.dataset.act;
     saveRange();
     if (act === 'highlight') {
-      const c = await colorPicker('Resaltar', ['#fde68a', '#bbf7d0', '#fecdd3', '#bae6fd', '#e9d5ff', '']);
+      const c = await colorPicker('Resaltar', ['#fde68a', '#bbf7d0', '#fecdd3', '#bae6fd', '#e9d5ff', ''], 'highlight');
       if (c === undefined) return;
       restoreRange(); exec('styleWithCSS', true);
       exec('hiliteColor', c || 'transparent');
       exec('styleWithCSS', false); changed();
     } else if (act === 'color') {
-      const c = await colorPicker('Color del texto', ['#dc2626', '#ea580c', '#16a34a', '#2563eb', '#7c3aed', '#db2777', '']);
+      const c = await colorPicker('Color del texto', ['#dc2626', '#ea580c', '#16a34a', '#2563eb', '#7c3aed', '#db2777', ''], 'text');
       if (c === undefined) return;
       restoreRange(); exec('styleWithCSS', true);
       if (c) { exec('foreColor', c); lastColor = c; b.querySelector('.color-bar').style.background = lastColor; } else exec('removeFormat');

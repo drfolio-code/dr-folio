@@ -686,3 +686,12 @@ body.kb-open .ed-inner { padding-bottom: 24px; }
   background: var(--accent); color: #fff; box-shadow: var(--shadow);
 }
 @media print { .toc-back, .content > .foldable::after { display: none !important; } .content .fold-hidden { display: block !important; } }
+
+/* ===== Paleta de colores ampliada ===== */
+.color-sec { display: flex; flex-direction: column; gap: 6px; }
+.color-sec-t { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.color-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; margin-bottom: 6px; }
+.color-grid .swatch { width: 100%; height: auto; aspect-ratio: 1; border-radius: 7px; border-width: 1px; }
+.swatch:hover, .swatch:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+.color-custom { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.color-custom input[type=color] { width: 46px; height: 36px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }

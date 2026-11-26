@@ -603,7 +603,7 @@ function folderMenu(anchor, f, { here = false } = {}) {
       if (name) patch('folders', f.id, { name, updatedAt: Date.now() });
     } },
     { icon: '🎨', label: 'Color', onClick: async () => {
-      const c = await colorPicker('Color de la carpeta', ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '']);
+      const c = await colorPicker('Color de la carpeta', ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', ''], 'label');
       if (c !== undefined) patch('folders', f.id, { color: c || null });
     } },
     { icon: '↗', label: 'Mover a…', onClick: () => moveFolder(f) },
@@ -752,7 +752,7 @@ function tagMenu(anchor, t) {
       patch('tags', t.id, { name });
     } },
     { icon: '🎨', label: 'Color', onClick: async () => {
-      const c = await colorPicker('Color de la etiqueta', ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '']);
+      const c = await colorPicker('Color de la etiqueta', ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', ''], 'label');
       if (c !== undefined) patch('tags', t.id, { color: c || null });
     } },
     '-',

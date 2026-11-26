@@ -144,15 +144,61 @@ export function picker(title, items, { placeholder = 'Buscar…', emptyText = 'S
   }).then(() => chosen);
 }
 
-/** Paleta de colores. Resuelve con el color, '' para quitar o undefined si cancela. */
-export function colorPicker(title, colors) {
+/** Paleta de colores. kind: 'text' | 'highlight' | 'label'.
+ *  Resuelve con el color, '' para quitar o undefined si se cancela. */
+const HUES = {
+  rojo: ['#fee2e2', '#fecaca', '#fca5a5', '#f87171', '#ef4444', '#dc2626', '#b91c1c', '#991b1b'],
+  naranja: ['#ffedd5', '#fed7aa', '#fdba74', '#fb923c', '#f97316', '#ea580c', '#c2410c', '#9a3412'],
+  ámbar: ['#fef3c7', '#fde68a', '#fcd34d', '#fbbf24', '#f59e0b', '#d97706', '#b45309', '#92400e'],
+  amarillo: ['#fef9c3', '#fef08a', '#fde047', '#facc15', '#eab308', '#ca8a04', '#a16207', '#854d0e'],
+  lima: ['#ecfccb', '#d9f99d', '#bef264', '#a3e635', '#84cc16', '#65a30d', '#4d7c0f', '#3f6212'],
+  verde: ['#dcfce7', '#bbf7d0', '#86efac', '#4ade80', '#22c55e', '#16a34a', '#15803d', '#166534'],
+  turquesa: ['#ccfbf1', '#99f6e4', '#5eead4', '#2dd4bf', '#14b8a6', '#0d9488', '#0f766e', '#115e59'],
+  cian: ['#cffafe', '#a5f3fc', '#67e8f9', '#22d3ee', '#06b6d4', '#0891b2', '#0e7490', '#155e75'],
+  celeste: ['#e0f2fe', '#bae6fd', '#7dd3fc', '#38bdf8', '#0ea5e9', '#0284c7', '#0369a1', '#075985'],
+  azul: ['#dbeafe', '#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8', '#1e40af'],
+  índigo: ['#e0e7ff', '#c7d2fe', '#a5b4fc', '#818cf8', '#6366f1', '#4f46e5', '#4338ca', '#3730a3'],
+  violeta: ['#ede9fe', '#ddd6fe', '#c4b5fd', '#a78bfa', '#8b5cf6', '#7c3aed', '#6d28d9', '#5b21b6'],
+  fucsia: ['#fae8ff', '#f5d0fe', '#f0abfc', '#e879f9', '#d946ef', '#c026d3', '#a21caf', '#86198f'],
+  rosa: ['#fce7f3', '#fbcfe8', '#f9a8d4', '#f472b6', '#ec4899', '#db2777', '#be185d', '#9d174d'],
+  carmín: ['#ffe4e6', '#fecdd3', '#fda4af', '#fb7185', '#f43f5e', '#e11d48', '#be123c', '#9f1239'],
+  gris: ['#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b', '#475569', '#334155', '#1e293b']
+};
+const SHADES = { text: [4, 5, 6, 7], highlight: [0, 1, 2], label: [3, 4, 5] };
+
+const recentKey = (kind) => `drfolio.recentColors.${kind}`;
+function getRecent(kind) { try { return JSON.parse(localStorage.getItem(recentKey(kind)) || '[]'); } catch { return []; } }
+function pushRecent(kind, c) {
+  if (!c) return;
+  const r = [c, ...getRecent(kind).filter((x) => x.toLowerCase() !== c.toLowerCase())].slice(0, 8);
+  try { localStorage.setItem(recentKey(kind), JSON.stringify(r)); } catch { /* */ }
+}
+
+export function colorPicker(title, colors = [], kind = 'label') {
   let chosen;
   let closeFn = () => {};
-  const sw = el('div', { class: 'swatches' },
-    colors.map((c) => el('button', {
-      type: 'button', class: `swatch ${c ? '' : 'none'}`, title: c || 'Quitar',
-      style: c ? { background: c } : {},
-      onclick: () => { chosen = c; closeFn(); }
-    })));
-  return modal({ title, body: sw, actions: [], onOpen: (_b, close) => { closeFn = () => close(chosen); } }).then(() => chosen);
+  const pick = (c) => { chosen = c; pushRecent(kind, c); closeFn(); };
+  const swatch = (c, label) => el('button', {
+    type: 'button', class: `swatch ${c ? '' : 'none'}`, title: label || c || 'Quitar color',
+    'aria-label': label || c || 'Quitar color', style: c ? { background: c } : {},
+    onclick: () => pick(c)
+  });
+  const section = (name, ...nodes) => el('div', { class: 'color-sec' }, el('div', { class: 'color-sec-t' }, name), ...nodes);
+  const recent = getRecent(kind);
+  const basics = colors.filter(Boolean);
+  const shades = SHADES[kind] || SHADES.label;
+  const names = Object.keys(HUES);
+  // Dos bloques de 8 tonos para que quepa bien en el móvil
+  const block = (hueNames) => el('div', { class: 'color-grid' },
+    shades.flatMap((si) => hueNames.map((h) => swatch(HUES[h][si], h))));
+  const custom = el('input', { type: 'color', value: basics[0] || '#0e7490', 'aria-label': 'Color personalizado' });
+  const body = [
+    recent.length ? section('Recientes', el('div', { class: 'swatches' }, recent.map((c) => swatch(c)))) : null,
+    basics.length ? section('Básicos', el('div', { class: 'swatches' }, basics.map((c) => swatch(c)))) : null,
+    section('Más colores', block(names.slice(0, 8)), block(names.slice(8))),
+    section('Personalizado', el('div', { class: 'color-custom' }, custom,
+      el('button', { type: 'button', class: 'btn sm', onclick: () => pick(custom.value) }, 'Usar este color'),
+      el('button', { type: 'button', class: 'btn sm', onclick: () => pick('') }, 'Quitar color')))
+  ].filter(Boolean);
+  return modal({ title, body, actions: [], onOpen: (_b, close) => { closeFn = () => close(chosen); } }).then(() => chosen);
 }
