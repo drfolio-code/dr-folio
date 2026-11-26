@@ -15,7 +15,7 @@ import {
   snipSort, setSnipSort, SNIP_SORTS, migrateCategories, copyText
 } from './snippets.js';
 import { MODULES, NAV_HOME, NAV_SEARCH } from './modules.js';
-import { initViewport, initTitles, fitTitle } from './viewport.js';
+import { initViewport, initTitles, fitTitle, fitMode, setFitMode, screenInfo } from './viewport.js';
 import { openPdfViewer } from './pdfviewer.js';
 import { initBackup, openBackup, backupReminder, backupPublicReason, exportJson, progress, lastBackupAt } from './backup.js';
 import {
@@ -2208,6 +2208,11 @@ function openSettings() {
         el('select', { disabled: !('wakeLock' in navigator), onchange: (e) => { localStorage.setItem('drfolio.wakeLock', e.target.value); updateWakeLock(); toast('Guardado', 'ok'); } },
           el('option', { value: 'on', selected: wakeLockWanted() }, 'Sí'),
           el('option', { value: 'off', selected: !wakeLockWanted() }, 'No'))),
+      el('div', { class: 'settings-row' }, el('span', {}, 'Ajuste a la pantalla',
+        el('br'), el('span', { class: 'muted small' }, 'Si sobra o falta espacio abajo (iPhone). Solo en este dispositivo'),
+        el('br'), el('span', { class: 'muted small', style: { fontSize: '11px' } }, screenInfo())),
+        el('select', { onchange: (e) => { setFitMode(e.target.value); toast('Guardado', 'ok'); } },
+          [['auto', 'Automático'], ['vh', 'Prueba A'], ['screen', 'Prueba B']].map(([v, t]) => el('option', { value: v, selected: fitMode() === v }, t)))),
       el('div', {},
         el('div', { class: 'settings-row', style: { borderBottom: 0 } }, el('span', {}, 'Espacio usado'),
           el('span', {}, `${formatBytes(used)} de 1 GB · ${live} notas · ${store.snippets.size} prerredactados · ${store.files.size} archivos`)),

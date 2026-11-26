@@ -66,8 +66,27 @@ function safeTop() {
   }
   return probe.getBoundingClientRect().height;
 }
+/** Alto de la pantalla en la orientación actual */
+function screenH() {
+  const land = window.innerWidth > window.innerHeight;
+  return land ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+}
+// Ajuste del alto en el iPhone instalado (Ajustes): 'auto' | 'vh' (100vh) | 'screen' (alto de la pantalla)
+const FIT_KEY = 'drfolio.fit';
+export function fitMode() { try { return localStorage.getItem(FIT_KEY) || 'auto'; } catch { return 'auto'; } }
+export function setFitMode(m) { try { localStorage.setItem(FIT_KEY, m); } catch {} update(); }
+/** Medidas para diagnosticar (se muestran en Ajustes) */
+export function screenInfo() {
+  const m = (css) => { const d = document.createElement('div'); d.style.cssText = `position:fixed;top:0;left:0;width:0;visibility:hidden;height:${css}`; document.body.appendChild(d); const h = Math.round(d.getBoundingClientRect().height); d.remove(); return h; };
+  return `pantalla ${screen.width}×${screen.height} · ventana ${window.innerWidth}×${window.innerHeight} · visible ${Math.round(vv?.height || 0)} · vh ${m('100vh')} · dvh ${m('100dvh')} · lvh ${m('100lvh')} · arriba ${m('env(safe-area-inset-top,0px)')} · abajo ${m('env(safe-area-inset-bottom,0px)')} · ${navigator.standalone ? 'instalada' : 'navegador'}`;
+}
 const standalone = () => navigator.standalone === true; // solo existe en iOS
 function fullHeight() {
+  const mode = fitMode();
+  root.classList.toggle('fit-vh', mode === 'vh');
+  root.classList.toggle('fit-screen', mode === 'screen');
+  if (mode === 'screen') root.style.setProperty('--scr-h', `${screenH()}px`);
+  if (mode !== 'auto') return setGap(0);
   let gap = 0;
   if (standalone() && screen?.width && screen?.height) {
     const land = window.innerWidth > window.innerHeight;

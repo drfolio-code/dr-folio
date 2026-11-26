@@ -972,6 +972,11 @@ body.kb-open .modal-back { top: var(--app-top, 0px); bottom: auto; height: var(-
 html.short-h { --safe-bottom: max(0px, calc(env(safe-area-inset-bottom, 0px) - var(--h-gap, 0px))); }
 html.short-h:has(body[data-screen="app"]) { background: var(--panel); }
 html.short-h #tabbar { padding-bottom: calc(6px + var(--safe-bottom)); }
+/* Ajuste de alto elegido en Ajustes (para el iPhone instalado) */
+html.fit-vh, html.fit-vh body { height: 100vh; }
+html.fit-vh body:not(.kb-open) :is(#app, .screen, .modal-back) { bottom: auto; height: 100vh; }
+html.fit-screen, html.fit-screen body { height: var(--scr-h, 100%); }
+html.fit-screen body:not(.kb-open) :is(#app, .screen, .modal-back) { bottom: auto; height: var(--scr-h, 100%); }
 /* Modales: nunca debajo del notch ni de la barra inferior del iPhone */
 .modal-back {
   padding: max(16px, var(--safe-top)) max(16px, var(--safe-right)) max(16px, var(--safe-bottom)) max(16px, var(--safe-left));
