@@ -84,10 +84,15 @@ export function menu(anchor, items) {
     }, it.icon ? el('span', {}, iconOr(it.icon)) : null, it.label)));
   document.body.append(m);
   const r = anchor.getBoundingClientRect();
+  // Alto visible de verdad (en iOS, con el teclado abierto, innerHeight no cambia)
+  const vv = window.visualViewport;
+  const vTop = vv ? vv.offsetTop : 0;
+  const vBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+  m.style.maxHeight = `${Math.max(160, Math.max(vBottom - r.bottom, r.top - vTop) - 12)}px`;
   const mw = m.offsetWidth, mh = m.offsetHeight;
   let left = Math.min(r.left, window.innerWidth - mw - 8);
   let top = r.bottom + 4;
-  if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 4);
+  if (top + mh > vBottom - 8) top = Math.max(vTop + 8, r.top - mh - 4);
   m.style.left = `${Math.max(8, left)}px`;
   m.style.top = `${top}px`;
   setTimeout(() => {

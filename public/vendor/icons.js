@@ -81,5 +81,9 @@ export const ICONS = {
   "a-large-small":"<path d=\"M21 14h-5\"/><path d=\"M16 16v-3.5a2.5 2.5 0 0 1 5 0V16\"/><path d=\"M4.5 13h6\"/><path d=\"m3 16 4.5-9 4.5 9\"/>",
   "table-of-contents":"<path d=\"M16 12H3\"/><path d=\"M16 18H3\"/><path d=\"M16 6H3\"/><path d=\"M21 12h.01\"/><path d=\"M21 18h.01\"/><path d=\"M21 6h.01\"/>",
   "code":"<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>",
-  "chevron-down":"<path d=\"m6 9 6 6 6-6\"/>"
+  "chevron-down":"<path d=\"m6 9 6 6 6-6\"/>",
+  "keyboard-off":"<path d=\"M 20 4 A2 2 0 0 1 22 6\"/><path d=\"M 22 6 L 22 16.41\"/><path d=\"M 7 16 L 16 16\"/><path d=\"M 9.69 4 L 20 4\"/><path d=\"M14 8h.01\"/><path d=\"M18 8h.01\"/><path d=\"m2 2 20 20\"/><path d=\"M20 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2\"/><path d=\"M6 8h.01\"/><path d=\"M8 12h.01\"/>",
+  "quote":"<path d=\"M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\"/><path d=\"M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\"/>",
+  "heading":"<path d=\"M6 12h12\"/><path d=\"M6 20V4\"/><path d=\"M18 20V4\"/>",
+  "pilcrow":"<path d=\"M13 4v16\"/><path d=\"M17 4v16\"/><path d=\"M19 4H9.5a4.5 4.5 0 0 0 0 9H13\"/>"
 };

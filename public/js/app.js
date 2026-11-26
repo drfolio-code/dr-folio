@@ -241,6 +241,15 @@ function startApp(user) {
     onCopy: onSnippetSectionCopy
   });
 
+  // Deshacer / rehacer en la cabecera (como Evernote); mousedown sin quitar la selección del texto
+  for (const [pre, ed] of [['btn', editor], ['snip', snipEditor]]) {
+    for (const k of ['undo', 'redo']) {
+      const b = $(`#${pre}-${k}`);
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => ed[k]());
+    }
+  }
+
   initSnippets({
     editor: snipEditor,
     openMode: () => openMode(),
@@ -1797,6 +1806,7 @@ function renderNoteChrome() {
   const ro = trashed || reading || !S.bodyReady;
   $('#editor-wrap').classList.toggle('readonly', ro);
   $('#editor-wrap').classList.toggle('reading', reading);
+  setTimeout(updateWakeLock);
   editor.setReadOnly(ro);
   $('#ed-title').readOnly = ro;
   $('#ed-title').tabIndex = ro ? -1 : 0;
@@ -1872,6 +1882,12 @@ const wakeLockWanted = () => localStorage.getItem('drfolio.wakeLock') !== 'off';
 let wakeLock = null;
 let wakeBusy = false;
 async function updateWakeLock() {
+  // Editando (no en lectura): en el móvil se oculta la barra inferior, como Evernote (queda la barra de formato)
+  const app = $('#app');
+  const visible = app.dataset.view === 'editor' && !['home', 'search'].includes(app.dataset.section);
+  const nOpen = !!S.noteId && !$('#editor-wrap').classList.contains('hidden') && !$('#editor-wrap').classList.contains('readonly');
+  const sOpen = !!currentSnippet() && !isSnippetReading() && !$('#snip-wrap').classList.contains('hidden');
+  app.classList.toggle('editing', visible && (nOpen || sOpen));
   const reading = (S.reading && !!S.noteId && !$('#editor-wrap').classList.contains('hidden')) ||
     (isSnippetReading() && !$('#snip-wrap').classList.contains('hidden'));
   const want = 'wakeLock' in navigator && wakeLockWanted() && reading && document.visibilityState === 'visible' &&

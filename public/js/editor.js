@@ -151,31 +151,25 @@ const ico = (n) => `<svg class="i" aria-hidden="true"><use href="#i-${n}"/></svg
 const B = (attr, icon, title, extra = '') => `<button type="button" ${attr} title="${title}" aria-label="${title}"${extra}>${icon}</button>`;
 const SEP = '<span class="sep"></span>';
 /**
- * Barra estilo Evernote. fields = botón «Insertar campo» (solo prerredactados).
- * Orden: deshacer · estilo y tamaño · formato · listas y alineación · insertar · más
+ * Barra estilo Evernote (la misma para notas y prerredactados). fields = «Campo a rellenar» en ＋ (solo prerredactados).
+ * ＋ Insertar · tareas | viñetas, numerada, sangría −/+, estilos (Aa), alinear | B I U S código cita | color, resaltar,
+ * tamaño | ⋯ más · ocultar teclado (solo móvil). Deshacer / rehacer van en la cabecera (como Evernote en el móvil).
  */
 export function toolbarHtml({ fields = false } = {}) {
+  void fields;
   return [
-    B('data-cmd="undo"', ico('undo-2'), 'Deshacer (Ctrl+Z)'), B('data-cmd="redo"', ico('redo-2'), 'Rehacer (Ctrl+Y)'), SEP,
-    `<select data-block title="Estilo de párrafo" aria-label="Estilo de párrafo">
-      <option value="p">Texto</option><option value="h1">Título 1</option><option value="h2">Título 2</option>
-      <option value="h3">Título 3</option><option value="blockquote">Cita</option><option value="pre">Código</option></select>`,
-    B('data-act="size"', ico('a-large-small'), 'Tamaño de letra'), SEP,
+    B('data-act="insert" class="tb-plus"', ico('plus'), 'Insertar (imagen, tabla, enlace, índice…)'),
+    B('data-act="checklist"', ico('list-checks'), 'Lista de tareas (Ctrl+Mayús+X)'), SEP,
+    B('data-cmd="insertUnorderedList"', ico('list'), 'Lista con viñetas'), B('data-cmd="insertOrderedList"', ico('list-ordered'), 'Lista numerada'),
+    B('data-cmd="outdent"', ico('indent-decrease'), 'Reducir sangría'), B('data-cmd="indent"', ico('indent-increase'), 'Aumentar sangría'),
+    B('data-act="style"', ico('heading'), 'Estilo: texto, títulos, cita, código'), B('data-act="align"', ico('align-left'), 'Alinear'), SEP,
     B('data-cmd="bold"', ico('bold'), 'Negrita (Ctrl+B)'), B('data-cmd="italic"', ico('italic'), 'Cursiva (Ctrl+I)'),
     B('data-cmd="underline"', ico('underline'), 'Subrayado (Ctrl+U)'), B('data-cmd="strikeThrough"', ico('strikethrough'), 'Tachado'),
+    B('data-act="code"', ico('code'), 'Código en línea'), B('data-act="quote"', ico('quote'), 'Cita'), SEP,
     B('data-act="color"', `${ico('baseline')}<span class="color-bar"></span>`, 'Color del texto'),
-    B('data-act="highlight"', ico('highlighter'), 'Resaltar'), SEP,
-    B('data-cmd="insertUnorderedList"', ico('list'), 'Lista con viñetas'), B('data-cmd="insertOrderedList"', ico('list-ordered'), 'Lista numerada'),
-    B('data-act="checklist"', ico('list-checks'), 'Lista de tareas (Ctrl+Mayús+X)'),
-    B('data-cmd="outdent"', ico('indent-decrease'), 'Reducir sangría'), B('data-cmd="indent"', ico('indent-increase'), 'Aumentar sangría'),
-    B('data-act="align"', ico('align-left'), 'Alinear'), SEP,
-    B('data-act="table"', ico('table'), 'Insertar tabla'), B('data-act="image"', ico('image'), 'Insertar imagen'),
-    B('data-act="link"', ico('link'), 'Enlace web (Ctrl+K)'), B('data-act="notelink"', ico('notebook-text'), 'Enlazar una nota'),
-    B('data-act="tocblock"', ico('table-of-contents'), 'Insertar índice'), B('data-act="snippet"', ico('clipboard-list'), 'Insertar prerredactado'),
-    fields ? B('data-act="field"', ico('braces'), 'Insertar campo a rellenar {…}') : '',
-    B('data-act="date"', ico('calendar-clock'), 'Insertar fecha'), B('data-cmd="insertHorizontalRule"', ico('minus'), 'Línea separadora'), SEP,
-    B('data-act="code"', ico('code'), 'Código en línea'), B('data-cmd="subscript"', ico('subscript'), 'Subíndice'),
-    B('data-cmd="superscript"', ico('superscript'), 'Superíndice'), B('data-act="clear"', ico('remove-formatting'), 'Quitar formato')
+    B('data-act="highlight"', ico('highlighter'), 'Resaltar'), B('data-act="size"', ico('a-large-small'), 'Tamaño de letra'), SEP,
+    B('data-act="more"', ico('ellipsis'), 'Más opciones'),
+    B('data-act="hidekb" class="tb-hidekb"', ico('keyboard-off'), 'Ocultar teclado')
   ].join('');
 }
 
@@ -195,7 +189,7 @@ export function createEditor(opts) {
   const scroller = E.scroll || $('#ed-scroll');
   const fileInput = E.fileInput || $('#file-image');
   const sideToc = E.toc === undefined ? $('#toc') : E.toc;
-  if (!toolbar.querySelector('[data-block]')) toolbar.innerHTML = toolbarHtml({ fields: !!opts.fields }); // HTML fijo, sin datos
+  if (!toolbar.querySelector('[data-act=insert]')) toolbar.innerHTML = toolbarHtml({ fields: !!opts.fields }); // HTML fijo, sin datos
   // Móvil: la barra se desliza; un difuminado en el borde indica que hay más botones
   const edges = () => {
     toolbar.classList.toggle('more-left', toolbar.scrollLeft > 4);
@@ -204,7 +198,6 @@ export function createEditor(opts) {
   toolbar.addEventListener('scroll', edges, { passive: true });
   window.addEventListener('resize', edges);
   new ResizeObserver(edges).observe(toolbar);
-  const blockSel = toolbar.querySelector('[data-block]');
   let savedRange = null;
   let readOnly = false;
   let lastColor = '#dc2626';
@@ -260,8 +253,58 @@ export function createEditor(opts) {
       changed();
       return;
     }
-    const act = b.dataset.act;
     saveRange();
+    await runAct(b.dataset.act, b);
+  });
+
+  const STYLES = [['p', 'Texto', 'pilcrow'], ['h1', 'Título 1', 'heading'], ['h2', 'Título 2', 'heading'], ['h3', 'Título 3', 'heading'],
+    ['blockquote', 'Cita', 'quote'], ['pre', 'Bloque de código', 'code']];
+  /** Menú anclado a un botón de la barra; cada opción recupera la selección antes de actuar */
+  const barMenu = (b, items) => menu(b, items.filter(Boolean).map((it) => (it === '-' ? it : { ...it, onClick: () => it.run() })));
+  async function runAct(act, b) {
+    if (act === 'insert') {
+      barMenu(b, [
+        { icon: 'image', label: 'Imagen', run: () => runAct('image', b) },
+        { icon: 'table', label: 'Tabla', run: () => runAct('table', b) },
+        { icon: 'link', label: 'Enlace web', run: () => runAct('link', b) },
+        { icon: 'notebook-text', label: 'Enlace a una nota', run: () => runAct('notelink', b) },
+        { icon: 'table-of-contents', label: 'Índice', run: () => runAct('tocblock', b) },
+        { icon: 'clipboard-list', label: 'Prerredactado', run: () => runAct('snippet', b) },
+        opts.fields ? { icon: 'braces', label: 'Campo a rellenar {…}', run: () => runAct('field', b) } : null,
+        '-',
+        { icon: 'calendar-clock', label: 'Fecha', run: () => insertDate(false) },
+        { icon: 'calendar-clock', label: 'Fecha y hora', run: () => insertDate(true) },
+        { icon: 'minus', label: 'Línea separadora', run: () => { restoreRange(); exec('insertHorizontalRule'); changed(); } }
+      ]);
+      return;
+    }
+    if (act === 'style') {
+      const cur = closestInContent('h1,h2,h3,blockquote,pre')?.tagName.toLowerCase() || 'p';
+      barMenu(b, STYLES.map(([tag, label, icn]) => ({ icon: tag === cur ? 'check' : icn, label, run: () => { restoreRange(); exec('formatBlock', `<${tag}>`); changed(); } })));
+      return;
+    }
+    if (act === 'quote') {
+      restoreRange();
+      exec('formatBlock', closestInContent('blockquote') ? '<p>' : '<blockquote>');
+      changed();
+      return;
+    }
+    if (act === 'more') {
+      barMenu(b, [
+        { icon: 'subscript', label: 'Subíndice', run: () => { restoreRange(); exec('subscript'); changed(); } },
+        { icon: 'superscript', label: 'Superíndice', run: () => { restoreRange(); exec('superscript'); changed(); } },
+        { icon: 'remove-formatting', label: 'Quitar formato', run: () => runAct('clear', b) },
+        '-',
+        { icon: 'undo-2', label: 'Deshacer', run: () => api.undo() },
+        { icon: 'redo-2', label: 'Rehacer', run: () => api.redo() }
+      ]);
+      return;
+    }
+    if (act === 'hidekb') {
+      content.blur();
+      window.getSelection()?.removeAllRanges();
+      return;
+    }
     if (act === 'highlight') {
       const c = await colorPicker('Resaltar', ['#fde68a', '#bbf7d0', '#fecdd3', '#bae6fd', '#e9d5ff', ''], 'highlight');
       if (c === undefined) return;
@@ -294,14 +337,6 @@ export function createEditor(opts) {
         .map(([k, label, cmd]) => ({ icon: `align-${k}`, label, onClick: () => { restoreRange(); exec(cmd); changed(); } })));
     } else if (act === 'size') {
       menu(b, FONT_SIZES.map((f) => ({ icon: 'a-large-small', label: f.label, onClick: () => { restoreRange(); setFontSize(f.v); changed(); } })));
-    } else if (act === 'date') {
-      const d = new Date();
-      const day = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-      menu(b, [
-        { icon: 'calendar-clock', label: `Fecha (${day})`, onClick: () => { restoreRange(); exec('insertText', day); changed(); } },
-        { icon: 'calendar-clock', label: `Fecha y hora (${day} ${time})`, onClick: () => { restoreRange(); exec('insertText', `${day} ${time}`); changed(); } }
-      ]);
     } else if (act === 'code') {
       restoreRange();
       const sel = window.getSelection();
@@ -317,15 +352,15 @@ export function createEditor(opts) {
     } else if (act === 'field') {
       await insertField();
     }
-  });
-  blockSel.addEventListener('change', () => {
-    if (readOnly) return;
+  }
+  function insertDate(withTime) {
+    const d = new Date();
+    const day = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     restoreRange();
-    exec('formatBlock', `<${blockSel.value}>`);
+    exec('insertText', withTime ? `${day} ${time}` : day);
     changed();
-  });
-  blockSel.addEventListener('mousedown', saveRange);
-  blockSel.addEventListener('touchstart', saveRange, { passive: true });
+  }
 
   fileInput.addEventListener('change', async (e) => {
     const files = [...e.target.files];
@@ -343,8 +378,8 @@ export function createEditor(opts) {
         b.classList.toggle('on', on && !!selNode());
       }
     }
-    const blk = closestInContent('h1,h2,h3,blockquote,pre');
-    blockSel.value = blk ? blk.tagName.toLowerCase() : 'p';
+    toolbar.querySelector('[data-act=style]')?.classList.toggle('on', !!closestInContent('h1,h2,h3,pre'));
+    toolbar.querySelector('[data-act=quote]')?.classList.toggle('on', !!closestInContent('blockquote'));
     toolbar.querySelector('[data-act=checklist]').classList.toggle('on', !!closestInContent('ul.checklist'));
     toolbar.querySelector('[data-act=code]')?.classList.toggle('on', !!closestInContent('code'));
     const blkAlign = closestInContent('p,div,h1,h2,h3,h4,li,blockquote,td,th');
@@ -811,10 +846,10 @@ export function createEditor(opts) {
         b.replaceChildren(head, el('p', { class: 'toc-empty' }, 'Añade títulos (Título 1, 2 o 3) y aparecerán aquí.'));
         continue;
       }
-      // Numeración por niveles (1, 1.1, 1.2, 2…). Si el título ya empieza por un número («1. …»), no se repite.
+      // Numerado como Evernote: 1., 2. · subniveles a., b. · i., ii. Si el título ya empieza por un número, no se repite.
       const min = Math.min(...hs.map(level));
-      const root = el('ol', { class: 'toc-num' });
-      const stack = [{ lvl: min, list: root, n: 0 }];
+      const root = el('ol');
+      const stack = [{ lvl: min, list: root }];
       hs.forEach((h, i) => {
         const lv = level(h);
         while (stack.length > 1 && lv < stack[stack.length - 1].lvl) stack.pop();
@@ -823,13 +858,11 @@ export function createEditor(opts) {
           const parentLi = top.list.lastElementChild;
           const sub = el('ol');
           (parentLi || top.list).append(sub);
-          stack.push({ lvl: lv, list: sub, n: 0 });
+          stack.push({ lvl: lv, list: sub });
           top = stack[stack.length - 1];
         }
-        top.n++;
-        const num = stack.map((x) => x.n || 1).join('.');
-        const text = hText(h).replace(/^\d+(\.\d+)*[.)ºª-]?\s+/, '') || hText(h);
-        top.list.append(el('li', {}, el('a', { href: '#', 'data-h': String(i) }, el('span', { class: 'toc-n' }, `${num}.`), ` ${text}`)));
+        const text = hText(h).replace(/^(\d+|[a-z])([.)ºª-]|\.\d+)*\.?\s+/i, '') || hText(h);
+        top.list.append(el('li', {}, el('a', { href: '#', 'data-h': String(i) }, text)));
       });
       b.replaceChildren(head, root);
     }
@@ -972,6 +1005,8 @@ export function createEditor(opts) {
     },
     /** Texto plano de toda la nota (para «Copiar nota entera») */
     allText() { return nodesToPlain(content.childNodes); },
+    undo() { if (readOnly) return; content.focus({ preventScroll: true }); exec('undo'); changed(); },
+    redo() { if (readOnly) return; content.focus({ preventScroll: true }); exec('redo'); changed(); },
     hasTocBlock() { return !!content.querySelector('.note-toc'); },
     /** Añade el índice al principio o lo quita (opcional). Funciona también en lectura; quien llama guarda. */
     toggleTocBlock() {
