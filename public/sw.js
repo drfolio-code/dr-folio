@@ -1,6 +1,6 @@
 // Service worker de Dr.Folio: guarda la app para usarla sin conexión.
 // Los datos (notas) los guarda Firestore por su cuenta, no este archivo.
-const VERSION = 'drfolio-v1.1.5';
+const VERSION = 'drfolio-v1.1.6';
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest',
   './js/app.js', './js/config.js', './js/db.js', './js/store.js', './js/files.js',
