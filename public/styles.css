@@ -995,9 +995,8 @@ body.kb-open .modal-back { top: var(--app-top, 0px); bottom: auto; height: var(-
    lo que queda debajo ya cubre la barra de inicio, así que no se añade otro margen,
    y ese hueco se pinta del color de la barra inferior para que parezca parte de ella. */
 html.short-h { --safe-bottom: max(0px, calc(env(safe-area-inset-bottom, 0px) - var(--h-gap, 0px))); }
-html.short-h:has(body[data-screen="app"]), html.ios-app:has(body[data-screen="app"]) { background: var(--panel); }
-/* Ventana que empieza arriba pero no llega abajo (iPhone instalado, tras el teclado): la app ocupa la pantalla entera */
-html.tall-fix body:not(.kb-open) #app, html.tall-fix body:not(.kb-open) .screen { bottom: auto; height: var(--screen-h, 100%); }
+html.short-h:has(body[data-screen="app"]), html.ios-app:has(body[data-screen="app"]),
+html.ios-app body[data-screen="app"] { background: var(--panel); }
 html.short-h #tabbar { padding-bottom: calc(16px + var(--safe-bottom)); }
 /* Modales: nunca debajo del notch ni de la barra inferior del iPhone */
 .modal-back {

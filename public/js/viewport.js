@@ -66,17 +66,6 @@ function screenH() {
  * (innerHeight = pantalla − barra de estado). Lo que falta ya cubre la barra de inicio del iPhone,
  * así que no se suma además ese margen (html.short-h, --h-gap). Probado en el iPhone de Adrián.
  */
-let probe = null;
-/** Márgenes seguros reales que da iOS (env(safe-area-inset-*)) */
-function insets() {
-  if (!probe) {
-    probe = document.createElement('div');
-    probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';
-    document.documentElement.append(probe);
-  }
-  const cs = getComputedStyle(probe);
-  return { top: parseFloat(cs.paddingTop) || 0, bottom: parseFloat(cs.paddingBottom) || 0 };
-}
 function fullHeight() {
   let gap = 0;
   if (navigator.standalone === true && screen?.width && screen?.height) {
@@ -86,15 +75,12 @@ function fullHeight() {
     // Solo si la ventana es la pantalla entera (no en iPad con varias ventanas) y le falta alto
     if (Math.abs(window.innerWidth - sw) <= 2 && g > 2 && g < 120) gap = g;
   }
-  // Dos casos con la ventana más baja que la pantalla:
-  //  · empieza DEBAJO de la barra de estado (margen de arriba 0) → llega abajo del todo: short-h (v1.11.9, confirmado)
-  //  · empieza ARRIBA (margen de arriba > 0, pasa tras usar el teclado) → falta abajo: la app se alarga hasta
-  //    el alto de la pantalla (tall-fix), así no queda franja debajo de la barra inferior
-  const tall = !!gap && insets().top > 20;
+  // Ventana más baja que la pantalla. Tras usar el teclado, iOS puede encoger la ventana por ABAJO: lo de debajo
+  // queda fuera de la app (iOS lo pinta con el fondo de <html>) y no se puede dibujar ahí; alargar la app la corta
+  // (probado en v1.15.0: la barra inferior salía recortada). Por eso la barra va siempre entera al final de la
+  // ventana y el fondo de <html> es el de la barra (html.ios-app): se ve como una sola barra hasta el borde.
   if (gap) root.style.setProperty('--h-gap', `${gap}px`); else root.style.removeProperty('--h-gap');
-  root.style.setProperty('--screen-h', `${screenH()}px`);
-  root.classList.toggle('short-h', !!gap && !tall);
-  root.classList.toggle('tall-fix', tall);
+  root.classList.toggle('short-h', !!gap);
   // App instalada en iPhone: el fondo de la página es el de la barra inferior, así nunca se ve una franja suelta
   root.classList.toggle('ios-app', navigator.standalone === true);
 }
@@ -102,12 +88,7 @@ function fullHeight() {
 /** Al cerrar el teclado: iOS a veces deja la ventana mal colocada; se le obliga a recolocarla */
 function kickLayout() {
   window.scrollTo(0, 0);
-  const m = document.querySelector('meta[name="viewport"]');
-  if (m && typeof navigator.standalone === 'boolean') {
-    const c = m.content;
-    m.content = `${c}, maximum-scale=1`;
-    setTimeout(() => { m.content = c; schedule(); }, 60);
-  }
+  setTimeout(schedule, 100);
 }
 
 const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
