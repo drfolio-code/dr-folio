@@ -208,15 +208,14 @@ function startApp(user) {
     resolveImage: fileUrl,
     noteExists: (id) => store.notes.has(id) && !store.notes.get(id).trashed,
     onDropFiles: (files) => files.forEach((f) => addAttachment(f)),
+    tabs: true,
     pickSnippet: pickSnippetText,
     onCopy: (text, btn) => copyOut(text, btn)
   });
 
-  // Editor de prerredactados: el MISMO editor (createEditor) con sus propios elementos; la barra de formato
-  // es una copia de la de las notas (mismos botones)
-  const snipBar = $('#toolbar').cloneNode(true);
-  snipBar.id = 'snip-toolbar';
-  snipBar.querySelector('[data-act=tocblock]').title = 'Insertar índice';
+  // Editor de prerredactados: el MISMO editor (createEditor) con sus propios elementos y la MISMA barra de formato
+  // (toolbarHtml de editor.js; solo añade «Insertar campo»)
+  const snipBar = el('div', { id: 'snip-toolbar', class: 'toolbar', role: 'toolbar', 'aria-label': 'Formato' });
   $('#snip-wrap .ed-head').after(snipBar);
   snipEditor = createEditor({
     els: {
@@ -224,6 +223,7 @@ function startApp(user) {
       box: $('#editor'), scroll: $('#snip-scroll'), fileInput: $('#snip-file-image'), toc: null
     },
     markFields: true,
+    fields: true,
     tabs: true,
     onChange: onSnippetEditorChange,
     onNoteLink: (id) => {

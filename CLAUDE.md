@@ -93,6 +93,12 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - **Copia de seguridad**: el JSON lleva `html`/`bh` (se sanea al restaurar); el .zip exporta cada prerredactado como `.html` (con imágenes) y `.txt`.
 - Probado con Firebase simulado + Playwright en 390×844 y 1366×860: migración, lectura, edición, índice, copiar (pegado en textarea y en editor con formato), copiar sección, insertar en nota, buscador, borrado de imágenes, compatibilidad con versión antigua, .zip.
 
+## Barra de formato única (v1.13.0)
+- `toolbarHtml({fields})` en editor.js genera la barra; `createEditor` la pinta si el contenedor está vacío (`#toolbar` y `#snip-toolbar` vacíos en el HTML). **La misma para notas y prerredactados**; solo los prerredactados añaden «Insertar campo» (`fields: true`). Para añadir un botón: una línea en `toolbarHtml` + su `act` en el `click` de la barra.
+- Botones (iconos Lucide): deshacer/rehacer · estilo (Texto/Título 1-3/Cita/Código) · tamaño (menú: Pequeño 0.85em/Normal/Grande 1.2em/Muy grande 1.45em, `setFontSize`; `cleanStyle` solo admite esos `font-size`) · negrita, cursiva, subrayado, tachado, color, resaltar · viñetas, numerada, tareas, sangría −/+, alinear (menú) · tabla, imagen, enlace web, enlace a nota, índice, prerredactado, [campo], fecha (menú), separador · código en línea, subíndice, superíndice, quitar formato.
+- Tab escribe tabulación también en las notas (`tabs: true` en los dos editores).
+- Ordenador (≥900 px y ratón): la barra se ve entera en varias filas. Móvil: se desliza, con difuminado en los bordes (`.more-left`/`.more-right`).
+
 ## Rutas y navegación
 - `#/inicio` (por defecto tras el login), `#/buscar`, `#/notas[/n/NOTA]` (explorador raíz), `#/all|pinned|recent|trash[/n/NOTA]`, `#/folder/ID[/n/NOTA]`, `#/tag/ID[/n/NOTA]`, `#nota/ID`.
 - Prerredactados: `#/snippets[/s/ID]` (raíz), `#/sfolder/ID[/s/ID]`, `#/sall|sfav|sused|srecent[/s/ID]` (Todos, Favoritos, Más usados, Recientes).

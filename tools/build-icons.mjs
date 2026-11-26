@@ -12,7 +12,9 @@ const USED = [
   'pencil', 'check', 'copy', 'copy-plus', 'printer', 'book-open', 'undo-2', 'x', 'file-text', 'file-plus', 'palette',
   'arrow-up', 'arrow-down', 'arrow-left', 'square-pen', 'layout-grid', 'list', 'ellipsis', 'save',
   // Barra de formato
-  'highlighter', 'image', 'link', 'list-checks'
+  'highlighter', 'image', 'link', 'list-checks', 'bold', 'italic', 'underline', 'strikethrough', 'baseline', 'list-ordered',
+  'indent-increase', 'indent-decrease', 'table', 'minus', 'remove-formatting', 'redo-2', 'align-left', 'align-center', 'align-right',
+  'subscript', 'superscript', 'calendar-clock', 'braces', 'a-large-small', 'table-of-contents', 'code', 'chevron-down'
 ];
 
 const dir = new URL('./node_modules/lucide-static/icons/', import.meta.url);

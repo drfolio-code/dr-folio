@@ -2,7 +2,7 @@
 // listas de tareas, enlaces entre notas e índice automático.
 import { DOMPurify } from '../vendor/libs.js';
 import { $, $$, el, htmlToText, nodesToPlain } from './util.js';
-import { modal, colorPicker, prompt, toast } from './ui.js';
+import { modal, colorPicker, prompt, toast, menu } from './ui.js';
 import { FIELD_RE } from './snipbody.js';
 
 // ---------------- Limpieza de HTML ----------------
@@ -36,6 +36,7 @@ function cleanStyle(style) {
     const val = decl.slice(i + 1).trim();
     if (!val || /url\(|expression|javascript/i.test(val)) continue;
     if (prop === 'text-align' && /^(left|right|center|justify)$/i.test(val)) keep.push(`text-align:${val}`);
+    else if (prop === 'font-size' && FONT_SIZES.some((f) => f.v === val)) keep.push(`font-size:${val}`);
     else if (prop === 'color') {
       const c = parseColor(val);
       if (!c || c.a === 0) continue;
@@ -144,6 +145,40 @@ export function sanitize(html, { paste = false } = {}) {
   }
 }
 
+// ---------------- Barra de formato (la MISMA para notas y prerredactados) ----------------
+const FONT_SIZES = [{ v: '0.85em', label: 'Pequeño' }, { v: '', label: 'Normal' }, { v: '1.2em', label: 'Grande' }, { v: '1.45em', label: 'Muy grande' }];
+const ico = (n) => `<svg class="i" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const B = (attr, icon, title, extra = '') => `<button type="button" ${attr} title="${title}" aria-label="${title}"${extra}>${icon}</button>`;
+const SEP = '<span class="sep"></span>';
+/**
+ * Barra estilo Evernote. fields = botón «Insertar campo» (solo prerredactados).
+ * Orden: deshacer · estilo y tamaño · formato · listas y alineación · insertar · más
+ */
+export function toolbarHtml({ fields = false } = {}) {
+  return [
+    B('data-cmd="undo"', ico('undo-2'), 'Deshacer (Ctrl+Z)'), B('data-cmd="redo"', ico('redo-2'), 'Rehacer (Ctrl+Y)'), SEP,
+    `<select data-block title="Estilo de párrafo" aria-label="Estilo de párrafo">
+      <option value="p">Texto</option><option value="h1">Título 1</option><option value="h2">Título 2</option>
+      <option value="h3">Título 3</option><option value="blockquote">Cita</option><option value="pre">Código</option></select>`,
+    B('data-act="size"', ico('a-large-small'), 'Tamaño de letra'), SEP,
+    B('data-cmd="bold"', ico('bold'), 'Negrita (Ctrl+B)'), B('data-cmd="italic"', ico('italic'), 'Cursiva (Ctrl+I)'),
+    B('data-cmd="underline"', ico('underline'), 'Subrayado (Ctrl+U)'), B('data-cmd="strikeThrough"', ico('strikethrough'), 'Tachado'),
+    B('data-act="color"', `${ico('baseline')}<span class="color-bar"></span>`, 'Color del texto'),
+    B('data-act="highlight"', ico('highlighter'), 'Resaltar'), SEP,
+    B('data-cmd="insertUnorderedList"', ico('list'), 'Lista con viñetas'), B('data-cmd="insertOrderedList"', ico('list-ordered'), 'Lista numerada'),
+    B('data-act="checklist"', ico('list-checks'), 'Lista de tareas (Ctrl+Mayús+X)'),
+    B('data-cmd="outdent"', ico('indent-decrease'), 'Reducir sangría'), B('data-cmd="indent"', ico('indent-increase'), 'Aumentar sangría'),
+    B('data-act="align"', ico('align-left'), 'Alinear'), SEP,
+    B('data-act="table"', ico('table'), 'Insertar tabla'), B('data-act="image"', ico('image'), 'Insertar imagen'),
+    B('data-act="link"', ico('link'), 'Enlace web (Ctrl+K)'), B('data-act="notelink"', ico('notebook-text'), 'Enlazar una nota'),
+    B('data-act="tocblock"', ico('table-of-contents'), 'Insertar índice'), B('data-act="snippet"', ico('clipboard-list'), 'Insertar prerredactado'),
+    fields ? B('data-act="field"', ico('braces'), 'Insertar campo a rellenar {…}') : '',
+    B('data-act="date"', ico('calendar-clock'), 'Insertar fecha'), B('data-cmd="insertHorizontalRule"', ico('minus'), 'Línea separadora'), SEP,
+    B('data-act="code"', ico('code'), 'Código en línea'), B('data-cmd="subscript"', ico('subscript'), 'Subíndice'),
+    B('data-cmd="superscript"', ico('superscript'), 'Superíndice'), B('data-act="clear"', ico('remove-formatting'), 'Quitar formato')
+  ].join('');
+}
+
 // ---------------- Editor ----------------
 export function createEditor(opts) {
   // opts: { onChange(), onNoteLink(id), onImage(fileId), pickNote() → Promise<{id,title}>,
@@ -160,6 +195,15 @@ export function createEditor(opts) {
   const scroller = E.scroll || $('#ed-scroll');
   const fileInput = E.fileInput || $('#file-image');
   const sideToc = E.toc === undefined ? $('#toc') : E.toc;
+  if (!toolbar.querySelector('[data-block]')) toolbar.innerHTML = toolbarHtml({ fields: !!opts.fields }); // HTML fijo, sin datos
+  // Móvil: la barra se desliza; un difuminado en el borde indica que hay más botones
+  const edges = () => {
+    toolbar.classList.toggle('more-left', toolbar.scrollLeft > 4);
+    toolbar.classList.toggle('more-right', toolbar.scrollLeft + toolbar.clientWidth < toolbar.scrollWidth - 4);
+  };
+  toolbar.addEventListener('scroll', edges, { passive: true });
+  window.addEventListener('resize', edges);
+  new ResizeObserver(edges).observe(toolbar);
   const blockSel = toolbar.querySelector('[data-block]');
   let savedRange = null;
   let readOnly = false;
@@ -245,6 +289,33 @@ export function createEditor(opts) {
     } else if (act === 'tocblock') {
       restoreRange();
       insertTocBlock();
+    } else if (act === 'align') {
+      menu(b, [['left', 'Izquierda', 'justifyLeft'], ['center', 'Centrado', 'justifyCenter'], ['right', 'Derecha', 'justifyRight']]
+        .map(([k, label, cmd]) => ({ icon: `align-${k}`, label, onClick: () => { restoreRange(); exec(cmd); changed(); } })));
+    } else if (act === 'size') {
+      menu(b, FONT_SIZES.map((f) => ({ icon: 'a-large-small', label: f.label, onClick: () => { restoreRange(); setFontSize(f.v); changed(); } })));
+    } else if (act === 'date') {
+      const d = new Date();
+      const day = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      menu(b, [
+        { icon: 'calendar-clock', label: `Fecha (${day})`, onClick: () => { restoreRange(); exec('insertText', day); changed(); } },
+        { icon: 'calendar-clock', label: `Fecha y hora (${day} ${time})`, onClick: () => { restoreRange(); exec('insertText', `${day} ${time}`); changed(); } }
+      ]);
+    } else if (act === 'code') {
+      restoreRange();
+      const sel = window.getSelection();
+      const t = sel.rangeCount ? sel.toString() : '';
+      const inCode = closestInContent('code');
+      if (inCode) unwrap(inCode);
+      else exec('insertHTML', `<code>${escapeHtml(t || 'código')}</code>&nbsp;`);
+      changed();
+    } else if (act === 'clear') {
+      restoreRange();
+      exec('removeFormat');
+      changed();
+    } else if (act === 'field') {
+      await insertField();
     }
   });
   blockSel.addEventListener('change', () => {
@@ -266,7 +337,7 @@ export function createEditor(opts) {
     if (readOnly) return;
     for (const b of $$('[data-cmd]', toolbar)) {
       const c = b.dataset.cmd;
-      if (['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList'].includes(c)) {
+      if (['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList', 'subscript', 'superscript'].includes(c)) {
         let on = false;
         try { on = document.queryCommandState(c); } catch { /* */ }
         b.classList.toggle('on', on && !!selNode());
@@ -275,6 +346,11 @@ export function createEditor(opts) {
     const blk = closestInContent('h1,h2,h3,blockquote,pre');
     blockSel.value = blk ? blk.tagName.toLowerCase() : 'p';
     toolbar.querySelector('[data-act=checklist]').classList.toggle('on', !!closestInContent('ul.checklist'));
+    toolbar.querySelector('[data-act=code]')?.classList.toggle('on', !!closestInContent('code'));
+    const blkAlign = closestInContent('p,div,h1,h2,h3,h4,li,blockquote,td,th');
+    const al = blkAlign ? getComputedStyle(blkAlign).textAlign : 'left';
+    const ab = toolbar.querySelector('[data-act=align] use');
+    if (ab) ab.setAttribute('href', `#i-align-${al === 'center' ? 'center' : al === 'right' || al === 'end' ? 'right' : 'left'}`);
     updateTableTools();
   }
   document.addEventListener('selectionchange', () => {
@@ -366,6 +442,38 @@ export function createEditor(opts) {
     tableTools.classList.add('hidden');
     changed();
   });
+
+  // ---------- Tamaño de letra ----------
+  // execCommand('fontSize') crea <font size=7> o un span con «xxx-large»: se cambian por el tamaño elegido (o nada)
+  function setFontSize(v) {
+    exec('styleWithCSS', false);
+    exec('fontSize', '7');
+    for (const n of $$('font[size="7"], span[style*="xxx-large"], span[style*="-webkit-xxx-large"]', content)) {
+      const span = el('span', v ? { style: { fontSize: v } } : {});
+      span.append(...n.childNodes);
+      if (v) n.replaceWith(span); else n.replaceWith(...span.childNodes);
+    }
+    if (!v) $$('span[style*="font-size"]', content).forEach((n) => { if (window.getSelection().containsNode(n, true)) { n.style.fontSize = ''; if (!n.getAttribute('style')) unwrap(n); } });
+  }
+
+  // ---------- Campos (prerredactados) ----------
+  async function insertField() {
+    const name = el('input', { type: 'text', placeholder: 'p. ej. edad', maxlength: 40, autocomplete: 'off' });
+    const opts2 = el('input', { type: 'text', placeholder: 'Opcional: derecho, izquierdo', maxlength: 300, autocomplete: 'off' });
+    const ok = await modal({
+      title: 'Insertar campo a rellenar',
+      body: [el('label', {}, 'Nombre del campo', name), el('label', {}, 'Opciones para elegir (separadas por comas)', opts2),
+        el('p', { class: 'muted small' }, 'Al copiar se te pedirá el valor. Con opciones, se elige de una lista.')],
+      actions: [{ label: 'Cancelar' }, { label: 'Insertar', primary: true, value: true }],
+      onOpen: () => setTimeout(() => name.focus(), 50)
+    });
+    const n = name.value.replace(/[{}:|\n]/g, '').trim();
+    if (!ok || !n) return;
+    const o = opts2.value.split(/[,|]/).map((x) => x.replace(/[{}\n]/g, '').trim()).filter(Boolean);
+    restoreRange();
+    exec('insertText', o.length ? `{${n}:${o.join('|')}}` : `{${n}}`);
+    changed();
+  }
 
   // ---------- Enlaces ----------
   async function insertLink() {

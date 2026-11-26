@@ -149,7 +149,7 @@
         </div>
       </div>
 
-      <!-- Prerredactado (mismo editor que las notas; la barra de formato se copia de #toolbar al arrancar) -->
+      <!-- Prerredactado (mismo editor que las notas; la misma barra de formato, generada por editor.js) -->
       <div id="snip-wrap" class="hidden">
         <div class="ed-head">
           <button class="icon-btn only-single" id="snip-back" aria-label="Volver">←</button>
@@ -204,41 +204,8 @@
           <button class="btn sm danger" id="btn-delete-forever">Eliminar definitivamente</button>
         </div>
 
-        <div id="toolbar" class="toolbar" role="toolbar" aria-label="Formato">
-          <select data-block title="Estilo de párrafo" aria-label="Estilo">
-            <option value="p">Texto</option>
-            <option value="h1">Título 1</option>
-            <option value="h2">Título 2</option>
-            <option value="h3">Título 3</option>
-            <option value="blockquote">Cita</option>
-            <option value="pre">Código</option>
-          </select>
-          <span class="sep"></span>
-          <button data-cmd="bold" title="Negrita (Ctrl+B)"><b>B</b></button>
-          <button data-cmd="italic" title="Cursiva (Ctrl+I)"><i>I</i></button>
-          <button data-cmd="underline" title="Subrayado (Ctrl+U)"><u>U</u></button>
-          <button data-cmd="strikeThrough" title="Tachado"><s>S</s></button>
-          <button data-act="highlight" title="Resaltar"><svg class="i" aria-hidden="true"><use href="#i-highlighter"/></svg></button>
-          <button data-act="color" title="Color del texto">A<span class="color-bar"></span></button>
-          <span class="sep"></span>
-          <button data-cmd="insertUnorderedList" title="Lista">•≡</button>
-          <button data-cmd="insertOrderedList" title="Lista numerada">1≡</button>
-          <button data-act="checklist" title="Lista de tareas"><svg class="i" aria-hidden="true"><use href="#i-list-checks"/></svg></button>
-          <button data-cmd="outdent" title="Reducir sangría">⇤</button>
-          <button data-cmd="indent" title="Aumentar sangría">⇥</button>
-          <span class="sep"></span>
-          <button data-act="table" title="Insertar tabla">▦</button>
-          <button data-act="image" title="Insertar imagen"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg></button>
-          <button data-act="link" title="Enlace web"><svg class="i" aria-hidden="true"><use href="#i-link"/></svg></button>
-          <button data-act="notelink" title="Enlazar otra nota">↪︎</button>
-          <button data-act="tocblock" title="Insertar índice de la nota">☰</button>
-          <button data-act="snippet" title="Insertar prerredactado"><svg class="i" aria-hidden="true"><use href="#i-clipboard-list"/></svg></button>
-          <button data-cmd="insertHorizontalRule" title="Separador">―</button>
-          <span class="sep"></span>
-          <button data-cmd="removeFormat" title="Quitar formato">⌫</button>
-          <button data-cmd="undo" title="Deshacer (Ctrl+Z)">↶</button>
-          <button data-cmd="redo" title="Rehacer (Ctrl+Y)">↷</button>
-        </div>
+        <!-- Barra de formato: la genera editor.js (toolbarHtml), la misma para notas y prerredactados -->
+        <div id="toolbar" class="toolbar" role="toolbar" aria-label="Formato"></div>
 
         <div class="ed-scroll" id="ed-scroll">
           <div class="ed-inner">

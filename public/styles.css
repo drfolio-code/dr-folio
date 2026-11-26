@@ -289,6 +289,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-2); 
   overflow-x: auto; scrollbar-width: none; flex-shrink: 0; background: var(--panel);
 }
 .toolbar::-webkit-scrollbar { display: none; }
+.toolbar button .i { font-size: 18px; vertical-align: middle; }
+.toolbar.more-right { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
+.toolbar.more-left { -webkit-mask-image: linear-gradient(90deg, transparent, #000 36px); mask-image: linear-gradient(90deg, transparent, #000 36px); }
+.toolbar.more-left.more-right { -webkit-mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+/* Ordenador: toda la barra a la vista (en varias filas si hace falta), como Evernote */
+@media (min-width: 900px) and (pointer: fine) { .toolbar { flex-wrap: wrap; overflow-x: visible; row-gap: 2px; } }
 .toolbar button {
   border: 0; background: transparent; min-width: 32px; height: 32px; border-radius: 6px; padding: 0 6px;
   font-size: 15px; flex-shrink: 0; position: relative;
