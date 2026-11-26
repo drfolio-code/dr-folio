@@ -22,12 +22,10 @@ function update() {
   // Teclado abierto: la zona visible es bastante más baja que la ventana (iOS) o que antes de escribir
   // (Android encoge la ventana entera). Con él abierto se oculta la barra inferior del móvil.
   const kb = typing && ((!!vv && window.innerHeight - h > 120) || base.h - h > 150);
-  const was = document.body.classList.contains('kb-open');
   document.body.classList.toggle('kb-open', kb);
-  if (was && !kb) kickLayout();
   if (kb) setTimeout(caretIntoView, 60);
-  // Sin teclado, la página nunca debe quedar desplazada (iOS a veces la deja movida al cerrar el teclado)
-  else if (window.scrollY || (vv && vv.offsetTop > 0)) window.scrollTo(0, 0);
+  // (v1.15.2) Sin teclado NO se mueve la página: el scrollTo de v1.14.1–v1.15.1 desplazaba la ventana en iOS
+  // y dejaba una franja bajo la barra inferior. Es el comportamiento de v1.11.9, confirmado en el iPhone de Adrián.
 }
 
 function isTyping() {
@@ -85,10 +83,21 @@ function fullHeight() {
   root.classList.toggle('ios-app', navigator.standalone === true);
 }
 
-/** Al cerrar el teclado: iOS a veces deja la ventana mal colocada; se le obliga a recolocarla */
-function kickLayout() {
-  window.scrollTo(0, 0);
-  setTimeout(schedule, 100);
+/** Medidas de la pantalla para Ajustes (diagnóstico; para poder arreglar sin adivinar) */
+export function screenInfo() {
+  const p = document.createElement('div');
+  p.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';
+  document.body.append(p);
+  const cs = getComputedStyle(p);
+  const ins = `${Math.round(parseFloat(cs.paddingTop) || 0)}/${Math.round(parseFloat(cs.paddingBottom) || 0)}`;
+  p.remove();
+  const app = document.querySelector('#app')?.getBoundingClientRect();
+  return [
+    `ventana ${window.innerWidth}×${window.innerHeight}`, `pantalla ${screen.width}×${screen.height}`,
+    vv ? `visible ${Math.round(vv.height)}+${Math.round(vv.offsetTop)}` : null, `desplaz. ${Math.round(window.scrollY)}`,
+    `márgenes ${ins}`, app ? `app ${Math.round(app.top)}–${Math.round(app.bottom)}` : null,
+    `${navigator.standalone === true ? 'instalada' : 'navegador'}${root.className ? ` · ${root.className}` : ''}`
+  ].filter(Boolean).join(' · ');
 }
 
 const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };

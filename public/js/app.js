@@ -17,7 +17,7 @@ import {
 } from './snippets.js';
 import { snippetFileIds } from './snipbody.js';
 import { MODULES, NAV_HOME, NAV_SEARCH } from './modules.js';
-import { initViewport, initTitles, fitTitle } from './viewport.js';
+import { initViewport, initTitles, fitTitle, screenInfo } from './viewport.js';
 import { openPdfViewer } from './pdfviewer.js';
 import { initBackup, openBackup, backupReminder, backupPublicReason, exportJson, progress, lastBackupAt } from './backup.js';
 import {
@@ -2299,6 +2299,7 @@ function openSettings() {
         el('select', { onchange: (e) => { localStorage.setItem('drfolio.noteMode', e.target.value); toast('Guardado', 'ok'); } },
           el('option', { value: 'read', selected: openMode() === 'read' }, '📖 Lectura'),
           el('option', { value: 'edit', selected: openMode() === 'edit' }, '✏️ Edición'))),
+      el('div', { class: 'settings-row' }, el('span', {}, 'Pantalla', el('br'), el('span', { class: 'muted small screen-info' }, screenInfo()))),
       el('div', { class: 'settings-row' }, el('span', {}, 'Índice automático en notas con títulos',
         el('br'), el('span', { class: 'muted small' }, 'Si no, añádelo cuando quieras: ⋯ → «Añadir índice»')),
         el('select', { onchange: (e) => { localStorage.setItem('drfolio.autoToc', e.target.value); if (S.noteId) renderToc(); toast('Guardado', 'ok'); } },
