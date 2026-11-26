@@ -64,6 +64,16 @@ function screenH() {
  * (innerHeight = pantalla − barra de estado). Lo que falta ya cubre la barra de inicio del iPhone,
  * así que no se suma además ese margen (html.short-h, --h-gap). Probado en el iPhone de Adrián.
  */
+let probe = null;
+/** Margen seguro de arriba real (env(safe-area-inset-top)) */
+function safeTop() {
+  if (!probe) {
+    probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top)';
+    document.documentElement.append(probe);
+  }
+  return parseFloat(getComputedStyle(probe).paddingTop) || 0;
+}
 function fullHeight() {
   let gap = 0;
   if (navigator.standalone === true && screen?.width && screen?.height) {
@@ -73,12 +83,15 @@ function fullHeight() {
     // Solo si la ventana es la pantalla entera (no en iPad con varias ventanas) y le falta alto
     if (Math.abs(window.innerWidth - sw) <= 2 && g > 2 && g < 120) gap = g;
   }
-  // Ventana más baja que la pantalla. Tras usar el teclado, iOS puede encoger la ventana por ABAJO: lo de debajo
-  // queda fuera de la app (iOS lo pinta con el fondo de <html>) y no se puede dibujar ahí; alargar la app la corta
-  // (probado en v1.15.0: la barra inferior salía recortada). Por eso la barra va siempre entera al final de la
-  // ventana y el fondo de <html> es el de la barra (html.ios-app): se ve como una sola barra hasta el borde.
-  if (gap) root.style.setProperty('--h-gap', `${gap}px`); else root.style.removeProperty('--h-gap');
-  root.classList.toggle('short-h', !!gap);
+  // Ventana más baja que la pantalla (medido en el iPhone de Adrián: pantalla 844, ventana 797, margen arriba 47):
+  //  · margen de arriba > 0 → la ventana empieza bajo el reloj (barra de estado «black-translucent», la de las
+  //    instalaciones antiguas) y le faltan esos 47 ABAJO; ahí no se puede dibujar → short-h: la barra queda al
+  //    final de la ventana y el fondo de <html> es el de la barra (se ve continua hasta el borde).
+  //  · margen de arriba 0 → la ventana empieza DEBAJO del reloj (barra «black», v1.16.0, al volver a instalar)
+  //    y llega abajo del todo: no hace falta nada, los márgenes seguros normales ya valen.
+  const under = !!gap && safeTop() > 20;
+  if (under) root.style.setProperty('--h-gap', `${gap}px`); else root.style.removeProperty('--h-gap');
+  root.classList.toggle('short-h', under);
   // App instalada en iPhone: el fondo de la página es el de la barra inferior, así nunca se ve una franja suelta
   root.classList.toggle('ios-app', navigator.standalone === true);
 }
