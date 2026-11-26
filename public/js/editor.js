@@ -633,7 +633,29 @@ export function createEditor(opts) {
   }
 
   // ---------- Índice ----------
-  function headings() { return $$('h1,h2,h3', content).filter((h) => h.textContent.trim() && !h.closest('.note-toc')); }
+  /** Texto de un título sin el índice ni el botón de copiar (por si el índice quedó dentro) */
+  function hText(h) {
+    if (!h.querySelector('.note-toc,.sec-copy')) return h.textContent.replace(/\s+/g, ' ').trim();
+    const c = h.cloneNode(true);
+    c.querySelectorAll('.note-toc,.sec-copy').forEach((n) => n.remove());
+    return c.textContent.replace(/\s+/g, ' ').trim();
+  }
+  /**
+   * El índice va siempre a primer nivel. Si quedó dentro de un título o párrafo (pasaba en iPhone al insertarlo
+   * con el cursor en un título), se saca delante; si había uno dentro de otro, sobra. Repara notas ya afectadas.
+   */
+  function fixTocPlacement() {
+    for (const b of $$('.note-toc', content)) {
+      if (!b.isConnected) continue;
+      if (b.parentElement.closest('.note-toc')) { b.remove(); continue; }
+      if (b.parentElement === content) continue;
+      let top = b;
+      while (top.parentElement !== content) top = top.parentElement;
+      top.before(b);
+      if (!top.textContent.trim() && !top.querySelector('img,table,hr')) top.remove();
+    }
+  }
+  function headings() { return $$('h1,h2,h3', content).filter((h) => !h.closest('.note-toc') && hText(h)); }
   const level = (h) => +h.tagName[1];
 
   function scrollToHeading(i, { fromToc = false } = {}) {
@@ -649,13 +671,23 @@ export function createEditor(opts) {
   // Índice dentro de la nota (como Evernote): se guarda vacío y se genera al mostrar
   function insertTocBlock() {
     if (readOnly) return;
-    exec('insertHTML', '<div class="note-toc" data-toc="1"></div><p><br></p>');
+    // A primer nivel (nunca dentro de un título o párrafo): detrás del bloque donde está el cursor
+    restoreRange();
+    const toc = el('div', { class: 'note-toc', 'data-toc': '1' });
+    let top = selNode();
+    while (top && top !== content && top.parentElement !== content) top = top.parentElement;
+    if (!top || top === content) content.prepend(toc);
+    else if (!top.textContent.trim() && !top.querySelector('img,table,hr')) top.replaceWith(toc);
+    else if (/^H[1-4]$/.test(top.tagName)) top.before(toc); // en un título: justo encima
+    else top.after(toc);
+    if (!toc.nextElementSibling) toc.after(el('p', {}, el('br')));
     refreshTocBlocks();
     changed();
     if (!headings().length) toast('Usa «Título 1/2/3» en la nota y el índice se rellenará solo');
   }
 
   function refreshTocBlocks() {
+    fixTocPlacement();
     const blocks = $$('.note-toc', content);
     if (!blocks.length) return;
     const hs = headings();
@@ -685,8 +717,10 @@ export function createEditor(opts) {
           stack.push({ lvl: lv, list: sub });
           top = stack[stack.length - 1];
         }
-        top.list.append(el('li', {}, el('a', { href: '#', 'data-h': String(i) }, h.textContent.trim())));
+        top.list.append(el('li', {}, el('a', { href: '#', 'data-h': String(i) }, hText(h))));
       });
+      // Si los títulos ya llevan número («1. …»), la lista va sin números (no «1. 1. …»)
+      if (hs.some((h) => /^\d+[.)ºª-]?\s/.test(hText(h)))) root.classList.add('toc-plain');
       b.replaceChildren(head, root);
     }
   }
@@ -738,7 +772,7 @@ export function createEditor(opts) {
     $$('.sec-copy', content).forEach((b) => b.remove());
     if (!readOnly) return;
     for (const h of $$(':scope > h1, :scope > h2, :scope > h3', content)) {
-      if (!h.textContent.trim() || !sectionNodes(h).length) continue;
+      if (!hText(h) || !sectionNodes(h).length) continue;
       // Sin texto dentro (el icono va por CSS) para no ensuciar el índice
       h.append(el('button', { type: 'button', class: 'sec-copy', contenteditable: 'false', title: 'Copiar sección', 'aria-label': 'Copiar sección' }));
     }

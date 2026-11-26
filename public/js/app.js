@@ -1944,7 +1944,7 @@ function renderToc() {
   $('#toc-list').replaceChildren(...hs.map((h, i) => el('a', {
     class: `l${h.tagName[1]}`, role: 'button', tabindex: '0',
     onclick: () => editor.scrollToHeading(i, { fromToc: true })
-  }, h.textContent.trim())));
+  }, h.textContent.replace(/\s+/g, ' ').trim())));
 }
 
 // ---------- Enlaces entre notas ----------

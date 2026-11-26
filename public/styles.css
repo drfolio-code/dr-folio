@@ -796,6 +796,9 @@ body.kb-open .ed-inner { padding-bottom: 24px; }
 .content .note-toc li::marker { color: var(--muted); font-size: 12px; }
 .content .note-toc a { display: inline-block; padding: 3px 0; color: var(--accent); text-decoration: none; cursor: pointer; font-size: 14px; }
 .content .note-toc a:hover { text-decoration: underline; }
+.content .note-toc ol.toc-plain, .content .note-toc ol.toc-plain ol { list-style: none; padding-left: 0; }
+.content .note-toc ol.toc-plain ol { padding-left: 1em; }
+@media (prefers-color-scheme: dark) { .content .note-toc a { color: #67c6dd; } }
 .content .note-toc .toc-empty { color: var(--muted); font-size: 13px; margin: 2px 0; }
 
 /* ===== Secciones plegables ===== */
