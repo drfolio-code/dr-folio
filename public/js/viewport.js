@@ -10,6 +10,7 @@ let base = { w: 0, h: 0 };
 
 function update() {
   raf = 0;
+  fullHeight();
   const h = vv ? vv.height : window.innerHeight;
   const top = vv ? Math.max(0, vv.offsetTop) : 0;
   root.style.setProperty('--app-h', `${Math.round(h)}px`);
@@ -49,6 +50,26 @@ function caretIntoView() {
   else if (rect.top < box.top) scroller.scrollTop -= box.top - rect.top + 20;
   // iOS a veces desplaza la página entera: la devolvemos a su sitio
   if (window.scrollY) window.scrollTo(0, 0);
+}
+
+/**
+ * App instalada en iPhone (standalone): iOS a veces da una ventana más baja que la pantalla
+ * (le resta la barra de estado) y queda un hueco debajo de la barra inferior. Si la app ocupa
+ * todo el ancho de la pantalla, su alto debe ser el de la pantalla: se fija en --app-full.
+ */
+const standalone = () => navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches;
+function fullHeight() {
+  let full = 0;
+  if (standalone() && screen?.width && screen?.height) {
+    const land = window.innerWidth > window.innerHeight;
+    const sw = land ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+    const sh = land ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+    // Solo si la ventana es la pantalla entera (no en iPad con varias ventanas) y le falta alto
+    if (Math.abs(window.innerWidth - sw) <= 2 && sh > window.innerHeight + 2 && sh - window.innerHeight < 120) full = sh;
+  }
+  if (full) root.style.setProperty('--app-full', `${full}px`);
+  else root.style.removeProperty('--app-full');
+  root.classList.toggle('full-h', !!full);
 }
 
 const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };

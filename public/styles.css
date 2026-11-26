@@ -966,6 +966,8 @@ body.kb-open .ed-inner { padding-bottom: 24px; }
 /* Teclado abierto: la app (y los modales a pantalla completa) se ajustan a la zona visible */
 body.kb-open #app,
 body.kb-open .modal-back { top: var(--app-top, 0px); bottom: auto; height: var(--app-h, 100%); }
+/* App instalada (iPhone): alto de la pantalla entera si iOS da una ventana más baja (viewport.js) */
+html.full-h body:not(.kb-open) :is(#app, .screen, .modal-back) { bottom: auto; height: var(--app-full, 100%); }
 /* Modales: nunca debajo del notch ni de la barra inferior del iPhone */
 .modal-back {
   padding: max(16px, var(--safe-top)) max(16px, var(--safe-right)) max(16px, var(--safe-bottom)) max(16px, var(--safe-left));

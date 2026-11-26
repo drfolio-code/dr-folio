@@ -74,6 +74,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 
 ## Ajuste a la pantalla del móvil (v1.11.0)
 - `#app`, `.screen` y los modales a pantalla completa usan `position: fixed; inset: 0` (no el alto de JS): en iOS instalada (standalone) `visualViewport.height` puede venir sin la barra de estado y dejaba un hueco abajo. Con `body.kb-open` pasan a `top: var(--app-top); height: var(--app-h)`.
+- **v1.11.1**: aun así, en el iPhone instalado la ventana (y `inset: 0`) puede ser ~60 px más baja que la pantalla. `fullHeight()` (viewport.js): si es standalone, la ventana ocupa todo el ancho de la pantalla y le falta alto (< 120 px), pone `html.full-h` y `--app-full` = alto de `screen` → `#app`, `.screen` y `.modal-back` usan ese alto (salvo con teclado).
 - `html { -webkit-text-size-adjust: 100% }`: iOS ya no agranda el texto al girar a horizontal (era lo que cortaba letras).
 - Zonas seguras: variables `--safe-*` (env()). Modales con `padding: max(16px, --safe-*)`. En horizontal, `#app` deja el notch a izquierda/derecha con padding.
 - Textos: sin alturas fijas; tarjetas crecen o recortan con «…» (`line-clamp`); `.mod-name` con guiones (`hyphens: auto`). Títulos de nota/prerredactado (`#ed-title`, `#snip-title`) son `<textarea rows=1>` que crecen (`field-sizing: content` o `fitTitle`).
