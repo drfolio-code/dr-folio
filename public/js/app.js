@@ -14,7 +14,7 @@ import {
   snippetCard, snippetItemMenu, snippetMatches, snippetsForView, sortSnippets, allSnippets, moveSnippetTo,
   snipSort, setSnipSort, SNIP_SORTS, migrateCategories
 } from './snippets.js';
-import { MODULES } from './modules.js';
+import { MODULES, NAV_HOME, NAV_SEARCH } from './modules.js';
 import { initViewport } from './viewport.js';
 import { openPdfViewer } from './pdfviewer.js';
 
@@ -23,7 +23,9 @@ const S = {
   view: { type: 'home', id: null },
   noteId: null,
   search: '',
-  homeSearch: '',
+  find: '',                                                           // texto de la búsqueda global (#/buscar)
+  findFilter: 'all',                                                  // 'all' | id de SEARCH_SOURCES
+  sideClosed: localStorage.getItem('drfolio.side') === 'closed',      // barra lateral plegada (ordenador)
   sort: localStorage.getItem('drfolio.sort') || 'updated',
   searchAll: false,                                                   // buscador: todas las notas en vez de la carpeta actual
   folderSort: localStorage.getItem('drfolio.folderSort') || 'manual',  // 'manual' | 'name'
@@ -106,6 +108,8 @@ const TREES = {
 /** Árbol al que pertenece una vista (o null: Inicio) */
 const treeOf = (type) => Object.values(TREES).find((T) => type === T.root || type === T.folder || T.views.includes(type)) || null;
 const isSnipView = (type = S.view.type) => treeOf(type)?.id === 'snippets';
+/** Sección de una vista: 'home' | 'search' | id del árbol ('notes' | 'snippets') — coincide con el id del módulo */
+const sectionOf = (type = S.view.type) => (type === 'search' ? 'search' : treeOf(type)?.id || 'home');
 /** Nuevo prerredactado en la carpeta abierta (o en Favoritos si estás ahí) */
 function newSnippetHere() {
   const v = S.view;
@@ -215,9 +219,11 @@ function startApp(user) {
       : `Error de sincronización: ${err.message}`, 'error', 6000);
   });
 
-  if (getMode() === 'public') startInactivityWatch();
-  $('#mode-badge').textContent = getMode() === 'public' ? 'Ordenador público' : 'Este dispositivo';
-  $('#mode-badge').classList.toggle('public', getMode() === 'public');
+  if (getMode() === 'public') {
+    startInactivityWatch();
+    $('#app').classList.add('public');
+    $('#pubbar').classList.remove('hidden');
+  }
 }
 
 // ---------- Datos entrantes ----------
@@ -227,6 +233,8 @@ const renderSidebarSoon = debounce(() => renderSidebar(), 60);
 function onData(name, changed) {
   updateSync();
   if (S.view.type === 'home' && ['notes', 'snippets', 'folders', 'tags'].includes(name)) renderHomeSoon();
+  if (S.view.type === 'search' && ['notes', 'snippets', 'folders', 'snippetFolders', 'tags'].includes(name)) renderFindSoon();
+  if (['notes', 'snippets'].includes(name)) renderNavSoon();
   if (name === 'snippets' || name === 'snippetFolders') migrateCategories();
   if (name === 'notes') {
     renderListSoon();
@@ -266,10 +274,8 @@ function onCurrentNoteRemoteChange() {
 }
 
 function updateSync() {
-  const s = $('#sync-status');
-  if (!navigator.onLine) { s.className = 'sync offline'; s.textContent = 'Sin conexión'; }
-  else if (hasPending()) { s.className = 'sync pending'; s.textContent = 'Sincronizando…'; }
-  else { s.className = 'sync'; s.textContent = 'Sincronizado'; }
+  const [cls, txt] = !navigator.onLine ? ['offline', 'Sin conexión'] : hasPending() ? ['pending', 'Sincronizando…'] : ['', 'Sincronizado'];
+  $$('.sync-ind').forEach((s) => { s.className = `${s.className.replace(/\b(offline|pending)\b/g, '').trim()} ${cls}`.trim(); s.title = txt; s.textContent = txt; });
 }
 window.addEventListener('online', updateSync);
 window.addEventListener('offline', () => {
@@ -279,15 +285,16 @@ window.addEventListener('offline', () => {
 
 // ====================== Interfaz ======================
 function bindUi() {
-  // Navegación lateral
-  $$('.nav-item').forEach((b) => b.addEventListener('click', () => setView({ type: b.dataset.view, id: null })));
-  $('#btn-new-folder').addEventListener('click', () => newFolder(null));
-  $('#btn-settings').addEventListener('click', openSettings);
+  // Navegación: franja de módulos (tablet/PC), barra inferior (móvil) y barra lateral
+  buildNav();
+  $('#rail-create').addEventListener('click', (e) => createMenu(e.currentTarget));
+  $('#rail-settings').addEventListener('click', openSettings);
+  ['#rail-logout', '#btn-logout-home'].forEach((s) => $(s).addEventListener('click', askLogout));
+  $('#btn-logout-pub').addEventListener('click', () => doLogout());
+  $('#rail-side').addEventListener('click', toggleSide);
+  $('#btn-side-close').addEventListener('click', toggleSide);
+  $('#app').classList.toggle('side-closed', S.sideClosed);
   ['#btn-new-note', '#btn-new-note-empty'].forEach((s) => $(s).addEventListener('click', () => (isSnipView() ? newSnippetHere() : newNote())));
-  $('#btn-new-note-side').addEventListener('click', () => {
-    if (isSnipView()) setView({ type: 'notes', id: null }).then(() => newNote()); else newNote();
-  });
-  $('#btn-explorer').addEventListener('click', () => setView({ type: 'notes', id: null }));
   $('#btn-layout').addEventListener('click', () => {
     S.layout = S.layout === 'grid' ? 'list' : 'grid';
     localStorage.setItem('drfolio.layout', S.layout);
@@ -298,14 +305,13 @@ function bindUi() {
     if (S.view.type === T.folder && T.map().has(S.view.id)) folderMenu(e.currentTarget, T.map().get(S.view.id), { here: true, T });
     else rootMenu(e.currentTarget, T);
   });
-  dropTarget($('#btn-explorer'), null);
-  ['#btn-menu', '#btn-menu-home'].forEach((s) => $(s).addEventListener('click', () => $('#app').classList.add('drawer')));
-  $('#btn-home').addEventListener('click', goHome);
   $('#btn-settings-home').addEventListener('click', openSettings);
-  $('#home-search').addEventListener('input', debounce(() => { S.homeSearch = $('#home-search').value; renderHomeNotes(); }, 120));
-  $('#home-search').addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { $('#home-search').value = ''; S.homeSearch = ''; renderHomeNotes(); }
-    if (e.key === 'Enter') { e.preventDefault(); $('#home-search').blur(); }
+  $('#home-search').addEventListener('click', () => openFind());
+  // Búsqueda global
+  $('#find-input').addEventListener('input', debounce(() => { S.find = $('#find-input').value; renderFind(); }, 120));
+  $('#find-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { $('#find-input').value = ''; S.find = ''; renderFind(); }
+    if (e.key === 'Enter') { e.preventDefault(); $('#find-input').blur(); }
   });
   $('#scrim').addEventListener('click', closeDrawer);
   // «←» de la nota: si la nota tiene su propia entrada en el historial, volvemos atrás (como el botón de Android)
@@ -359,7 +365,7 @@ function bindUi() {
   document.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveSoon.flush(); flushSnippet(); setSaveStatus('Guardado ✓'); }
-    else if (mod && e.key.toLowerCase() === 'k' && !editor.isFocused()) { e.preventDefault(); if (S.view.type === 'home') $('#home-search').focus(); else { showList(); $('#search').focus(); } }
+    else if (mod && e.key.toLowerCase() === 'k' && !editor.isFocused()) { e.preventDefault(); if (!treeOf(S.view.type)) openFind(); else { showList(); $('#search').focus(); } }
     else if (mod && e.altKey && e.key.toLowerCase() === 'n') { e.preventDefault(); if (isSnipView()) newSnippetHere(); else newNote(); }
     else if (e.key === 'Escape' && !modalOpen()) closeDrawer();
   });
@@ -384,6 +390,7 @@ const isExplorer = (t) => !!treeOf(t);
 
 function hashFor(view, noteId) {
   if (view.type === 'home') return '#/inicio';
+  if (view.type === 'search') return NAV_SEARCH.route;
   const T = treeOf(view.type);
   let h = T && view.type === T.root ? T.rootHash : `#/${view.type}${view.id ? `/${view.id}` : ''}`;
   if (noteId) h += `/n/${noteId}`;
@@ -431,6 +438,7 @@ function parseHash(hash) {
   let noteId = null;
   let snipId = null;
   if (parts[0] === 'nota' && parts[1]) { noteId = parts[1]; view = { type: 'all', id: null }; }
+  else if (parts[0] === 'buscar') view = { type: 'search', id: null };
   else if (['snippets', 'sall', 'sfav', 'sused', 'srecent'].includes(parts[0])) {
     view = { type: parts[0], id: null };
     if (parts[1] === 's') snipId = parts[2];
@@ -525,6 +533,7 @@ function goHome() {
 /** Cambia de vista. Devuelve una promesa (la navegación del explorador puede tardar unos milisegundos). */
 function setView(view) {
   if (view.type === 'home') { goHome(); return Promise.resolve(); }
+  if (view.type === 'search') return openFind();
   saveSoon.flush();
   closeDrawer();
   if (isExplorer(view.type)) {
@@ -544,72 +553,248 @@ function setView(view) {
   return Promise.resolve();
 }
 
-/** Inicio ocupa la zona de lista + nota; el resto de vistas usan la lista y el editor. */
+/** Inicio y Buscar ocupan la zona de lista + nota; Notas y Prerredactados usan la lista y el editor. */
 function renderSection() {
-  const home = S.view.type === 'home';
-  $('#app').dataset.section = home ? 'home' : 'work';
-  if (home) renderHome();
+  const sec = sectionOf();
+  $('#app').dataset.section = sec;
+  if (sec === 'home') renderHome();
+  if (sec === 'search') { if ($('#find-input').value !== S.find) $('#find-input').value = S.find; renderFind(); }
+  renderNav();
+}
+
+// ====================== Navegación (franja de módulos y barra inferior) ======================
+/** Construye la franja (tablet/PC) y la barra inferior (móvil) a partir de MODULES */
+function buildNav() {
+  const navBtn = (cls, item, soon) => el('button', {
+    class: `${cls} ${soon ? 'soon' : ''}`, type: 'button', dataset: { nav: item.id },
+    title: soon ? `${item.name} · Próximamente` : item.name, 'aria-label': soon ? `${item.name} (próximamente)` : item.name,
+    onclick: () => navTo(item)
+  }, el('span', { class: 'ico' }, item.icon), el('span', { class: 'lbl' }, item.short || item.name));
+  // Franja: Inicio, Buscar y todos los módulos (los «Próximamente» en gris)
+  const rail = [NAV_HOME, NAV_SEARCH, ...MODULES].map((m) => navBtn('rail-btn', m, m.status && m.status !== 'active'));
+  $('#rail-items').replaceChildren(...rail);
+  // Arrastrar una nota o carpeta encima de «Notas»/«Prerredactados» la saca a la raíz
+  rail.forEach((b) => { const T = TREES[b.dataset.nav]; if (T) dropTarget(b, null, T); });
+  // Barra inferior: Inicio · módulos con tab · ＋ Crear (en medio) · Buscar
+  const tabs = [NAV_HOME, ...MODULES.filter((m) => m.tab && m.status === 'active'), NAV_SEARCH].map((m) => navBtn('tab', m, false));
+  const create = el('button', { class: 'tab tab-create', type: 'button', 'aria-label': 'Crear', title: 'Crear', onclick: (e) => createMenu(e.currentTarget) },
+    el('span', { class: 'ico' }, '＋'), el('span', { class: 'lbl' }, 'Crear'));
+  tabs.splice(Math.ceil(tabs.length / 2), 0, create);
+  $('#tabbar').replaceChildren(...tabs);
+}
+
+/** Marca la sección activa y los recuentos */
+function renderNav() {
+  const sec = sectionOf();
+  $$('[data-nav]').forEach((b) => b.classList.toggle('active', b.dataset.nav === sec));
+  $$('[data-nav]').forEach((b) => { if (b.dataset.nav === sec) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+}
+const renderNavSoon = debounce(() => renderNav(), 80);
+
+/** Tocar un acceso: abre su sección; si ya estás en ella, vuelve a su raíz (p. ej. «Notas») */
+function navTo(item) {
+  if (item.status && item.status !== 'active') { toast(`${item.name}: próximamente`); return; }
+  if (item.id === 'home') { goHome(); return; }
+  if (item.id === 'search') { openFind(); return; }
+  setView(parseHash(item.route).view);
+}
+
+/** Barra lateral: plegar/desplegar (ordenador, se recuerda) o abrir/cerrar encima (tablet) */
+function toggleSide() {
+  if (matchMedia('(min-width: 1100px)').matches) {
+    S.sideClosed = !S.sideClosed;
+    localStorage.setItem('drfolio.side', S.sideClosed ? 'closed' : 'open');
+    $('#app').classList.toggle('side-closed', S.sideClosed);
+  } else $('#app').classList.toggle('drawer');
+}
+
+async function askLogout() {
+  if (getMode() !== 'public' && !await confirm('Cerrar sesión', 'Se borrará la copia sin conexión de este dispositivo. Tus datos siguen guardados en la nube.', { okLabel: 'Cerrar sesión', danger: true })) return;
+  doLogout();
+}
+
+// ---------- ＋ Crear ----------
+/** Menú «Crear»: nota, prerredactado o carpeta, en la carpeta abierta en ese momento */
+function createMenu(anchor) {
+  const v = S.view;
+  const sec = sectionOf();
+  const nf = v.type === 'folder' ? store.folders.get(v.id) : null;
+  const sf = v.type === 'sfolder' ? store.snippetFolders.get(v.id) : null;
+  const inF = (f) => (f ? ` en «${f.name}»` : '');
+  const folderItem = (T, f) => ({
+    icon: '📁', label: f ? `Subcarpeta${inF(f)}` : `Carpeta de ${T.many}`,
+    onClick: async () => {
+      const id = await newFolder(f?.id || null, T);
+      if (id && sec !== T.id) setView({ type: T.folder, id });
+    }
+  });
+  menu(anchor, [
+    { icon: '📝', label: `Nota${inF(nf)}`, onClick: () => newNote() },
+    { icon: '📋', label: `Prerredactado${inF(sf)}`, onClick: () => (sec === 'snippets' ? newSnippetHere() : setView({ type: 'snippets', id: null }).then(() => newSnippet())) },
+    '-',
+    ...(sec === 'notes' ? [folderItem(TREES.notes, nf)] : sec === 'snippets' ? [folderItem(TREES.snippets, sf)]
+      : [folderItem(TREES.notes, null), folderItem(TREES.snippets, null)])
+  ]);
+}
+
+// ====================== Búsqueda global (#/buscar) ======================
+// Cada fuente busca en un tipo de elemento. Para añadir el Vademécum: una entrada más aquí.
+const byUpdated = (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0);
+const SEARCH_SOURCES = [
+  {
+    id: 'notes', name: 'Notas', icon: '🗂', all: 'Ver todas las notas',
+    loaded: () => store.loaded.notes,
+    run: (words) => liveNotes().filter((n) => words.every((w) => searchable(n).includes(w))).sort(byUpdated),
+    card: (n, q) => noteCard(n, { search: q, sort: 'updated' })
+  },
+  {
+    id: 'snippets', name: 'Prerredactados', icon: '📋', all: 'Ver todos los prerredactados',
+    loaded: () => store.loaded.snippets,
+    run: (words) => allSnippets().filter((s) => snippetMatches(s, words)).sort(byUpdated),
+    card: (s, q) => snippetCard(s, { search: q, showPath: true, onLongPress: longPressed, onOpen: openSnippetFromSearch })
+  }
+];
+
+/** Abre Buscar. Es una sección de primer nivel: «atrás» desde ella vuelve a Inicio. */
+async function openFind() {
+  saveSoon.flush(); flushSnippet();
+  closeDrawer();
+  if (S.view.type !== 'search' || S.noteId || currentSnippet()) {
+    await backTo(-1);
+    history.pushState({ d: (history.state?.d || 0) + 1, lv: 0, nt: 0 }, '', NAV_SEARCH.route);
+    applyHash();
+  } else if (S.find) { S.find = ''; $('#find-input').value = ''; renderFind(); }
+  $('#find-input').focus();
+}
+
+/** Prerredactado abierto desde Buscar: se abre dentro de Prerredactados y «atrás» vuelve a Buscar */
+function openSnippetFromSearch(id) {
+  S.view = { type: 'snippets', id: null };
+  S.search = ''; $('#search').value = '';
+  renderSection(); renderSidebar(); renderList();
+  openSnippet(id, { push: true });
+}
+
+const renderFindSoon = debounce(() => { if (S.view.type === 'search') renderFind(); }, 80);
+function renderFind() {
+  const q = S.find;
+  const words = norm(q.trim()).split(/\s+/).filter(Boolean);
+  const res = SEARCH_SOURCES.map((src) => ({ src, list: words.length && src.loaded() ? src.run(words) : [] }));
+  const total = res.reduce((t, r) => t + r.list.length, 0);
+  if (S.findFilter !== 'all' && !SEARCH_SOURCES.some((x) => x.id === S.findFilter)) S.findFilter = 'all';
+  const chip = (id, label, n) => el('button', {
+    class: `find-chip ${S.findFilter === id ? 'on' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(S.findFilter === id),
+    onclick: () => { S.findFilter = id; renderFind(); $('#find-scroll').scrollTop = 0; }
+  }, label, words.length ? el('span', { class: 'n' }, n) : null);
+  $('#find-filters').replaceChildren(chip('all', 'Todo', total), ...res.map((r) => chip(r.src.id, `${r.src.icon} ${r.src.name}`, r.list.length)));
+
+  const box = $('#find-results');
+  if (!words.length) {
+    box.replaceChildren(el('div', { class: 'find-hint' }, el('p', { class: 'big' }, '🔎'),
+      el('p', {}, 'Busca a la vez en tus notas y prerredactados.'),
+      el('p', { class: 'small' }, 'Sin tildes ni mayúsculas: «tension» encuentra «Tensión». Varias palabras = deben aparecer todas.')));
+    return;
+  }
+  if (res.every((r) => !r.src.loaded())) { box.replaceChildren(el('div', { class: 'list-empty' }, 'Cargando…')); return; }
+  const shown = res.filter((r) => S.findFilter === 'all' || r.src.id === S.findFilter);
+  const out = [];
+  for (const { src, list } of shown) {
+    if (S.findFilter === 'all' && !list.length) continue;
+    const max = S.findFilter === 'all' ? 5 : 300;
+    out.push(el('div', { class: 'find-sec' }, el('span', {}, `${src.icon} ${src.name} · ${list.length}`)));
+    if (!list.length) { out.push(el('div', { class: 'fx-hint' }, `No hay ${src.name.toLowerCase()} que coincidan.`)); continue; }
+    out.push(el('div', { class: 'home-notes' }, list.slice(0, max).map((it) => src.card(it, q))));
+    if (list.length > max) {
+      out.push(el('button', { class: 'btn find-more', type: 'button', onclick: () => { S.findFilter = src.id; renderFind(); $('#find-scroll').scrollTop = 0; } },
+        S.findFilter === 'all' ? `${src.all} (${list.length})` : `Mostrando ${max} de ${list.length}. Afina la búsqueda.`));
+    }
+  }
+  if (!out.length) out.push(el('div', { class: 'list-empty' }, `Sin resultados para «${q.trim()}».`));
+  box.replaceChildren(...out);
 }
 
 // ====================== Barra lateral ======================
 function renderAll() { renderSidebar(); renderList(); }
 
+/** Barra lateral según la sección: Notas (vistas, carpetas, etiquetas) o Prerredactados (vistas, carpetas). Inicio y Buscar: sin barra. */
 function renderSidebar() {
   const live = liveNotes();
-  $('#count-all').textContent = live.length || '';
-  $('#count-pinned').textContent = live.filter((n) => n.pinned).length || '';
-  $('#count-snippets').textContent = store.snippets.size || '';
-  $('#count-trash').textContent = [...store.notes.values()].filter((n) => n.trashed).length || '';
-  $$('.nav-item').forEach((b) => b.classList.toggle('active', S.view.type === b.dataset.view || (b.dataset.view === 'snippets' && isSnipView())));
+  const tags = [...store.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  $('#tag-suggest').replaceChildren(...tags.map((t) => el('option', { value: t.name }))); // sugerencias del editor
+  const sec = sectionOf();
+  const T = TREES[sec];
+  $('#app').dataset.side = T ? '1' : '0';
+  if (!T) { closeDrawer(); return; }
+  $('#side-title').textContent = T.rootName;
+  const v = S.view;
+  const navItem = (ico, lbl, count, type) => el('button', {
+    class: `nav-item ${v.type === type ? 'active' : ''}`, type: 'button', onclick: () => setView({ type, id: null })
+  }, el('span', { class: 'ico' }, ico), el('span', { class: 'lbl' }, lbl), el('span', { class: 'count' }, count || ''));
+  const body = [el('button', { class: 'btn primary block', type: 'button', onclick: () => T.newItem() }, `＋ ${T.txt.newOne}`)];
 
-  // Recuento por carpeta (incluye subcarpetas)
-  const totals = folderTotals(TREES.notes, live);
-  const total = (id) => totals.get(id) || 0;
+  if (sec === 'notes') {
+    body.push(el('nav', { class: 'side-nav' },
+      navItem('🗂', 'Todas las notas', live.length, 'all'),
+      navItem('📌', 'Fijadas', live.filter((n) => n.pinned).length, 'pinned'),
+      navItem('🕘', 'Recientes', null, 'recent'),
+      navItem('🗑', 'Papelera', [...store.notes.values()].filter((n) => n.trashed).length, 'trash')));
+  } else {
+    const all = allSnippets();
+    body.push(el('nav', { class: 'side-nav' },
+      navItem('📋', 'Todos', all.length, 'sall'),
+      navItem('⭐', 'Favoritos', all.filter((x) => x.favorite).length, 'sfav'),
+      navItem('🔥', 'Más usados', null, 'sused'),
+      navItem('🕘', 'Recientes', null, 'srecent')));
+  }
 
-  const tree = $('#folder-tree');
+  // Carpetas del árbol de la sección (recuento con subcarpetas)
+  const totals = folderTotals(T);
   const rows = [];
   const walk = (parentId, depth) => {
-    for (const f of sortedChildren(parentId)) {
-      const kids = childFolders(f.id).length > 0;
+    for (const f of sortedChildren(parentId, T)) {
+      const kids = childFolders(f.id, T.map()).length > 0;
       const open = S.expanded.has(f.id);
       const row = el('div', {
-        class: `tree-row ${S.view.type === 'folder' && S.view.id === f.id ? 'active' : ''}`,
+        class: `tree-row ${v.type === T.folder && v.id === f.id ? 'active' : ''}`,
         style: { '--depth': depth }, role: 'button', tabindex: '0',
-        onclick: (e) => { if (!longPressed(e.currentTarget) && !e.target.closest('.caret,.more')) setView({ type: 'folder', id: f.id }); },
-        onkeydown: (e) => { if (e.key === 'Enter') setView({ type: 'folder', id: f.id }); }
+        onclick: (e) => { if (!longPressed(e.currentTarget) && !e.target.closest('.caret,.more')) setView({ type: T.folder, id: f.id }); },
+        onkeydown: (e) => { if (e.key === 'Enter') setView({ type: T.folder, id: f.id }); }
       },
-        el('span', {
-          class: `caret ${kids ? '' : 'empty'}`,
-          onclick: (e) => { e.stopPropagation(); toggleFolder(f.id); }
-        }, open ? '▼' : '▶'),
+        el('span', { class: `caret ${kids ? '' : 'empty'}`, onclick: (e) => { e.stopPropagation(); toggleFolder(f.id); } }, open ? '▼' : '▶'),
         el('span', { class: 'dot', style: f.color ? { background: f.color } : {} }),
         el('span', { class: 'lbl' }, f.name),
-        el('span', { class: 'count' }, total(f.id) || ''),
-        el('button', { class: 'more', title: 'Opciones', 'aria-label': 'Opciones de carpeta', onclick: (e) => { e.stopPropagation(); folderMenu(e.currentTarget, f); } }, '⋯'));
-      dropTarget(row, f.id);
-      bindContext(row, (a) => folderMenu(a, f));
+        el('span', { class: 'count' }, totals.get(f.id) || ''),
+        el('button', { class: 'more', title: 'Opciones', 'aria-label': 'Opciones de carpeta', onclick: (e) => { e.stopPropagation(); folderMenu(e.currentTarget, f, { T }); } }, '⋯'));
+      dropTarget(row, f.id, T);
+      bindContext(row, (a) => folderMenu(a, f, { T }));
       rows.push(row);
       if (kids && open) walk(f.id, depth + 1);
     }
   };
   walk(null, 0);
-  tree.replaceChildren(...(rows.length ? rows : [el('div', { class: 'side-empty' }, 'Crea tu primera carpeta con ＋')]));
+  const rootLink = el('button', { type: 'button', class: `side-link ${v.type === T.root ? 'on' : ''}`, title: 'Abrir el explorador de carpetas', onclick: () => setView({ type: T.root, id: null }) }, 'Carpetas');
+  dropTarget(rootLink, null, T);
+  body.push(el('div', { class: 'side-section' },
+    el('div', { class: 'side-title' }, rootLink,
+      el('button', { class: 'icon-btn sm', type: 'button', title: 'Nueva carpeta', 'aria-label': 'Nueva carpeta', onclick: () => newFolder(null, T) }, '＋')),
+    el('div', { class: 'tree' }, rows.length ? rows : el('div', { class: 'side-empty' }, 'Crea tu primera carpeta con ＋'))));
 
-  const tags = [...store.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  const tagCount = new Map();
-  for (const n of live) for (const t of n.tags || []) tagCount.set(t, (tagCount.get(t) || 0) + 1);
-  $('#tag-list').replaceChildren(...(tags.length ? tags.map((t) => el('div', {
-    class: `tag-item ${S.view.type === 'tag' && S.view.id === t.id ? 'active' : ''}`, role: 'button', tabindex: '0',
-    onclick: (e) => { if (!e.target.closest('.more')) setView({ type: 'tag', id: t.id }); }
-  },
-    el('span', { class: 'hash', style: t.color ? { color: t.color } : {} }, '#'),
-    el('span', { class: 'lbl' }, t.name),
-    el('span', { class: 'count' }, tagCount.get(t.id) || ''),
-    el('button', { class: 'more', 'aria-label': 'Opciones de etiqueta', onclick: (e) => { e.stopPropagation(); tagMenu(e.currentTarget, t); } }, '⋯')
-  )) : [el('div', { class: 'side-empty' }, 'Añade etiquetas desde una nota')]));
-
-  // Datalist de etiquetas
-  $('#tag-suggest').replaceChildren(...tags.map((t) => el('option', { value: t.name })));
+  if (sec === 'notes') {
+    const tagCount = new Map();
+    for (const n of live) for (const t of n.tags || []) tagCount.set(t, (tagCount.get(t) || 0) + 1);
+    body.push(el('div', { class: 'side-section' },
+      el('div', { class: 'side-title' }, el('span', {}, 'Etiquetas')),
+      el('div', { class: 'tag-list' }, tags.length ? tags.map((t) => el('div', {
+        class: `tag-item ${v.type === 'tag' && v.id === t.id ? 'active' : ''}`, role: 'button', tabindex: '0',
+        onclick: (e) => { if (!e.target.closest('.more')) setView({ type: 'tag', id: t.id }); }
+      },
+        el('span', { class: 'hash', style: t.color ? { color: t.color } : {} }, '#'),
+        el('span', { class: 'lbl' }, t.name),
+        el('span', { class: 'count' }, tagCount.get(t.id) || ''),
+        el('button', { class: 'more', 'aria-label': 'Opciones de etiqueta', onclick: (e) => { e.stopPropagation(); tagMenu(e.currentTarget, t); } }, '⋯')
+      )) : el('div', { class: 'side-empty' }, 'Añade etiquetas desde una nota'))));
+  }
+  $('#side-body').replaceChildren(...body);
 }
 
 function toggleFolder(id) {
@@ -972,7 +1157,7 @@ function syncSortSelect(T) {
 }
 
 function renderList() {
-  if (S.view.type === 'home') return;
+  if (!treeOf(S.view.type)) return; // Inicio y Buscar no usan la lista
   const v = S.view;
   const T = treeOf(v.type);
   const snip = T?.id === 'snippets';
@@ -1079,6 +1264,15 @@ function renderExplorer(box, T) {
       el('button', { class: 'fx-tile', type: 'button', onclick: () => setView({ type, id: null }) },
         el('span', { class: 'fx-tile-ico' }, ico), el('span', { class: 'fx-tile-lbl' }, label),
         count != null ? el('span', { class: 'fx-tile-n' }, count) : null))));
+    // En el móvil no hay barra lateral: Papelera y Etiquetas, aquí
+    if (T.id === 'notes') {
+      const nTrash = [...store.notes.values()].filter((n) => n.trashed).length;
+      wrap.append(el('div', { class: 'fx-extra' },
+        el('button', { class: 'fx-tile', type: 'button', onclick: () => setView({ type: 'trash', id: null }) },
+          el('span', { class: 'fx-tile-ico' }, '🗑'), el('span', { class: 'fx-tile-lbl' }, 'Papelera'), el('span', { class: 'fx-tile-n' }, nTrash || '')),
+        el('button', { class: 'fx-tile', type: 'button', onclick: pickTag },
+          el('span', { class: 'fx-tile-ico' }, '🏷'), el('span', { class: 'fx-tile-lbl' }, 'Etiquetas'), el('span', { class: 'fx-tile-n' }, store.tags.size || ''))));
+    }
   }
 
   wrap.append(el('div', { class: 'fx-actions' },
@@ -1107,6 +1301,16 @@ function renderExplorer(box, T) {
     wrap.append(el('div', { class: 'fx-hint' }, folders.length ? T.txt.onlySubs : T.txt.emptyFolder));
   }
   box.replaceChildren(wrap);
+}
+
+/** Elegir una etiqueta para ver sus notas (móvil) */
+async function pickTag() {
+  const tags = [...store.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  if (!tags.length) { toast('Aún no hay etiquetas. Añádelas desde una nota.'); return; }
+  const count = new Map();
+  for (const n of liveNotes()) for (const t of n.tags || []) count.set(t, (count.get(t) || 0) + 1);
+  const id = await picker('Etiquetas', tags.map((t) => ({ id: t.id, label: `# ${t.name}`, sub: `${count.get(t.id) || 0} notas` })), { placeholder: 'Buscar etiqueta…' });
+  if (id) setView({ type: 'tag', id });
 }
 
 /** Buscar en la carpeta actual (y sus subcarpetas) o en todo el árbol */
@@ -1240,22 +1444,13 @@ function renderHome() {
 
 function renderHomeNotes() {
   const box = $('#home-notes');
-  const q = norm(S.homeSearch.trim());
   if (!store.loaded.notes) { box.replaceChildren(el('div', { class: 'list-empty' }, 'Cargando notas…')); return; }
-  let list = liveNotes();
-  if (q) {
-    const words = q.split(/\s+/);
-    list = list.filter((n) => { const s = searchable(n); return words.every((w) => s.includes(w)); });
-  }
-  list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-  const total = list.length;
-  list = list.slice(0, q ? 30 : 5);
-  $('#home-list-title').textContent = q ? `Resultados (${total})` : 'Últimas notas';
+  const list = liveNotes().sort(byUpdated).slice(0, 5);
   if (!list.length) {
-    box.replaceChildren(el('div', { class: 'list-empty' }, q ? 'No hay notas que coincidan.' : 'Aún no hay notas. Entra en «Notas» y crea la primera.'));
+    box.replaceChildren(el('div', { class: 'list-empty' }, 'Aún no hay notas. Toca ＋ y crea la primera.'));
     return;
   }
-  box.replaceChildren(...list.map((n) => noteCard(n, { search: S.homeSearch, sort: 'updated' })));
+  box.replaceChildren(...list.map((n) => noteCard(n, { search: '', sort: 'updated' })));
 }
 
 // ====================== Notas ======================
@@ -1275,7 +1470,13 @@ function newNote() {
   };
   store.notes.set(id, { id, ...data }); // visible al instante
   put('notes', id, data);
-  if (v.type === 'trash' || v.type === 'home') S.view = { type: 'notes', id: null };
+  if (v.type === 'trash' || !treeOf(v.type) || isSnipView(v.type)) {
+    // Desde Inicio, Buscar, Prerredactados o la Papelera: la nota se crea en la raíz de Notas
+    if (isSnipView(v.type)) closeSnippet({ fromHash: true });
+    S.view = { type: 'notes', id: null };
+    S.search = ''; $('#search').value = '';
+    renderSection();
+  }
   closeDrawer();
   openNote(id, { push: true, focusTitle: true });
   renderList(); renderSidebar();
@@ -1292,7 +1493,7 @@ function openNote(id, { push = false, focusTitle = false, fromHash = false } = {
   }
   if (S.noteId !== id) saveSoon.flush();
   if (isSnipView()) { closeSnippet({ fromHash: true }); S.view = { type: 'all', id: null }; renderSidebar(); }
-  if (S.view.type === 'home') { S.view = { type: 'all', id: null }; renderSection(); renderSidebar(); }
+  if (!treeOf(S.view.type)) { S.view = { type: 'all', id: null }; renderSection(); renderSidebar(); } // desde Inicio o Buscar
   S.noteId = id;
   S.dirty = false;
   showPane('note');

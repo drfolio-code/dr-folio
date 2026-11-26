@@ -5,6 +5,8 @@
 const root = document.documentElement;
 const vv = window.visualViewport;
 let raf = 0;
+// Alto de la pantalla sin teclado (por ancho: al girar se vuelve a medir)
+let base = { w: 0, h: 0 };
 
 function update() {
   raf = 0;
@@ -12,8 +14,13 @@ function update() {
   const top = vv ? Math.max(0, vv.offsetTop) : 0;
   root.style.setProperty('--app-h', `${Math.round(h)}px`);
   root.style.setProperty('--app-top', `${Math.round(top)}px`);
-  // Teclado abierto: la zona visible es bastante más baja que la ventana
-  const kb = !!vv && window.innerHeight - h > 120 && isTyping();
+  const typing = isTyping();
+  const full = Math.max(window.innerHeight, h);
+  if (window.innerWidth !== base.w) base = { w: window.innerWidth, h: full };
+  else if (!typing || full > base.h) base.h = full;
+  // Teclado abierto: la zona visible es bastante más baja que la ventana (iOS) o que antes de escribir
+  // (Android encoge la ventana entera). Con él abierto se oculta la barra inferior del móvil.
+  const kb = typing && ((!!vv && window.innerHeight - h > 120) || base.h - h > 150);
   document.body.classList.toggle('kb-open', kb);
   if (kb) setTimeout(caretIntoView, 60);
 }

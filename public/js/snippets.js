@@ -168,16 +168,16 @@ function previewNode(s, search) {
 }
 
 /** Tarjeta de un prerredactado: tocar = abrir · ☆ = favorito · ⧉ = copiar */
-export function snippetCard(s, { search = '', showPath = false, onLongPress = null } = {}) {
+export function snippetCard(s, { search = '', showPath = false, onLongPress = null, onOpen = null } = {}) {
   const nf = parseFields(s.body).size;
   const path = showPath ? snipPathText(s.folderId) : '';
   const card = el('div', {
     class: `note-card snip-card ${s.id === curId ? 'active' : ''}`, role: 'button', tabindex: '0',
     onclick: (e) => {
       if (e.target.closest('.snip-quick') || (onLongPress && onLongPress(card))) return;
-      openSnippet(s.id, { push: true });
+      if (onOpen) onOpen(s.id); else openSnippet(s.id, { push: true });
     },
-    onkeydown: (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) openSnippet(s.id, { push: true }); }
+    onkeydown: (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) { if (onOpen) onOpen(s.id); else openSnippet(s.id, { push: true }); } }
   },
     el('div', { class: 'snip-card-main' },
       el('div', { class: 't' }, el('span', {}, s.title || 'Sin título')),

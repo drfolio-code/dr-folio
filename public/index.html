@@ -49,51 +49,51 @@
   <!-- ============ APP ============ -->
   <div id="app" class="screen" data-view="list" data-section="home">
 
-    <!-- Barra lateral -->
+    <!-- Aviso de ordenador público (siempre visible) -->
+    <div id="pubbar" class="pubbar hidden" role="status">
+      <span>🟠 <b>Ordenador público</b><span class="pub-hint"> · no se guarda nada en este equipo</span></span>
+      <span class="spacer"></span>
+      <button class="btn sm" id="btn-logout-pub" type="button">Cerrar sesión</button>
+    </div>
+
+    <!-- Franja de módulos (tablet y ordenador) -->
+    <nav id="rail" aria-label="Módulos">
+      <img src="icons/icon-192.png?v=6" alt="Dr.Folio" class="rail-logo">
+      <button class="rail-create" id="rail-create" type="button" title="Crear (nota, prerredactado o carpeta)" aria-label="Crear">＋</button>
+      <div id="rail-items" class="rail-items"></div>
+      <span class="spacer"></span>
+      <button class="rail-btn" id="rail-side" type="button" title="Mostrar u ocultar el panel" aria-label="Mostrar u ocultar el panel"><span class="ico">◧</span><span class="lbl">Panel</span></button>
+      <button class="rail-btn" id="rail-settings" type="button" title="Ajustes"><span class="ico">⚙︎</span><span class="lbl">Ajustes</span></button>
+      <button class="rail-btn" id="rail-logout" type="button" title="Cerrar sesión"><span class="ico">⏻</span><span class="lbl">Salir</span></button>
+      <span class="sync sync-ind rail-sync"></span>
+    </nav>
+
+    <!-- Barra lateral (cambia según la sección: Notas / Prerredactados) -->
     <aside id="sidebar">
       <div class="side-head">
-        <img src="icons/icon-192.png?v=6" alt="" class="logo-small">
-        <span class="brand">Dr.Folio</span>
-        <button class="icon-btn" id="btn-settings" title="Ajustes" aria-label="Ajustes">⚙︎</button>
+        <span class="brand" id="side-title">Notas</span>
+        <button class="icon-btn" id="btn-side-close" type="button" title="Plegar el panel" aria-label="Plegar el panel">«</button>
       </div>
-      <button class="btn primary block" id="btn-new-note-side">＋ Nueva nota</button>
-      <nav class="side-nav">
-        <button class="nav-item" data-view="home"><span class="ico">🏠</span><span class="lbl">Inicio</span></button>
-        <button class="nav-item" data-view="all"><span class="ico">🗂</span><span class="lbl">Todas las notas</span><span class="count" id="count-all"></span></button>
-        <button class="nav-item" data-view="pinned"><span class="ico">📌</span><span class="lbl">Fijadas</span><span class="count" id="count-pinned"></span></button>
-        <button class="nav-item" data-view="snippets"><span class="ico">📋</span><span class="lbl">Prerredactados</span><span class="count" id="count-snippets"></span></button>
-        <button class="nav-item" data-view="trash"><span class="ico">🗑</span><span class="lbl">Papelera</span><span class="count" id="count-trash"></span></button>
-      </nav>
-      <div class="side-section">
-        <div class="side-title"><button type="button" class="side-link" id="btn-explorer" title="Abrir el explorador de carpetas">Carpetas</button><button class="icon-btn sm" id="btn-new-folder" title="Nueva carpeta" aria-label="Nueva carpeta">＋</button></div>
-        <div id="folder-tree" class="tree"></div>
-      </div>
-      <div class="side-section">
-        <div class="side-title"><span>Etiquetas</span></div>
-        <div id="tag-list" class="tag-list"></div>
-      </div>
-      <div class="side-foot">
-        <span id="sync-status" class="sync"></span>
-        <span id="mode-badge" class="badge"></span>
-      </div>
+      <div id="side-body" class="side-body"></div>
     </aside>
     <div id="scrim"></div>
 
     <!-- Inicio -->
     <section id="home">
       <div class="home-head">
-        <button class="icon-btn only-drawer" id="btn-menu-home" aria-label="Menú">☰</button>
         <img src="icons/icon-192.png?v=6" alt="" class="logo-small">
         <h2>Dr.Folio</h2>
+        <span class="sync sync-ind home-sync"></span>
         <span class="spacer"></span>
         <button class="icon-btn" id="btn-settings-home" title="Ajustes" aria-label="Ajustes">⚙︎</button>
+        <button class="icon-btn only-phone" id="btn-logout-home" title="Cerrar sesión" aria-label="Cerrar sesión">⏻</button>
       </div>
       <div class="home-scroll">
         <div class="home-inner">
           <p class="home-hello" id="home-hello"></p>
           <div id="home-modules" class="home-modules"></div>
           <div class="home-search">
-            <input type="search" id="home-search" placeholder="🔎  Buscar en todas las notas…" autocomplete="off" enterkeyhint="search">
+            <button type="button" id="home-search" class="home-search-btn">🔎  Buscar en notas y prerredactados…</button>
           </div>
           <h3 class="home-title" id="home-list-title">Últimas notas</h3>
           <div id="home-notes" class="home-notes"></div>
@@ -101,11 +101,23 @@
       </div>
     </section>
 
+    <!-- Búsqueda global -->
+    <section id="find">
+      <div class="home-head">
+        <h2>🔎 Buscar</h2>
+      </div>
+      <div class="find-bar">
+        <input type="search" id="find-input" placeholder="Buscar en notas y prerredactados…" autocomplete="off" enterkeyhint="search" aria-label="Buscar">
+        <div id="find-filters" class="find-filters" role="tablist" aria-label="Filtrar resultados"></div>
+      </div>
+      <div class="home-scroll" id="find-scroll">
+        <div class="home-inner" id="find-results"></div>
+      </div>
+    </section>
+
     <!-- Lista de notas -->
     <section id="list">
       <div class="list-head">
-        <button class="icon-btn only-drawer" id="btn-menu" aria-label="Menú">☰</button>
-        <button class="icon-btn only-drawer" id="btn-home" title="Inicio" aria-label="Inicio">🏠</button>
         <h2 id="list-title">Todas las notas</h2>
         <button class="icon-btn" id="btn-layout" title="Ver como cuadrícula" aria-label="Cambiar vista lista / cuadrícula">⊞</button>
         <button class="icon-btn hidden" id="btn-list-more" title="Opciones de la carpeta" aria-label="Opciones de la carpeta">⋯</button>
@@ -261,6 +273,9 @@
         </div>
       </div>
     </main>
+
+    <!-- Barra inferior (móvil) -->
+    <nav id="tabbar" aria-label="Navegación"></nav>
   </div>
 
   <input type="file" id="file-image" accept="image/*" multiple hidden>
