@@ -109,6 +109,7 @@ export function screenInfo() {
     `ventana ${window.innerWidth}×${window.innerHeight}`, `pantalla ${screen.width}×${screen.height}`,
     vv ? `visible ${Math.round(vv.height)}+${Math.round(vv.offsetTop)}` : null, `desplaz. ${Math.round(window.scrollY)}`,
     `márgenes ${ins}`, app ? `app ${Math.round(app.top)}–${Math.round(app.bottom)}` : null,
+    (() => { const t = document.querySelector('#tabbar'); if (!t || !t.offsetParent) return null; const r = t.getBoundingClientRect(); return `barra ${Math.round(r.top)}–${Math.round(r.bottom)} (relleno ${parseFloat(getComputedStyle(t).paddingBottom) || 0})`; })(),
     `${navigator.standalone === true ? 'instalada' : 'navegador'}${root.className ? ` · ${root.className}` : ''}`
   ].filter(Boolean).join(' · ');
 }
