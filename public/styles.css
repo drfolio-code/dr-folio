@@ -991,6 +991,10 @@ body.kb-open .ed-inner { padding-bottom: 24px; }
 /* Teclado abierto: la app (y los modales a pantalla completa) se ajustan a la zona visible */
 body.kb-open #app,
 body.kb-open .modal-back { top: var(--app-top, 0px); bottom: auto; height: var(--app-h, 100%); }
+/* iPhone instalado, ventana 47 px más corta por abajo (v1.17.0, viewport.js → html.ios-ext): la app como contenido
+   normal (no fixed) con el alto de la pantalla; iOS sí enseña el contenido normal en la franja «tapada» de abajo */
+html.ios-ext, html.ios-ext body { height: var(--screen-h, 100%); overflow: hidden; overscroll-behavior: none; }
+html.ios-ext body:not(.kb-open) #app, html.ios-ext body:not(.kb-open) .screen { position: absolute; top: 0; left: 0; right: 0; bottom: auto; height: var(--screen-h, 100%); }
 /* iPhone instalado con la ventana más baja que la pantalla (viewport.js):
    lo que queda debajo ya cubre la barra de inicio, así que no se añade otro margen,
    y ese hueco se pinta del color de la barra inferior para que parezca parte de ella. */

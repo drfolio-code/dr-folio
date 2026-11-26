@@ -64,6 +64,12 @@ function screenH() {
  * (innerHeight = pantalla − barra de estado). Lo que falta ya cubre la barra de inicio del iPhone,
  * así que no se suma además ese margen (html.short-h, --h-gap). Probado en el iPhone de Adrián.
  */
+/** Preferencia del iPhone: 'edge' (hasta el borde, por defecto) | 'window' (barra al final de la ventana) */
+export const iosFit = () => { try { return localStorage.getItem('drfolio.iosFit') === 'window' ? 'window' : 'edge'; } catch { return 'edge'; } };
+export function setIosFit(v) { try { localStorage.setItem('drfolio.iosFit', v); } catch { /* */ } update(); }
+/** ¿Hay ventana corta con la app arriba? (para mostrar el ajuste solo cuando sirve) */
+export const iosShort = () => document.documentElement.classList.contains('short-h') || document.documentElement.classList.contains('ios-ext');
+
 let probe = null;
 /** Margen seguro de arriba real (env(safe-area-inset-top)) */
 function safeTop() {
@@ -90,8 +96,15 @@ function fullHeight() {
   //  · margen de arriba 0 → la ventana empieza DEBAJO del reloj (barra «black», v1.16.0, al volver a instalar)
   //    y llega abajo del todo: no hace falta nada, los márgenes seguros normales ya valen.
   const under = !!gap && safeTop() > 20;
+  // (v1.17.0) En ese caso iOS trata los px que faltan abajo como «tapados» (como las barras de Safari): ahí no
+  // enseña lo que es position:fixed (por eso v1.15.0 salía recortada) pero SÍ el contenido normal de la página.
+  // La app pasa a ser contenido normal (position:absolute) con el alto de la pantalla → llega al borde (ios-ext).
+  // Ajustes → «Ajuste de pantalla» permite volver a lo anterior (barra al final de la ventana) si algo se ve mal.
+  const ext = under && iosFit() === 'edge';
   if (under) root.style.setProperty('--h-gap', `${gap}px`); else root.style.removeProperty('--h-gap');
-  root.classList.toggle('short-h', under);
+  root.style.setProperty('--screen-h', `${window.innerHeight + (under ? gap : 0)}px`);
+  root.classList.toggle('short-h', under && !ext);
+  root.classList.toggle('ios-ext', ext);
   // App instalada en iPhone: el fondo de la página es el de la barra inferior, así nunca se ve una franja suelta
   root.classList.toggle('ios-app', navigator.standalone === true);
 }
@@ -131,6 +144,10 @@ export function initViewport() {
   document.addEventListener('focusout', () => { setTimeout(update, 300); setTimeout(update, 800); setTimeout(update, 1600); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(update, 200); });
   window.addEventListener('pageshow', () => setTimeout(update, 200));
+  // Con la app alargada la página es más alta que la ventana: nunca debe quedar desplazada (salvo con el teclado)
+  window.addEventListener('scroll', () => {
+    if (root.classList.contains('ios-ext') && !document.body.classList.contains('kb-open') && window.scrollY) window.scrollTo(0, 0);
+  }, { passive: true });
 }
 
 // ---------- Títulos de varias líneas (textarea que crece con el texto) ----------
