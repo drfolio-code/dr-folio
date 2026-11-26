@@ -149,28 +149,38 @@
         </div>
       </div>
 
-      <!-- Prerredactado -->
+      <!-- Prerredactado (mismo editor que las notas; la barra de formato se copia de #toolbar al arrancar) -->
       <div id="snip-wrap" class="hidden">
         <div class="ed-head">
           <button class="icon-btn only-single" id="snip-back" aria-label="Volver">←</button>
-          <span class="crumb"><svg class="i" aria-hidden="true"><use href="#i-clipboard-list"/></svg> Prerredactado</span>
+          <button class="crumb" id="snip-folder" type="button" title="Mover a otra carpeta"><svg class="i" aria-hidden="true"><use href="#i-folder"/></svg> Sin carpeta</button>
           <span class="spacer"></span>
           <span id="snip-status" class="save-status"></span>
+          <span class="read-size only-reading">
+            <button class="icon-btn" id="snip-font-down" title="Letra más pequeña" aria-label="Letra más pequeña">A−</button>
+            <button class="icon-btn" id="snip-font-up" title="Letra más grande" aria-label="Letra más grande">A+</button>
+          </span>
+          <button class="btn sm edit-btn" id="snip-edit" type="button" title="Editar el prerredactado" aria-label="Editar el prerredactado"><span class="ico"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></span><span class="lbl">Editar</span></button>
           <button class="icon-btn snip-star" id="snip-fav" title="Añadir a favoritos" aria-label="Favorito"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg></button>
-          <button class="btn sm primary" id="snip-copy"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg> Copiar</button>
+          <button class="btn sm primary" id="snip-copy" title="Copiar sin formato (para pegar en el informe)"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg><span class="lbl"> Copiar</span></button>
           <button class="icon-btn" id="snip-menu" title="Más opciones" aria-label="Más opciones"><svg class="i" aria-hidden="true"><use href="#i-ellipsis"/></svg></button>
         </div>
-        <div class="ed-scroll">
+        <div class="ed-scroll" id="snip-scroll">
           <div class="ed-inner">
             <textarea rows="1" enterkeyhint="next" spellcheck="true" id="snip-title" class="ed-title" placeholder="Título (p. ej. Exploración neurológica normal)" autocomplete="off" maxlength="200"></textarea>
-            <div class="snip-meta">
-              <button class="folder-pill" id="snip-folder" type="button" title="Mover a otra carpeta"><svg class="i" aria-hidden="true"><use href="#i-folder"/></svg> Sin carpeta</button>
-            </div>
-            <textarea id="snip-body" class="snip-body" placeholder="Escribe aquí el texto que quieras copiar.&#10;&#10;Campos a rellenar: {edad}, {lado:derecho|izquierdo}" spellcheck="true"></textarea>
-            <p class="muted small">Consejo: escribe <code>{campo}</code> para un hueco a rellenar al copiar, o <code>{campo:opción1|opción2}</code> para elegir entre opciones.</p>
+            <div id="snip-content" class="content snip-content" contenteditable="true" spellcheck="true" data-placeholder="Escribe aquí el texto que quieras copiar.  Campos a rellenar: {edad}, {lado:derecho|izquierdo}"></div>
+            <p class="muted small snip-hint">Consejo: escribe <code>{campo}</code> para un hueco a rellenar al copiar, o <code>{campo:opción1|opción2}</code> para elegir entre opciones.</p>
             <p class="ed-meta muted small" id="snip-info"></p>
           </div>
         </div>
+        <div id="snip-table-tools" class="float-tools hidden">
+          <button data-t="row-add">＋ Fila</button>
+          <button data-t="col-add">＋ Columna</button>
+          <button data-t="row-del">− Fila</button>
+          <button data-t="col-del">− Columna</button>
+          <button data-t="table-del" class="danger">Borrar tabla</button>
+        </div>
+        <div id="snip-bubble" class="float-tools hidden"></div>
       </div>
 
       <div id="editor-wrap" class="hidden">
@@ -285,6 +295,7 @@
   </div>
 
   <input type="file" id="file-image" accept="image/*" multiple hidden>
+  <input type="file" id="snip-file-image" accept="image/*" multiple hidden>
   <input type="file" id="file-pdf" accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" hidden>
 
   <div id="modal-root"></div>

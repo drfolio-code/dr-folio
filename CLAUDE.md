@@ -24,9 +24,10 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/vendor/icons.js` | Dibujos de Lucide (ISC), solo los usados. Generado por `tools/build-icons.mjs` (`npm run vendor:icons`): para añadir un icono, añade su nombre a `USED` |
 | `public/js/modules.js` | Módulos (`id, name, short, icon (nombre de icono SVG), desc, route, status: 'active'\|'soon', count, tab`) + accesos fijos `NAV_HOME`/`NAV_SEARCH`. De aquí salen Inicio, la franja (todos) y la barra inferior (`tab: true`). Añadir un módulo = una línea aquí |
 | `public/js/viewport.js` | Teclado del móvil: `body.kb-open` (iOS: visualViewport; Android: alto menor que antes de escribir) → oculta la barra inferior y **solo entonces** la app usa `--app-h`/`--app-top` (alto visible real). Títulos de varias líneas: `initTitles`/`fitTitle` (textarea que crece; sin saltos de línea) |
-| `public/js/editor.js` | Editor `contenteditable`: barra de formato, pegado limpio (DOMPurify), tablas, listas de tareas, enlaces entre notas, índice, botones «📋 Copiar sección» en lectura (`allText()`) |
+| `public/js/editor.js` | Editor `contenteditable`: barra de formato, pegado limpio (DOMPurify), tablas, listas de tareas, enlaces entre notas, índice, botones «📋 Copiar sección» en lectura (`allText()`). `createEditor({els})` admite varias instancias (notas y prerredactados), `markFields` (resalta `{campo}` en lectura, `span.fld` solo de vista) y `tabs` (Tab = tabulación, párrafo `class="keep-ws"`) |
 | `public/js/util.js` | Ayudas: `el`, `$`, `debounce`, `norm`, fechas, `htmlToText` (búsqueda) y `nodesToPlain` (texto para pegar en informes: tablas con tabuladores, listas «- »/«1. ») |
-| `public/js/snippets.js` | Prerredactados: tarjetas, favoritos, orden, mover, editor de texto plano, campos `{campo}` / `{campo:a\|b}`, copiar, selector para insertar en notas (carpetas, favoritos, más usados, buscar) y migración categoría → carpeta |
+| `public/js/snippets.js` | Prerredactados: tarjetas, favoritos, orden, mover, editor enriquecido con lectura/edición, campos `{campo}` / `{campo:a\|b}`, copiar sin formato / con formato (`copyRich`) / por secciones, selector para insertar en notas (con formato) y migración categoría → carpeta |
+| `public/js/snipbody.js` | Contenido de los prerredactados (v1.12.0): `FIELD_RE`, `textToHtml`, `bodyHash`, `htmlFresh`, `htmlOf`, `snippetFileIds` |
 | `public/js/store.js` | Datos en memoria sincronizados con Firestore (`onSnapshot`) + ayudas de carpetas (`childFolders`, `folderPath`, `descendantIds`, `flatFolders`: último parámetro = mapa del árbol, por defecto `store.folders`) |
 | `public/js/files.js` | Imágenes/PDF guardados **en Firestore en trozos base64** (no hay Storage en Spark). Exporta `blobToBase64`/`base64ToBytes` (las usa backup.js) |
 | `public/js/backup.js` | Copia de seguridad: JSON versionado (con/sin archivos), .zip legible, restaurar (Fusionar / Reemplazar), límite diario, recordatorio en Inicio |
@@ -81,6 +82,16 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - Horizontal móvil (≤520 px alto): lista `--list-w: clamp(290px, 42vw, 400px)`, accesos del explorador icono arriba + nombre en 2 líneas, «Últimas notas» y resultados de Buscar (`.home-notes`) en rejilla de 2 columnas si caben.
 - Probado con Playwright (Firebase simulado en memoria que sustituye `vendor/libs.js`, zonas seguras simuladas sobrescribiendo `--safe-*`) en 375×667, 390×844, 430×932, 667×375, 844×390 y 932×430, y con la letra al 130 %.
 
+## Prerredactados con formato (v1.12.0)
+- **Mismo editor que las notas**: `app.js` crea `snipEditor = createEditor({els: …})` con `#snip-content`, una copia de `#toolbar` (`#snip-toolbar`), `#snip-table-tools`, `#snip-bubble`, `#snip-file-image`. Nada de código duplicado.
+- **Lectura / edición** como las notas: se abren según `drfolio.noteMode`, los nuevos en edición; `#snip-edit` ✏️ Editar ↔ ✓ Listo, A−/A+ (`--read-size` en `#editor`, compartido), Wake Lock. Campos `{…}` resaltados en lectura.
+- **Datos** (en el mismo documento `snippets/{id}`, sin documento aparte: son pequeños y copiar desde la lista en iOS tiene que ser instantáneo, dentro del toque): `html` (formato), `body` (texto plano = `nodesToPlain`, para buscar, vista previa, contar campos y copiar), `bh` = `bodyHash(body)`. Si `bh` no coincide (sin migrar o editado con una versión antigua que solo escribe `body`), `htmlOf()` usa `textToHtml(body)`.
+- **Copiar**: «Copiar» (cabecera y tarjeta) = `body` con los campos rellenos (tablas con tabuladores, listas «- »). «📋» en cada título en lectura = esa sección. ⋯ → «Copiar con formato (Word, correo)»: `ClipboardItem` text/html + text/plain (imágenes incrustadas como data:, bordes en tablas; sin índice). Insertar en una nota: con su formato (`pickSnippetText` → `{html, text}`; sin índice ni plegado).
+- **Imágenes**: `files/` con `snippetId`. `allReferencedFiles` cuenta notas y prerredactados; `filesKnown` exige `store.loaded.snippets`. Eliminar un prerredactado borra sus imágenes si nadie más las usa (`purgeSnippetFiles`); «Limpiar» y vaciar papelera respetan las de los prerredactados.
+- **Migración** (`migrateSnippets` en migrate.js, en silencio): con datos del servidor, grupos ≤ 100 en transacciones; escribe solo `html` + `bh` (no toca `body`, así copiar da lo mismo que antes). Idempotente, varios dispositivos, respeta el límite diario.
+- **Copia de seguridad**: el JSON lleva `html`/`bh` (se sanea al restaurar); el .zip exporta cada prerredactado como `.html` (con imágenes) y `.txt`.
+- Probado con Firebase simulado + Playwright en 390×844 y 1366×860: migración, lectura, edición, índice, copiar (pegado en textarea y en editor con formato), copiar sección, insertar en nota, buscador, borrado de imágenes, compatibilidad con versión antigua, .zip.
+
 ## Rutas y navegación
 - `#/inicio` (por defecto tras el login), `#/buscar`, `#/notas[/n/NOTA]` (explorador raíz), `#/all|pinned|recent|trash[/n/NOTA]`, `#/folder/ID[/n/NOTA]`, `#/tag/ID[/n/NOTA]`, `#nota/ID`.
 - Prerredactados: `#/snippets[/s/ID]` (raíz), `#/sfolder/ID[/s/ID]`, `#/sall|sfav|sused|srecent[/s/ID]` (Todos, Favoritos, Más usados, Recientes).
@@ -113,8 +124,8 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
   - Enlaces entre notas: `<a data-note="ID" class="note-link" href="#nota/ID">`
   - Índice insertado: `<div class="note-toc" data-toc="1"></div>` (se guarda vacío; `refreshTocBlocks()` lo rellena con los H1–H3 al mostrar)
   - Secciones plegadas: `data-collapsed="1"` en el título (solo títulos de primer nivel del contenido); `.fold-hidden`/`.foldable` son clases de vista, no se guardan
-- `files/{id}`: `noteId, name, mime, size, kind, chunks, createdAt` + subcolección `chunks/{000..}` `{d: base64}` (700 KB por trozo)
-- `snippets/{id}`: `title, body (texto plano), folderId|null, favorite, order, category (antiguo, no se borra), uses, lastUsedAt, createdAt, updatedAt` (prerredactados)
+- `files/{id}`: `noteId, snippetId?, name, mime, size, kind, chunks, createdAt` + subcolección `chunks/{000..}` `{d: base64}` (700 KB por trozo)
+- `snippets/{id}`: `title, html (formato, v1.12.0), body (texto plano), bh (huella de body), folderId|null, favorite, order, category (antiguo, no se borra), uses, lastUsedAt, createdAt, updatedAt` (prerredactados)
 - `snippetFolders/{id}`: misma forma que `folders` (`name, parentId|null, color, order, createdAt, updatedAt`), árbol propio de los prerredactados, separado del de notas
 - **Migración categoría → carpeta** (`migrateCategories` en snippets.js, v1.6.0): cuando llegan `snippets` y `snippetFolders` **del servidor** (no de caché), cada prerredactado **sin el campo `folderId`** pasa a la carpeta de su `category` (raíz; `null` si no tenía). El ID de carpeta es fijo según el nombre (`catFolderId`: `cat-<slug>-<hash>`, sin tildes/mayúsculas), así varios dispositivos escriben la misma carpeta y no se duplica; al tener ya `folderId`, no se repite. `category` se conserva para poder volver atrás.
 - Fechas en milisegundos (`Date.now()`), no `serverTimestamp`.
@@ -128,7 +139,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 
 ## Hoja de ruta
 1. ✅ Notas: carpetas/subcarpetas, etiquetas, editor enriquecido, imágenes, bibliografía con PDF, índice, enlaces entre notas, offline, modo lectura con copiar sección, copia de seguridad y restauración
-2. ✅ Prerredactados (plantillas de texto para copiar, con campos rellenables)
+2. ✅ Prerredactados (plantillas para copiar, con campos rellenables y texto enriquecido)
 3. Vademécum personal
 4. Chat personal (enviarse textos y documentos)
 

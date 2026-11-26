@@ -67,9 +67,9 @@ export async function compressImage(file) {
 
 /**
  * Guarda un archivo y devuelve su id. Las escrituras quedan en cola si no hay conexión.
- * meta: { noteId, name, kind: 'image'|'file' }
+ * meta: { noteId, snippetId (imágenes de un prerredactado), name, kind: 'image'|'file' }
  */
-export async function saveFile(blob, { noteId, name, kind }) {
+export async function saveFile(blob, { noteId, snippetId, name, kind }) {
   if (blob.size > LIMITS.maxFileBytes) {
     throw new Error(`El archivo supera ${Math.round(LIMITS.maxFileBytes / 1024 / 1024)} MB`);
   }
@@ -92,6 +92,7 @@ export async function saveFile(blob, { noteId, name, kind }) {
   // Los metadatos van al final: si existen, el archivo está completo
   const metaWrite = put('files', id, {
     noteId: noteId || null,
+    ...(snippetId ? { snippetId } : {}),
     name: name || (kind === 'image' ? 'imagen' : 'archivo'),
     mime: blob.type || 'application/octet-stream',
     size: blob.size,

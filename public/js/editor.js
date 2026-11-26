@@ -3,13 +3,14 @@
 import { DOMPurify } from '../vendor/libs.js';
 import { $, $$, el, htmlToText, nodesToPlain } from './util.js';
 import { modal, colorPicker, prompt, toast } from './ui.js';
+import { FIELD_RE } from './snipbody.js';
 
 // ---------------- Limpieza de HTML ----------------
 const ALLOWED_TAGS = ['p', 'div', 'br', 'span', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del', 'mark', 'sub', 'sup',
   'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'hr', 'a', 'img',
   'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption'];
 const ALLOWED_ATTR = ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'data-file', 'data-note', 'data-checked', 'data-toc', 'data-collapsed', 'class', 'style'];
-const ALLOWED_CLASSES = new Set(['checklist', 'note-link', 'note-toc']);
+const ALLOWED_CLASSES = new Set(['checklist', 'note-link', 'note-toc', 'keep-ws']);
 let pasteMode = false;
 
 function parseColor(v) {
@@ -147,12 +148,18 @@ export function sanitize(html, { paste = false } = {}) {
 export function createEditor(opts) {
   // opts: { onChange(), onNoteLink(id), onImage(fileId), pickNote() → Promise<{id,title}>,
   //         uploadImages(files) → Promise<[{id,url}]>, resolveImage(id) → Promise<url>,
-  //         noteExists(id) → bool }
-  const content = $('#content');
-  const toolbar = $('#toolbar');
-  const tableTools = $('#table-tools');
-  const bubble = $('#link-bubble');
-  const editorBox = $('#editor');
+  //         noteExists(id) → bool, onCopy(text, btn), pickSnippet() → Promise<{html, text}|string>,
+  //         els: elementos propios (para tener varios editores: notas y prerredactados),
+  //         markFields: resalta {campo} en lectura, tabs: el tabulador escribe una tabulación }
+  const E = opts.els || {};
+  const content = E.content || $('#content');
+  const toolbar = E.toolbar || $('#toolbar');
+  const tableTools = E.tableTools || $('#table-tools');
+  const bubble = E.bubble || $('#link-bubble');
+  const editorBox = E.box || $('#editor');
+  const scroller = E.scroll || $('#ed-scroll');
+  const fileInput = E.fileInput || $('#file-image');
+  const sideToc = E.toc === undefined ? $('#toc') : E.toc;
   const blockSel = toolbar.querySelector('[data-block]');
   let savedRange = null;
   let readOnly = false;
@@ -228,7 +235,7 @@ export function createEditor(opts) {
     } else if (act === 'table') {
       await insertTable();
     } else if (act === 'image') {
-      $('#file-image').click();
+      fileInput.click();
     } else if (act === 'link') {
       await insertLink();
     } else if (act === 'notelink') {
@@ -249,7 +256,7 @@ export function createEditor(opts) {
   blockSel.addEventListener('mousedown', saveRange);
   blockSel.addEventListener('touchstart', saveRange, { passive: true });
 
-  $('#file-image').addEventListener('change', async (e) => {
+  fileInput.addEventListener('change', async (e) => {
     const files = [...e.target.files];
     e.target.value = '';
     if (files.length) { restoreRange(); await insertImages(files); }
@@ -386,11 +393,22 @@ export function createEditor(opts) {
 
   async function insertSnippet() {
     if (!opts.pickSnippet) return;
-    const text = await opts.pickSnippet();
-    if (!text) return;
+    const res = await opts.pickSnippet();
+    if (!res) return;
     restoreRange();
-    const html = text.split(/\r?\n/).map((l) => escapeHtml(l)).join('<br>');
-    exec('insertHTML', html);
+    if (typeof res === 'object' && res.html) {
+      // Con su formato: sin índice propio ni secciones plegadas; las imágenes se cargan después
+      const doc = new DOMParser().parseFromString(sanitize(res.html), 'text/html');
+      doc.querySelectorAll('.note-toc').forEach((n) => n.remove());
+      doc.querySelectorAll('[data-collapsed]').forEach((n) => n.removeAttribute('data-collapsed'));
+      exec('insertHTML', doc.body.innerHTML);
+      api.resolveImages();
+      api.markLinks();
+    } else {
+      const text = typeof res === 'object' ? res.text : res;
+      if (!text) return;
+      exec('insertHTML', text.split(/\r?\n/).map((l) => escapeHtml(l)).join('<br>'));
+    }
     changed();
   }
 
@@ -411,7 +429,7 @@ export function createEditor(opts) {
     bubble.classList.add('hidden');
     $$('img.selected', content).forEach((i) => i.classList.remove('selected'));
   }
-  $('#ed-scroll').addEventListener('scroll', () => { hideBubble(); tableTools.classList.add('hidden'); }, { passive: true });
+  scroller.addEventListener('scroll', () => { hideBubble(); tableTools.classList.add('hidden'); }, { passive: true });
 
   content.addEventListener('click', (e) => {
     hideBubble();
@@ -512,6 +530,13 @@ export function createEditor(opts) {
         const i = cells.indexOf(closestInContent('td,th'));
         const next = cells[i + (e.shiftKey ? -1 : 1)];
         if (next) placeCaret(next);
+      } else if (opts.tabs && !e.shiftKey) {
+        // Tabulación de verdad (se ve y se copia): el párrafo conserva los espacios (class="keep-ws")
+        e.preventDefault();
+        if (!closestInContent('p,div,h1,h2,h3,h4,blockquote,pre')) exec('formatBlock', '<p>');
+        closestInContent('p,div,h1,h2,h3,h4,blockquote')?.classList.add('keep-ws');
+        exec('insertText', '\t');
+        changed();
       }
     } else if (mod && e.key.toLowerCase() === 'k') {
       e.preventDefault(); e.stopPropagation();
@@ -706,13 +731,37 @@ export function createEditor(opts) {
     }
   }
 
+  // Campos {…} resaltados en lectura (solo vista: no se guardan)
+  function markFields() {
+    if (!opts.markFields) return;
+    $$('span.fld', content).forEach((sp) => { const p = sp.parentNode; sp.replaceWith(...sp.childNodes); p.normalize(); });
+    if (!readOnly) return;
+    const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.parentElement.closest('.note-toc,.sec-copy') || !n.data.includes('{') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT)
+    });
+    const list = [];
+    while (walker.nextNode()) list.push(walker.currentNode);
+    for (const t of list) {
+      const parts = [];
+      let last = 0;
+      for (const m of t.data.matchAll(FIELD_RE)) {
+        if (m.index > last) parts.push(t.data.slice(last, m.index));
+        parts.push(el('span', { class: 'fld', title: 'Campo: se rellena al copiar' }, m[0]));
+        last = m.index + m[0].length;
+      }
+      if (!parts.length) continue;
+      if (last < t.data.length) parts.push(t.data.slice(last));
+      t.replaceWith(...parts);
+    }
+  }
+
   // Botón flotante «↑ Índice» para volver tras saltar a una sección
   let lastTocBlock = null;
   const tocBack = el('button', { type: 'button', class: 'toc-back hidden', onclick: () => {
     hideTocBack();
-    const target = lastTocBlock && content.contains(lastTocBlock) ? lastTocBlock : $('#toc');
-    (target && !target.classList.contains('hidden') ? target : $('#ed-scroll')).scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-    if (!target) $('#ed-scroll').scrollTo({ top: 0, behavior: 'smooth' });
+    const target = lastTocBlock && content.contains(lastTocBlock) ? lastTocBlock : sideToc;
+    (target && !target.classList.contains('hidden') ? target : scroller).scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    if (!target) scroller.scrollTo({ top: 0, behavior: 'smooth' });
   } }, '↑ Índice');
   editorBox.append(tocBack);
   function showTocBack() { tocBack.classList.remove('hidden'); }
@@ -721,7 +770,7 @@ export function createEditor(opts) {
   content.addEventListener('input', refreshSoon);
 
   // ---------- API ----------
-  return {
+  const api = {
     setContent(html) {
       hideBubble();
       tableTools.classList.add('hidden');
@@ -732,6 +781,7 @@ export function createEditor(opts) {
       refreshTocBlocks();
       applyFolds();
       updateCopyButtons();
+      markFields();
       this.resolveImages();
       this.markLinks();
     },
@@ -751,6 +801,7 @@ export function createEditor(opts) {
     getContent() {
       const clone = content.cloneNode(true);
       clone.querySelectorAll('.sec-copy').forEach((b) => b.remove());
+      clone.querySelectorAll('span.fld').forEach((sp) => sp.replaceWith(...sp.childNodes));
       clone.querySelectorAll('img[data-file]').forEach((i) => i.removeAttribute('src'));
       clone.querySelectorAll('.selected,.loading,.flash,.broken,.fold-hidden,.foldable').forEach((n) => n.classList.remove('selected', 'loading', 'flash', 'broken', 'fold-hidden', 'foldable'));
       clone.querySelectorAll('.note-toc').forEach((n) => { n.replaceChildren(); n.removeAttribute('contenteditable'); });
@@ -774,12 +825,14 @@ export function createEditor(opts) {
       if (v) { tableTools.classList.add('hidden'); hideBubble(); }
       refreshTocBlocks();
       updateCopyButtons();
+      markFields();
     },
     focus() { content.focus(); },
     isFocused() { return document.activeElement === content || content.contains(document.activeElement); },
     hideFloating() { hideBubble(); tableTools.classList.add('hidden'); hideTocBack(); },
     addFilesFromPicker: insertImages
   };
+  return api;
 }
 
 function dataUrlToBlob(url) {

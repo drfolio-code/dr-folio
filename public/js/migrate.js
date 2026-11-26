@@ -13,6 +13,7 @@ import { db } from './db.js';
 import { store, ref, newId } from './store.js';
 import { isLegacy, deriveLight, rememberBody } from './bodies.js';
 import { budget, addQuota } from './backup.js';
+import { htmlFresh, textToHtml, bodyHash } from './snipbody.js';
 
 const str = (x) => (typeof x === 'string' ? x : '');
 const arr = (x) => (Array.isArray(x) ? x : []);
@@ -92,4 +93,37 @@ export async function migrateNotes({ onProgress = () => {} } = {}) {
     onProgress(done, total);
   }
   return { done, total, versions, stopped: null };
+}
+
+// ====================== Prerredactados → texto enriquecido (v1.12.0) ======================
+// Cada prerredactado sin `html` al día (ver snipbody.js) recibe su texto convertido a HTML: un párrafo por línea,
+// líneas vacías incluidas, tabuladores y campos {…} tal cual. `body` (texto plano) NO se toca: copiar sigue dando
+// exactamente lo mismo que antes. Por grupos (≤ 100) en TRANSACCIONES con los datos del servidor: si otro dispositivo
+// lo migra o lo edita a la vez, Firestore repite el grupo y se salta lo que ya esté al día. Idempotente.
+export const snippetsToMigrate = () => [...store.snippets.values()].filter((s) => !htmlFresh(s));
+
+export async function migrateSnippets() {
+  const todo = snippetsToMigrate().map((s) => s.id);
+  let done = 0;
+  for (let i = 0; i < todo.length; i += 100) {
+    const ids = todo.slice(i, i + 100).filter((id) => store.snippets.has(id) && !htmlFresh(store.snippets.get(id)));
+    if (!ids.length) continue;
+    if (budget().w < ids.length + 10) return { done, stopped: 'quota' };
+    const n = await runTransaction(db, async (tx) => {
+      const snaps = await Promise.all(ids.map((id) => tx.get(ref('snippets', id))));
+      let k = 0;
+      for (const sn of snaps) {
+        if (!sn.exists()) continue;
+        const d = sn.data();
+        if (htmlFresh(d)) continue; // ya migrado o editado con la versión nueva
+        const body = str(d.body);
+        tx.update(sn.ref, { html: textToHtml(body), bh: bodyHash(body) });
+        k++;
+      }
+      return k;
+    });
+    addQuota(n, 0);
+    done += n;
+  }
+  return { done, stopped: null };
 }

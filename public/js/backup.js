@@ -17,6 +17,7 @@ import { APP_VERSION, LIMITS } from './config.js';
 import { el, download, formatBytes, longDate } from './util.js';
 import { modal, toast } from './ui.js';
 import { icon } from './icons.js';
+import { htmlOf } from './snipbody.js';
 
 export const BACKUP_FORMAT = 'drfolio-backup';
 export const BACKUP_VERSION = 1;
@@ -315,8 +316,15 @@ async function exportZip() {
     const notes = [...store.notes.values()].map(fullNote).sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es'));
     const ctx = { noteDir: new Map(), notePath: new Map(), filePath: new Map(), folderNames };
     const wanted = []; // [{noteId, fileId, path}]
-    for (const n of notes) {
-      const dir = n.trashed ? 'Papelera' : n.folderId && store.folders.has(n.folderId) ? dirOf(n.folderId, 'Notas', store.folders) : 'Notas';
+    // Los prerredactados se exportan como «notas» de la carpeta Prerredactados (id «s:…»)
+    const snips = [...store.snippets.values()].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es'));
+    const snipNotes = new Map(snips.map((s) => [s.id, {
+      id: `s:${s.id}`, snippetFolder: s.folderId, title: s.title, html: htmlOf(s), refs: [], tags: [],
+      createdAt: s.createdAt, updatedAt: s.updatedAt, snippet: true
+    }]));
+    for (const n of [...notes, ...snipNotes.values()]) {
+      const dir = n.snippet ? (n.snippetFolder && store.snippetFolders.has(n.snippetFolder) ? dirOf(n.snippetFolder, 'Prerredactados', store.snippetFolders) : 'Prerredactados')
+        : n.trashed ? 'Papelera' : n.folderId && store.folders.has(n.folderId) ? dirOf(n.folderId, 'Notas', store.folders) : 'Notas';
       const title = safeName(n.title, 'Sin título');
       const file = uniqueIn(used, dir, `${title}.html`);
       ctx.noteDir.set(n.id, dir);
@@ -349,18 +357,20 @@ async function exportZip() {
     // Notas
     p.set(0.6, 'Notas…');
     for (const n of notes) root.file(ctx.notePath.get(n.id), noteHtml(n, ctx));
-    // Prerredactados (texto plano)
+    // Prerredactados: .html (con formato e imágenes) y .txt (texto plano, como se copia)
     const snipPaths = [];
-    for (const s of [...store.snippets.values()].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es'))) {
-      const dir = s.folderId && store.snippetFolders.has(s.folderId) ? dirOf(s.folderId, 'Prerredactados', store.snippetFolders) : 'Prerredactados';
-      const path = `${dir}/${uniqueIn(used, dir, `${safeName(s.title, 'Sin título')}.txt`)}`;
-      root.file(path, `${s.title || ''}\n\n${s.body || ''}\n`);
-      snipPaths.push([s, path]);
+    for (const s of snips) {
+      const sn = snipNotes.get(s.id);
+      root.file(ctx.notePath.get(sn.id), noteHtml(sn, ctx));
+      const dir = ctx.noteDir.get(sn.id);
+      const txt = `${dir}/${uniqueIn(used, dir, `${safeName(s.title, 'Sin título')}.txt`)}`;
+      root.file(txt, `${s.title || ''}\n\n${s.body || ''}\n`);
+      snipPaths.push([s, ctx.notePath.get(sn.id)]);
     }
     root.file('index.html', indexPage(notes, ctx, snipPaths));
     root.file('LEEME.txt', `Exportación legible de Dr.Folio (${new Date().toLocaleString('es-ES')}).\n\n`
       + 'Abre «index.html» con cualquier navegador. Cada nota es un .html con sus imágenes y PDF en la carpeta «(archivos)» de al lado.\n'
-      + 'Los prerredactados están en «Prerredactados» como texto (.txt).\n\n'
+      + 'Los prerredactados están en «Prerredactados»: .html con su formato e imágenes y .txt con el texto tal como se copia.\n\n'
       + 'Para RESTAURAR en la app usa la copia .json (Ajustes → Copia de seguridad), no este .zip.\n');
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
       (m) => p.set(0.6 + 0.4 * (m.percent / 100), 'Comprimiendo…', m.currentFile ? m.currentFile.split('/').pop() : ''));
@@ -455,6 +465,11 @@ function fixDoc(c, d) {
     x.text = typeof x.text === 'string' ? x.text : '';
     x.tags = Array.isArray(x.tags) ? x.tags.filter((t) => typeof t === 'string') : [];
     x.refs = Array.isArray(x.refs) ? x.refs.filter(isObj) : [];
+  }
+  if (c === 'snippets') {
+    x.title = typeof x.title === 'string' ? x.title : '';
+    x.body = typeof x.body === 'string' ? x.body : '';
+    if ('html' in x) x.html = sanitize(typeof x.html === 'string' ? x.html : ''); // la huella `bh` dice si sigue al día
   }
   if (c === 'files') {
     x.size = Number(x.size) || 0;

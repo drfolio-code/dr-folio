@@ -12,8 +12,10 @@ import { toast, modal, prompt, confirm, menu, picker, colorPicker, modalOpen } f
 import {
   initSnippets, newSnippet, openSnippet, closeSnippet, currentSnippet, flushSnippet, onSnippetsChange, pickSnippetText,
   snippetCard, snippetItemMenu, snippetMatches, snippetsForView, sortSnippets, allSnippets, moveSnippetTo,
-  snipSort, setSnipSort, SNIP_SORTS, migrateCategories, copyText
+  snipSort, setSnipSort, SNIP_SORTS, migrateCategories, copyText,
+  onSnippetEditorChange, onSnippetSectionCopy, snippetImageOwner, isSnippetReading
 } from './snippets.js';
+import { snippetFileIds } from './snipbody.js';
 import { MODULES, NAV_HOME, NAV_SEARCH } from './modules.js';
 import { initViewport, initTitles, fitTitle } from './viewport.js';
 import { openPdfViewer } from './pdfviewer.js';
@@ -22,7 +24,7 @@ import {
   initBodies, bodyOf, loadBody, hasFreshBody, syncBodies, bodyState, bodiesAvailable, writeNote, deleteNoteDocs,
   isLegacy, deriveLight, pruneBodies, clearBodies, dropBody
 } from './bodies.js';
-import { legacyNotes, migrateNotes } from './migrate.js';
+import { legacyNotes, migrateNotes, snippetsToMigrate, migrateSnippets } from './migrate.js';
 import { icon, iconOr } from './icons.js';
 
 // ====================== Estado ======================
@@ -47,6 +49,7 @@ const S = {
   loggingOut: false
 };
 let editor = null;
+let snipEditor = null; // el mismo editor, para los prerredactados
 
 // ====================== Árboles de carpetas ======================
 // El mismo explorador (ruta, carpetas, menús, arrastrar, buscar) sirve para Notas y para Prerredactados.
@@ -209,7 +212,41 @@ function startApp(user) {
     onCopy: (text, btn) => copyOut(text, btn)
   });
 
+  // Editor de prerredactados: el MISMO editor (createEditor) con sus propios elementos; la barra de formato
+  // es una copia de la de las notas (mismos botones)
+  const snipBar = $('#toolbar').cloneNode(true);
+  snipBar.id = 'snip-toolbar';
+  snipBar.querySelector('[data-act=tocblock]').title = 'Insertar índice';
+  $('#snip-wrap .ed-head').after(snipBar);
+  snipEditor = createEditor({
+    els: {
+      content: $('#snip-content'), toolbar: snipBar, tableTools: $('#snip-table-tools'), bubble: $('#snip-bubble'),
+      box: $('#editor'), scroll: $('#snip-scroll'), fileInput: $('#snip-file-image'), toc: null
+    },
+    markFields: true,
+    tabs: true,
+    onChange: onSnippetEditorChange,
+    onNoteLink: (id) => {
+      if (!store.notes.has(id)) { toast('Esa nota ya no existe', 'error'); return; }
+      flushSnippet();
+      openNote(id, { push: true });
+    },
+    onImage: (fileId, src) => openViewer({ fileId, src, name: 'Imagen', kind: 'image' }),
+    pickNote: pickNoteForLink,
+    uploadImages: (files) => uploadImages(files, { snippetId: snippetImageOwner() }),
+    resolveImage: fileUrl,
+    noteExists: (id) => store.notes.has(id) && !store.notes.get(id).trashed,
+    onDropFiles: () => toast('En los prerredactados solo se pueden añadir imágenes', 'error'),
+    pickSnippet: pickSnippetText,
+    onCopy: onSnippetSectionCopy
+  });
+
   initSnippets({
+    editor: snipEditor,
+    openMode: () => openMode(),
+    fontStep: (d) => setReadSize(readSize() + d),
+    updateWakeLock: () => updateWakeLock(),
+    purgeSnippetFiles,
     renderList: () => renderList(),
     renderSidebar: () => renderSidebar(),
     pushHash: (replace) => pushHash(replace),
@@ -257,6 +294,7 @@ function onData(name, changed) {
   if (S.view.type === 'search' && ['notes', 'snippets', 'folders', 'snippetFolders', 'tags'].includes(name)) renderFindSoon();
   if (['notes', 'snippets'].includes(name)) renderNavSoon();
   if (name === 'snippets' || name === 'snippetFolders') migrateCategories();
+  if (name === 'snippets' && !store.fromCache.snippets) maybeMigrateSnippets();
   if (name === 'notes') {
     for (const id of changed) if (!store.notes.has(id)) dropBody(id);
     if (!store.fromCache.notes) { pruneBodies(); maybeMigrate(); }
@@ -319,6 +357,19 @@ const onBodiesProgress = debounce(() => {
 
 // ---------- Migración al formato de dos documentos (v1.10.0) ----------
 let migrateAsked = false, migrating = false, migrateFailAt = 0;
+// ---------- Prerredactados → texto enriquecido (v1.12.0, en silencio: no borra ni cambia el texto) ----------
+let snipMigrating = false, snipMigrateFailAt = 0;
+const maybeMigrateSnippets = debounce(async () => {
+  if (snipMigrating || !navigator.onLine || store.fromCache.snippets || Date.now() - snipMigrateFailAt < 60000) return;
+  if (!snippetsToMigrate().length) return;
+  snipMigrating = true;
+  try {
+    const r = await migrateSnippets();
+    if (r.done) toast(`${r.done} prerredactado(s) actualizados a texto con formato`, 'ok', 3500);
+  } catch (e) { console.warn('migrateSnippets', e); snipMigrateFailAt = Date.now(); }
+  snipMigrating = false;
+}, 2500);
+
 function maybeMigrate() {
   if (migrating || getMode() === 'public' || !navigator.onLine || store.fromCache.notes || Date.now() - migrateFailAt < 60000) return;
   const n = legacyNotes().length;
@@ -1730,7 +1781,8 @@ function showPane(which) {
   $('#snip-wrap').classList.toggle('hidden', which !== 'snip');
   $('#editor-empty').classList.toggle('hidden', which !== 'empty');
   if (which !== 'note') editor?.hideFloating();
-  if (which !== 'note') setTimeout(updateWakeLock);
+  if (which !== 'snip') snipEditor?.hideFloating();
+  setTimeout(updateWakeLock);
   if (which !== 'empty') $('#app').dataset.view = 'editor';
   const snip = isSnipView();
   $('#btn-new-note-empty').textContent = snip ? '＋ Nuevo prerredactado' : '＋ Nueva nota';
@@ -1788,9 +1840,9 @@ function setReadSize(i) {
 }
 function applyReadSize() {
   const i = readSize();
-  $('#editor-wrap').style.setProperty('--read-size', `${READ_SIZES[i]}px`);
-  $('#btn-font-down').disabled = i === 0;
-  $('#btn-font-up').disabled = i === READ_SIZES.length - 1;
+  $('#editor').style.setProperty('--read-size', `${READ_SIZES[i]}px`); // notas y prerredactados
+  ['#btn-font-down', '#snip-font-down'].forEach((b) => { $(b).disabled = i === 0; });
+  ['#btn-font-up', '#snip-font-up'].forEach((b) => { $(b).disabled = i === READ_SIZES.length - 1; });
 }
 
 function setReading(on) {
@@ -1820,8 +1872,9 @@ const wakeLockWanted = () => localStorage.getItem('drfolio.wakeLock') !== 'off';
 let wakeLock = null;
 let wakeBusy = false;
 async function updateWakeLock() {
-  const want = 'wakeLock' in navigator && wakeLockWanted() && S.reading && !!S.noteId &&
-    document.visibilityState === 'visible' && !$('#editor-wrap').classList.contains('hidden') &&
+  const reading = (S.reading && !!S.noteId && !$('#editor-wrap').classList.contains('hidden')) ||
+    (isSnippetReading() && !$('#snip-wrap').classList.contains('hidden'));
+  const want = 'wakeLock' in navigator && wakeLockWanted() && reading && document.visibilityState === 'visible' &&
     !['home', 'search'].includes($('#app').dataset.section);
   if (want && !wakeLock && !wakeBusy) {
     wakeBusy = true;
@@ -1975,12 +2028,24 @@ function noteFileIds(n) {
   return ids;
 }
 const refsCountOf = (n) => n.refsCount ?? (n.refs || []).length;
-/** Para borrar archivos hay que saber con seguridad qué usa cada nota */
-const filesKnown = () => [...store.notes.values()].every((n) => isLegacy(n) || Array.isArray(n.files));
-function allReferencedFiles(exceptNoteId) {
+/** Para borrar archivos hay que saber con seguridad qué usa cada nota y cada prerredactado */
+const filesKnown = () => !!store.loaded.snippets && [...store.notes.values()].every((n) => isLegacy(n) || Array.isArray(n.files));
+/** Archivos en uso por notas (papelera incluida) y prerredactados, salvo la nota / el prerredactado indicado */
+function allReferencedFiles(exceptNoteId, exceptSnippetId = null) {
   const ids = new Set();
   for (const n of store.notes.values()) if (n.id !== exceptNoteId) noteFileIds(n).forEach((f) => ids.add(f));
+  for (const s of store.snippets.values()) if (s.id !== exceptSnippetId) snippetFileIds(s).forEach((f) => ids.add(f));
   return ids;
+}
+
+/** Al eliminar un prerredactado: borra sus imágenes si ninguna nota ni otro prerredactado las usa */
+function purgeSnippetFiles(id) {
+  const s = store.snippets.get(id);
+  if (!s || !filesKnown()) return;
+  const mine = snippetFileIds(s);
+  for (const f of store.files.values()) if (f.snippetId === id) mine.add(f.id);
+  const others = allReferencedFiles(null, id);
+  for (const f of mine) if (!others.has(f) && store.files.has(f)) deleteFile(f);
 }
 
 function purgeNote(id) {
@@ -2009,12 +2074,13 @@ async function emptyTrash() {
 }
 
 // ====================== Imágenes y adjuntos ======================
-async function uploadImages(files) {
+/** owner: { noteId } (por defecto, la nota abierta) o { snippetId } (prerredactado) */
+async function uploadImages(files, owner = { noteId: S.noteId }) {
   const out = [];
   for (const f of files) {
     if (!f.type.startsWith('image/')) continue;
     const blob = await compressImage(f);
-    const id = await saveFile(blob, { noteId: S.noteId, name: f.name || 'imagen', kind: 'image' });
+    const id = await saveFile(blob, { ...owner, name: f.name || 'imagen', kind: 'image' });
     out.push({ id, url: await fileUrl(id) });
   }
   if (!out.length) throw new Error('No se encontraron imágenes');
@@ -2233,7 +2299,7 @@ async function cleanOrphans() {
   const orphans = [...store.files.values()].filter((f) => !used.has(f.id) && (f.createdAt || 0) < old);
   if (!orphans.length) { toast('No hay archivos sin usar', 'ok'); return; }
   const size = orphans.reduce((s, f) => s + (f.size || 0), 0);
-  if (!await confirm('Limpiar archivos', `Hay ${orphans.length} archivo(s) que ya no usa ninguna nota (${formatBytes(size)}). ¿Borrarlos?`, { okLabel: 'Borrar', danger: true })) return;
+  if (!await confirm('Limpiar archivos', `Hay ${orphans.length} archivo(s) que ya no usa ninguna nota ni prerredactado (${formatBytes(size)}). ¿Borrarlos?`, { okLabel: 'Borrar', danger: true })) return;
   orphans.forEach((f) => deleteFile(f.id));
   toast('Archivos borrados', 'ok');
 }

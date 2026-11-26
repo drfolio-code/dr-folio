@@ -8,7 +8,7 @@
 //   noteBodies/{id} { html, text, refs:[{id, cite, url, fileId, fileName, fileSize}], updatedAt }  ← se carga al abrir
 //   files/{id}    { noteId, name, mime, size, kind:'image'|'file', chunks, createdAt }
 //   files/{id}/chunks/{000..}  { d: base64 }
-//   snippets/{id} { title, body, category (antiguo), folderId|null, favorite, order, uses, lastUsedAt, createdAt, updatedAt }
+//   snippets/{id} { title, html (formato, v1.12.0), body (texto plano), bh (huella de body), category (antiguo), folderId|null, favorite, order, uses, lastUsedAt, createdAt, updatedAt }
 //   snippetFolders/{id} { name, parentId|null, color, order, createdAt, updatedAt }  (árbol propio de los prerredactados)
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from '../vendor/libs.js';
 import { db } from './db.js';
@@ -136,6 +136,6 @@ export function usageBytes() {
   for (const f of store.folders.values()) b += 200 + (f.name?.length || 0);
   for (const t of store.tags.values()) b += 150 + (t.name?.length || 0);
   for (const f of store.snippetFolders.values()) b += 200 + (f.name?.length || 0);
-  for (const s of store.snippets.values()) b += 300 + (s.body?.length || 0) + (s.title?.length || 0);
+  for (const s of store.snippets.values()) b += 300 + (s.body?.length || 0) + (s.html?.length || 0) + (s.title?.length || 0);
   return b;
 }

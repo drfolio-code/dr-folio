@@ -93,9 +93,9 @@ export function nodesToPlain(nodes) {
   let prefix = null; // viñeta pendiente de escribir
   const atStart = () => !out || out.endsWith('\n');
   const nl = () => { if (prefix === null && !atStart()) out += '\n'; };
-  const write = (s) => {
-    if (prefix !== null) { s = s.replace(/^\s+/, ''); if (!s) return; out += prefix; prefix = null; }
-    else if (atStart() || out.endsWith(' ')) s = s.replace(/^ +/, '');
+  const write = (s, pre = false) => {
+    if (prefix !== null) { if (!pre) s = s.replace(/^\s+/, ''); if (!s) return; out += prefix; prefix = null; }
+    else if (!pre && (atStart() || out.endsWith(' '))) s = s.replace(/^ +/, '');
     out += s;
   };
   const cellText = (c) => {
@@ -111,7 +111,7 @@ export function nodesToPlain(nodes) {
     return parts.join('').replace(/\s+/g, ' ').trim();
   };
   const walk = (n, depth, pre) => {
-    if (n.nodeType === 3) { write(pre ? n.data : n.data.replace(/[\s ]+/g, ' ')); return; }
+    if (n.nodeType === 3) { write(pre ? n.data : n.data.replace(/[\s ]+/g, ' '), pre); return; }
     if (n.nodeType !== 1 || n.matches('.note-toc,.sec-copy,img,button,script,style')) return;
     const tag = n.tagName;
     if (tag === 'BR') { if (prefix === null) out += '\n'; return; }
@@ -141,9 +141,9 @@ export function nodesToPlain(nodes) {
     const block = heading || /^(P|DIV|BLOCKQUOTE|PRE|SECTION|DETAILS|SUMMARY|FIGURE|LI)$/.test(tag);
     if (heading && out) { nl(); out += '\n'; }
     else if (block) nl();
-    n.childNodes.forEach((c) => walk(c, depth, pre || tag === 'PRE'));
+    n.childNodes.forEach((c) => walk(c, depth, pre || tag === 'PRE' || n.classList.contains('keep-ws')));
     if (block) nl();
   };
   for (const n of nodes) walk(n, 0, false);
-  return out.split('\n').map((l) => l.replace(/[  ]+$/, '')).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return out.split('\n').map((l) => l.replace(/[  ]+$/, '')).join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\s+$/g, '');
 }

@@ -574,12 +574,14 @@ body.dragging .fx-folder, body.dragging .crumbs button, body.dragging .tree-row 
 /* Prerredactados */
 #snip-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 #snip-wrap .ed-head .btn { margin-left: 4px; }
-.snip-meta { margin: 10px 0 12px; }
-.snip-meta input { max-width: 320px; }
-.snip-body {
-  width: 100%; min-height: 50vh; resize: vertical; tab-size: 4;
-  font: 15px/1.55 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap;
-}
+/* Contenido: el mismo editor que las notas (.content) */
+.snip-content { min-height: 40vh; margin-top: 8px; }
+.content .keep-ws { white-space: pre-wrap; tab-size: 4; }
+/* Campos {…} resaltados en lectura (solo vista) */
+.content .fld { background: var(--accent-soft); color: var(--accent); border-radius: 5px; padding: 0 3px; font-weight: 600; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.reading .snip-hint { display: none; }
+#snip-copy { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0; }
+#snip-copy.done { background: var(--ok, #16a34a); border-color: transparent; }
 .ed-inner code { font-family: ui-monospace, Menlo, Consolas, monospace; background: var(--panel-2); padding: 1px 4px; border-radius: 4px; }
 .snip-card { display: flex; gap: 6px; align-items: flex-start; cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .snip-card-main { flex: 1; min-width: 0; }

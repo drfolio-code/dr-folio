@@ -1,16 +1,22 @@
 // Prerredactados: textos fijos para copiar (exploraciones, consejos, informes…)
+// Desde v1.12.0 con texto enriquecido (el mismo editor de las notas) y modo lectura / edición.
 // Campos rellenables dentro del texto:  {edad}   o con opciones   {lado:derecho|izquierdo}
+// Contenido: `html` (formato) + `body` (texto plano para buscar y copiar) + `bh` (ver snipbody.js)
 import { store, put, patch, remove, newId, folderPath, childFolders, descendantIds, flatFolders } from './store.js';
 import { el, $, debounce, norm, shortDate, longDate } from './util.js';
 import { toast, modal, confirm, menu, picker } from './ui.js';
 import { icon } from './icons.js';
 import { fitTitle } from './viewport.js';
-
-const FIELD_RE = /\{([^{}\n:|]{1,40})(?::([^{}\n]{1,300}))?\}/g;
+import { FIELD_RE, htmlOf, bodyHash } from './snipbody.js';
+import { fileBlob } from './files.js';
 
 let ctx = null;        // ayudas de app.js
+let editor = null;     // editor de texto enriquecido (createEditor, el mismo de las notas)
 let curId = null;      // prerredactado abierto
 let dirty = false;
+let reading = false;   // modo lectura (como las notas)
+
+export const isSnippetReading = () => !!curId && reading;
 
 export const currentSnippet = () => curId;
 
@@ -56,24 +62,89 @@ function countUse(s) {
   patch('snippets', s.id, { uses: (s.uses || 0) + 1, lastUsedAt: Date.now() });
 }
 
+/** Rellena los campos en el HTML (solo en el texto, nunca en etiquetas) */
+function applyFieldsHtml(html, values) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  const walker = document.createTreeWalker(tpl.content, NodeFilter.SHOW_TEXT);
+  const list = [];
+  while (walker.nextNode()) list.push(walker.currentNode);
+  for (const t of list) if (t.data.includes('{')) t.data = applyFields(t.data, values);
+  return tpl.innerHTML;
+}
+
+const blobToDataUrl = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(b); });
+
+/** HTML para pegar fuera (Word, correo): sin índice ni botones, bordes en las tablas, imágenes incrustadas */
+async function richForClipboard(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  const c = tpl.content;
+  c.querySelectorAll('.note-toc,.sec-copy').forEach((n) => n.remove());
+  c.querySelectorAll('a.note-link').forEach((a) => a.replaceWith(...a.childNodes)); // enlaces internos: solo el texto
+  c.querySelectorAll('table').forEach((t) => t.setAttribute('style', 'border-collapse:collapse'));
+  c.querySelectorAll('td,th').forEach((x) => x.setAttribute('style', `${x.getAttribute('style') || ''};border:1px solid #999;padding:4px 8px;vertical-align:top`));
+  c.querySelectorAll('.keep-ws').forEach((x) => x.setAttribute('style', `${x.getAttribute('style') || ''};white-space:pre-wrap`));
+  for (const img of c.querySelectorAll('img[data-file]')) {
+    try { img.src = await blobToDataUrl(await fileBlob(img.dataset.file)); img.removeAttribute('data-file'); }
+    catch { img.remove(); }
+  }
+  const box = document.createElement('div');
+  box.append(c);
+  return `<meta charset="utf-8"><div style="font-family:Calibri,Arial,sans-serif;font-size:11pt">${box.innerHTML}</div>`;
+}
+
+/** Copia con formato (y texto plano a la vez). Llamar dentro de un clic: el portapapeles se pide al momento. */
+export function copyRich(html, text) {
+  const fallback = () => {
+    const box = el('div', { contenteditable: 'true', style: { position: 'fixed', top: '-2000px', left: '0', opacity: '0', whiteSpace: 'normal' } });
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    tpl.content.querySelectorAll('.note-toc,.sec-copy,img[data-file]').forEach((n) => n.remove());
+    box.append(tpl.content);
+    document.body.append(box);
+    const r = document.createRange(); r.selectNodeContents(box);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+    sel.removeAllRanges(); box.remove();
+    return ok;
+  };
+  if (window.ClipboardItem && navigator.clipboard?.write) {
+    try {
+      const item = new ClipboardItem({
+        'text/html': richForClipboard(html).then((h) => new Blob([h], { type: 'text/html' })),
+        'text/plain': new Blob([text], { type: 'text/plain' })
+      });
+      return navigator.clipboard.write([item]).then(() => true, () => fallback());
+    } catch { /* navegador sin promesas en ClipboardItem */ }
+  }
+  return Promise.resolve(fallback());
+}
+
+/** Texto plano y HTML del prerredactado (el abierto se guarda antes) */
+function sourceOf(s) { return { text: s.body || '', html: htmlOf(s) }; }
+
 /**
- * Prepara el texto final. Sin campos: lo devuelve tal cual.
- * Con campos: muestra un formulario. Si `copy`, copia dentro del clic del botón (lo exige iOS).
- * Resuelve con el texto o null si se cancela.
+ * Prepara el resultado final. Sin campos: lo devuelve tal cual. Con campos: muestra un formulario.
+ * mode: 'copy' (texto plano) | 'rich' (con formato) | 'insert' (para una nota, con formato).
+ * text/html: lo que se rellena (por defecto, el prerredactado entero; en «Copiar sección», solo esa parte).
+ * Copia dentro del clic del botón (lo exige iOS). Resuelve con {text, html} o null si se cancela.
  */
-async function fillText(s, { copy }) {
-  const body = s.body || '';
-  const fields = parseFields(body);
-  const done = async (text) => {
-    if (copy) {
-      const ok = await copyText(text);
-      toast(ok ? 'Copiado ✓' : 'No se pudo copiar', ok ? 'ok' : 'error');
+async function fillText(s, { mode = 'copy', text = s.body || '', html = null, btn = null } = {}) {
+  const fields = parseFields(text);
+  const done = async (values) => {
+    const out = { text: applyFields(text, values), html: html ? applyFieldsHtml(html, values) : null };
+    if (mode !== 'insert') {
+      const ok = await (mode === 'rich' && out.html ? copyRich(out.html, out.text) : copyText(out.text));
+      toast(ok ? (mode === 'rich' ? 'Copiado con formato ✓' : 'Copiado ✓') : 'No se pudo copiar', ok ? 'ok' : 'error', 1800);
       if (!ok) return null;
+      if (btn) { btn.classList.add('done'); setTimeout(() => btn.classList.remove('done'), 1400); }
     }
     countUse(s);
-    return text;
+    return out;
   };
-  if (!fields.size) return done(body);
+  if (!fields.size) return done(new Map());
 
   const inputs = new Map();
   const rows = [...fields].map(([name, options]) => {
@@ -89,19 +160,19 @@ async function fillText(s, { copy }) {
   const preview = el('pre', { class: 'snip-preview' });
   // En la vista previa los huecos vacíos se ven como {campo}; en el texto final quedan en blanco
   const values = (final) => new Map([...inputs].map(([k, i]) => [k, i.value.trim() || (final ? '' : `{${k}}`)]));
-  const refresh = () => { preview.textContent = applyFields(body, values(false)); };
+  const refresh = () => { preview.textContent = applyFields(text, values(false)); };
   inputs.forEach((i) => i.addEventListener('input', refresh));
   refresh();
   let result = null;
+  const label = mode === 'insert' ? 'Insertar' : mode === 'rich' ? '⧉ Copiar con formato' : '⧉ Copiar';
   await modal({
     title: s.title || 'Rellenar campos',
     wide: true,
-    body: [...rows, el('div', { class: 'muted small' }, 'Vista previa'), preview],
+    body: [...rows, el('div', { class: 'muted small' }, mode === 'copy' ? 'Vista previa (así se pegará)' : 'Vista previa del texto'), preview],
     actions: [
       { label: 'Cancelar' },
-      { label: copy ? '⧉ Copiar' : 'Insertar', primary: true, onClick: async () => {
-        const text = applyFields(body, values(true));
-        result = await done(text);
+      { label, primary: true, onClick: async () => {
+        result = await done(values(true));
         return result != null;
       } }
     ]
@@ -109,12 +180,21 @@ async function fillText(s, { copy }) {
   return result;
 }
 
-/** Copia un prerredactado (pide los campos si los tiene). Llamar desde un clic. */
-export function copySnippet(id) {
+/** Copia un prerredactado (pide los campos si los tiene). rich = con formato. Llamar desde un clic. */
+export function copySnippet(id, { rich = false, btn = null } = {}) {
   const s = store.snippets.get(id);
   if (!s) return;
-  if (!(s.body || '').trim()) { toast('Este prerredactado está vacío', 'error'); return; }
-  fillText(s, { copy: true });
+  if (!(s.body || '').trim() && !/<img/.test(htmlOf(s))) { toast('Este prerredactado está vacío', 'error'); return; }
+  const src = sourceOf(s);
+  fillText(s, { mode: rich ? 'rich' : 'copy', text: src.text, html: rich ? src.html : null, btn });
+}
+
+/** «Copiar sección» (modo lectura): el texto de esa sección, con sus campos */
+function copySection(text, btn) {
+  const s = store.snippets.get(curId);
+  if (!s) return;
+  if (!text.trim()) { toast('No hay texto que copiar'); return; }
+  fillText(s, { mode: 'copy', text, btn });
 }
 
 // ---------- Carpetas, orden y búsqueda ----------
@@ -197,7 +277,7 @@ export function snippetCard(s, { search = '', showPath = false, onLongPress = nu
       }, icon('star')),
       el('button', {
         class: 'icon-btn snip-quick', type: 'button', title: 'Copiar', 'aria-label': `Copiar ${s.title || ''}`,
-        onclick: () => { saveSoon.flush(); copySnippet(s.id); }
+        onclick: (e) => { saveSoon.flush(); copySnippet(s.id, { btn: e.currentTarget }); }
       }, icon('copy'))));
   return card;
 }
@@ -256,7 +336,11 @@ export function snippetItemMenu(anchor, s, { inList = true } = {}) {
   const i = sibs.findIndex((x) => x.id === s.id);
   menu(anchor, [
     inList ? { icon: 'file-text', label: 'Abrir', onClick: () => openSnippet(s.id, { push: true }) } : null,
-    { icon: 'copy', label: 'Copiar', onClick: () => { saveSoon.flush(); copySnippet(s.id); } },
+    { icon: 'copy', label: 'Copiar sin formato', onClick: () => { saveSoon.flush(); copySnippet(s.id); } },
+    { icon: 'clipboard-list', label: 'Copiar con formato (Word, correo)', onClick: () => { saveSoon.flush(); copySnippet(s.id, { rich: true }); } },
+    !inList && curId === s.id ? (reading
+      ? { icon: 'pencil', label: 'Editar', onClick: () => setReading(false) }
+      : { icon: 'book-open', label: 'Modo lectura', onClick: () => setReading(true) }) : null,
     { icon: 'star', label: s.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos', onClick: () => toggleFavorite(s.id) },
     { icon: 'folder-input', label: 'Mover a carpeta…', onClick: () => moveSnippet(s.id) },
     inList && i > 0 ? { icon: 'arrow-up', label: 'Subir', onClick: () => shiftSnippet(s, -1) } : null,
@@ -304,12 +388,14 @@ export function migrateCategories() {
 }
 
 // ---------- Insertar en una nota (botón 📋) ----------
-/** Selector con carpetas, favoritos y más usados primero, y buscador. Resuelve con el texto o null. */
+/** Selector con carpetas, favoritos y más usados primero, y buscador. Resuelve con {html, text} (con su formato) o null. */
 export async function pickSnippetText() {
+  saveSoon.flush();
   const id = await browseSnippets();
   const s = id && store.snippets.get(id);
   if (!s) return null;
-  return fillText(s, { copy: false });
+  const src = sourceOf(s);
+  return fillText(s, { mode: 'insert', text: src.text, html: src.html });
 }
 
 const pickRank = (a, b) => (!!b.favorite - !!a.favorite) || (b.uses || 0) - (a.uses || 0) || byTitle(a, b);
@@ -397,7 +483,7 @@ export function newSnippet({ folderId = null, favorite = false } = {}) {
   saveSoon.flush();
   const id = newId('snippets');
   const now = Date.now();
-  const data = { title: '', body: '', category: '', folderId: folderId || null, favorite: !!favorite, order: now, uses: 0, lastUsedAt: null, createdAt: now, updatedAt: now };
+  const data = { title: '', body: '', html: '', bh: bodyHash(''), category: '', folderId: folderId || null, favorite: !!favorite, order: now, uses: 0, lastUsedAt: null, createdAt: now, updatedAt: now };
   store.snippets.set(id, { id, ...data });
   put('snippets', id, data);
   openSnippet(id, { push: true, focusTitle: true });
@@ -411,32 +497,67 @@ export function openSnippet(id, { push = false, focusTitle = false, fromHash = f
     closeSnippet();
     return;
   }
-  if (curId !== id) saveSoon.flush();
+  const same = curId === id;
+  if (!same) saveSoon.flush();
   curId = id;
   dirty = false;
+  // Los nuevos (focusTitle) se abren en edición; el resto, según Ajustes (como las notas; por defecto, lectura)
+  if (!same || focusTitle) reading = !focusTitle && ctx.openMode() === 'read';
   ctx.showPane('snip');
   fillForm(s);
+  if (!same) $('#snip-scroll').scrollTop = 0;
   $('#snip-status').textContent = '';
   if (!fromHash) ctx.pushHash(!push);
   ctx.renderList();
   if (focusTitle) $('#snip-title').focus();
+  ctx.updateWakeLock();
 }
 
 export function closeSnippet({ fromHash = false } = {}) {
   saveSoon.flush();
   curId = null;
+  reading = false;
+  editor?.hideFloating();
   if (!fromHash) ctx.pushHash(true);
+  ctx.updateWakeLock();
 }
 
 function fillForm(s) {
   $('#snip-title').value = s.title || '';
   requestAnimationFrame(() => fitTitle($('#snip-title')));
-  $('#snip-body').value = s.body || '';
+  editor.setContent(htmlOf(s));
   renderChrome(s);
 }
 
-/** Carpeta, favorito e información del prerredactado abierto */
+/** Lectura / edición: igual que en las notas */
+function setReading(on) {
+  if (!curId) return;
+  if (on) {
+    saveSoon.flush();
+    document.activeElement?.blur?.();
+    window.getSelection()?.removeAllRanges();
+  }
+  reading = on;
+  renderChrome(store.snippets.get(curId));
+  if (!on) editor.focus();
+  ctx.updateWakeLock();
+}
+
+/** Carpeta, favorito, lectura/edición e información del prerredactado abierto */
 function renderChrome(s) {
+  if (!s) return;
+  const wrap = $('#snip-wrap');
+  wrap.classList.toggle('readonly', reading);
+  wrap.classList.toggle('reading', reading);
+  editor.setReadOnly(reading);
+  $('#snip-title').readOnly = reading;
+  $('#snip-title').tabIndex = reading ? -1 : 0;
+  const eb = $('#snip-edit');
+  eb.classList.toggle('primary', !reading);
+  eb.title = reading ? 'Editar el prerredactado' : 'Terminar de editar (modo lectura)';
+  eb.setAttribute('aria-label', eb.title);
+  eb.querySelector('.ico').replaceChildren(icon(reading ? 'pencil' : 'check'));
+  eb.querySelector('.lbl').textContent = reading ? 'Editar' : 'Listo';
   const path = snipPathText(s.folderId);
   $('#snip-folder').replaceChildren(icon('folder'), ` ${path || 'Sin carpeta'}`);
   const fav = $('#snip-fav');
@@ -463,10 +584,11 @@ function saveNow() {
   if (!curId || !dirty) return;
   const s = store.snippets.get(curId);
   if (!s) { dirty = false; return; }
-  const body = $('#snip-body').value;
-  if (body.length > 200000) { toast('Texto demasiado largo (máx. 200.000 caracteres)', 'error'); return; }
+  const html = editor.getContent();
+  const body = editor.allText(); // texto plano «para pegar»: tablas con tabuladores, listas con guiones
+  if (html.length + body.length > 800000) { toast('Prerredactado demasiado largo (máx. ~800 KB de texto)', 'error'); return; }
   dirty = false;
-  const data = { title: $('#snip-title').value.trim(), body, updatedAt: Date.now() };
+  const data = { title: $('#snip-title').value.trim(), html, body, bh: bodyHash(body), updatedAt: Date.now() };
   Object.assign(s, data);
   patch('snippets', s.id, data);
   $('#snip-status').textContent = navigator.onLine ? 'Guardado ✓' : 'Guardado en el dispositivo';
@@ -478,10 +600,19 @@ function saveNow() {
 export function onSnippetsChange(changed) {
   if (!curId) return;
   const s = store.snippets.get(curId);
-  if (!s) { curId = null; ctx.showPane('empty'); ctx.pushHash(true); return; }
+  if (!s) { curId = null; reading = false; ctx.showPane('empty'); ctx.pushHash(true); return; }
   if (changed && !changed.has(curId)) { renderChrome(s); return; }
-  const editing = dirty || ['snip-title', 'snip-body'].includes(document.activeElement?.id);
-  if (!editing) fillForm(s); else renderChrome(s);
+  const editing = dirty || editor.isFocused() || document.activeElement?.id === 'snip-title';
+  if (editing) { renderChrome(s); return; }
+  const html = htmlOf(s);
+  if (html !== editor.getContent()) {
+    const sc = $('#snip-scroll').scrollTop;
+    fillForm(s);
+    $('#snip-scroll').scrollTop = sc;
+  } else {
+    if ($('#snip-title').value !== (s.title || '')) { $('#snip-title').value = s.title || ''; fitTitle($('#snip-title')); }
+    renderChrome(s);
+  }
 }
 
 function duplicateSnippet(s) {
@@ -497,13 +628,15 @@ function duplicateSnippet(s) {
 }
 
 async function deleteSnippet(s) {
-  if (!await confirm('Eliminar prerredactado', `¿Eliminar «${s.title || 'Sin título'}»? No se puede deshacer.`, { okLabel: 'Eliminar', danger: true })) return;
+  if (!await confirm('Eliminar prerredactado', `¿Eliminar «${s.title || 'Sin título'}»${/data-file=/.test(s.html || '') ? ' y sus imágenes' : ''}? No se puede deshacer.`, { okLabel: 'Eliminar', danger: true })) return;
   const open = curId === s.id;
   if (open) { dirty = false; saveSoon.cancel(); }
+  ctx.purgeSnippetFiles(s.id); // imágenes que ya no usa nadie (antes de quitarlo de la memoria)
   remove('snippets', s.id);
   store.snippets.delete(s.id);
   if (open) {
     curId = null;
+    reading = false;
     ctx.showPane('empty');
     ctx.showList();
     ctx.pushHash(true);
@@ -514,25 +647,30 @@ async function deleteSnippet(s) {
 
 export function initSnippets(appCtx) {
   ctx = appCtx;
+  editor = ctx.editor;
   const onInput = () => { dirty = true; $('#snip-status').textContent = 'Editando…'; saveSoon(); };
-  ['#snip-title', '#snip-body'].forEach((sel) => $(sel).addEventListener('input', onInput));
-  $('#snip-title').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#snip-body').focus(); } });
+  $('#snip-title').addEventListener('input', onInput);
+  $('#snip-title').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); editor.focus(); } });
   // «←»: si el prerredactado tiene su entrada en el historial, volvemos atrás (como el botón de Android)
   $('#snip-back').addEventListener('click', () => {
     if (history.state?.nt && history.state?.d > 0) { saveSoon.flush(); history.back(); return; }
     closeSnippet(); ctx.showPane('empty'); ctx.showList(); ctx.renderList();
   });
-  $('#snip-copy').addEventListener('click', () => { saveSoon.flush(); if (curId) copySnippet(curId); });
+  $('#snip-copy').addEventListener('click', (e) => { saveSoon.flush(); if (curId) copySnippet(curId, { btn: e.currentTarget }); });
+  $('#snip-edit').addEventListener('click', () => setReading(!reading));
+  $('#snip-font-down').addEventListener('click', () => ctx.fontStep(-1));
+  $('#snip-font-up').addEventListener('click', () => ctx.fontStep(1));
   $('#snip-fav').addEventListener('click', () => { if (curId) toggleFavorite(curId); });
   $('#snip-folder').addEventListener('click', () => { saveSoon.flush(); if (curId) moveSnippet(curId); });
   $('#snip-menu').addEventListener('click', (e) => { const s = store.snippets.get(curId); if (s) snippetItemMenu(e.currentTarget, s, { inList: false }); });
-  // Tabulador inserta tabulación en el texto en vez de saltar de campo
-  $('#snip-body').addEventListener('keydown', (e) => {
-    if (e.key === 'Tab' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-      e.preventDefault();
-      const t = e.target;
-      t.setRangeText('\t', t.selectionStart, t.selectionEnd, 'end');
-      onInput();
-    }
-  });
 }
+
+/** Del editor de prerredactados (app.js lo crea con createEditor y estas funciones) */
+export function onSnippetEditorChange() {
+  if (!curId || reading) return;
+  dirty = true;
+  $('#snip-status').textContent = 'Editando…';
+  saveSoon();
+}
+export const onSnippetSectionCopy = (text, btn) => copySection(text, btn);
+export const snippetImageOwner = () => curId;
