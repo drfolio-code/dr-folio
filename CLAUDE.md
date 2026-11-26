@@ -24,11 +24,13 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/js/util.js` | Ayudas: `el`, `$`, `debounce`, `norm`, fechas, `htmlToText` (búsqueda) y `nodesToPlain` (texto para pegar en informes: tablas con tabuladores, listas «- »/«1. ») |
 | `public/js/snippets.js` | Prerredactados: tarjetas, favoritos, orden, mover, editor de texto plano, campos `{campo}` / `{campo:a\|b}`, copiar, selector para insertar en notas (carpetas, favoritos, más usados, buscar) y migración categoría → carpeta |
 | `public/js/store.js` | Datos en memoria sincronizados con Firestore (`onSnapshot`) + ayudas de carpetas (`childFolders`, `folderPath`, `descendantIds`, `flatFolders`: último parámetro = mapa del árbol, por defecto `store.folders`) |
-| `public/js/files.js` | Imágenes/PDF guardados **en Firestore en trozos base64** (no hay Storage en Spark) |
+| `public/js/files.js` | Imágenes/PDF guardados **en Firestore en trozos base64** (no hay Storage en Spark). Exporta `blobToBase64`/`base64ToBytes` (las usa backup.js) |
+| `public/js/backup.js` | Copia de seguridad: JSON versionado (con/sin archivos), .zip legible, restaurar (Fusionar / Reemplazar), límite diario, recordatorio en Inicio |
 | `public/js/db.js` | Inicialización Firebase, login, modo dispositivo, logout |
 | `public/js/ui.js` | Modales, menús, selectores, toasts propios (no usar alert/prompt: fallan en PWA iOS). `modal({cls})` añade clase al modal y `has-CLS` al fondo |
 | `public/js/pdfviewer.js` | Visor de PDF propio (PDF.js): pantalla completa en móvil, modal grande en tablet/PC, cada página ajustada al ancho, dibujo solo de las páginas visibles (libera las lejanas), zoom (botones, pellizco, Ctrl+rueda), «Pág. X de Y», ir a página, buscar texto (sin tildes/mayúsculas) con resaltado, reajuste al girar |
-| `public/vendor/libs.js` | Firebase + DOMPurify empaquetados. Regenerar: `cd tools && npm install && npm run vendor` |
+| `public/vendor/libs.js` | Firebase + DOMPurify empaquetados. Regenerar: `cd tools && npm install && npm run vendor` (regenera libs.js, jszip.js y pdfjs/) |
+| `public/vendor/jszip.js` | JSZip (ESM) para el .zip legible. Se carga con `import()` solo al exportar (no va en libs.js). Sale de `tools/jszip-entry.js` (`npm run vendor:jszip`, incluido en `npm run vendor`) |
 | `public/vendor/pdfjs/` | PDF.js (pdfjs-dist, build **legacy** para Safari iOS) + worker, fuentes, wasm, cmaps. Lo copia `tools/copy-pdfjs.mjs` (incluido en `npm run vendor`) y genera `files.json` |
 | `public/sw.js` | Service worker (app offline, red primero). PDF.js va en una caché aparte `PDFJS_CACHE` (caché primero): **si se actualiza pdfjs-dist, cambiar `PDFJS_CACHE`** |
 
@@ -47,6 +49,20 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - `.sec-copy`: botón sin texto (icono por CSS, para no ensuciar el índice) que se añade a cada H1–H3 de primer nivel al pasar a lectura y se quita en edición; `getContent()`/`getText()` también lo eliminan. Copia la sección **sin el título** (hasta el siguiente título de igual o mayor nivel), incluido lo plegado. ⋯ → «Copiar nota entera». Aviso «Copiado ✓» (`copyOut`, usa `copyText` de snippets.js).
 - Pantalla encendida (Wake Lock, `updateWakeLock`): solo en lectura con la nota visible; se vuelve a pedir al volver a la pestaña.
 - Preferencias por dispositivo (`localStorage`): `drfolio.noteMode` = `read|edit`, `drfolio.readSize` = px (15–30, por defecto 18), `drfolio.wakeLock` = `on|off` (Ajustes).
+
+## Copia de seguridad (v1.9.0, `backup.js`)
+- Ajustes → «Exportar / Restaurar…» (`openBackup`). En «Ordenador público» no está disponible y se explica el motivo (`backupPublicReason`).
+- **JSON** (`buildBackup`): `{ format: 'drfolio-backup', formatVersion: 1, appVersion, exportedAt, exportedAtMs, withFiles, counts, data: {folders, tags, files, notes, snippetFolders, snippets}, fileData: {fileId: base64} }`. Se construye por partes (Blob) para no crear una cadena gigante. Si cambia el formato: subir `BACKUP_VERSION` y seguir leyendo los anteriores en `parseBackup` (ya lee las copias antiguas ≤ v1.8.0: colecciones en la raíz, `fileData` como dataURL).
+- Guardar (`deliverButtons`): «📤 Guardar en Archivos / Drive…» (`navigator.share` con archivo, si `canShare`) o «⬇ Descargar». Android Chrome no comparte .json/.zip → solo descarga.
+- **.zip legible** (`exportZip`): `Dr.Folio AAAA-MM-DD/index.html`, `Notas/<carpeta>/<sub>/<nota>.html` + `<nota> (archivos)/` con sus imágenes y PDF, `Papelera/`, `Prerredactados/<carpeta>/<título>.txt`, `LEEME.txt`. Enlaces entre notas, índice e imágenes con rutas relativas. Imágenes/PDF sin comprimir (STORE).
+- **Restaurar** (`startRestore` → `parseBackup` valida y sanea el HTML con `sanitize()` → resumen → `planRestore(parsed, 'merge'|'replace')` → `runPlan`):
+  - Fusionar: añade lo que falta; si existe en los dos, gana el `updatedAt` (o `createdAt`) mayor. Nunca borra.
+  - Reemplazar: escribe lo distinto y borra lo que no está en la copia. Pide escribir BORRAR y antes descarga automáticamente una copia completa del estado actual. Primero escribe y después borra.
+  - Los archivos no se reescriben si ya existen; en la copia «sin archivos» no se pueden recrear (se avisa). Trozos primero, metadatos al final.
+  - Lotes ≤ 450 operaciones y ≤ 8 MB. Requiere conexión y datos sincronizados (no de caché).
+  - Límite diario: cuenta en `drfolio.quota` (`{day, w, d}`, día de California = reinicio de Firestore) las escrituras/borrados de las restauraciones; para a 20.000 − 1.500 de margen. Lo pendiente se guarda en `drfolio.restoreJob` y se continúa eligiendo el mismo archivo (el plan se recalcula y salta lo ya escrito).
+- Recordatorio (`backupReminder`, en `#home-backup`): si no hay copia o han pasado > 7 días desde `drfolio.lastBackup` (ms, por dispositivo), o si hay una restauración a medias.
+- Probado con Firebase simulado (sustituye `vendor/libs.js` por un Firestore en memoria) con Playwright: no hay tests en el repo.
 
 ## Rutas y navegación
 - `#/inicio` (por defecto tras el login), `#/buscar`, `#/notas[/n/NOTA]` (explorador raíz), `#/all|pinned|recent|trash[/n/NOTA]`, `#/folder/ID[/n/NOTA]`, `#/tag/ID[/n/NOTA]`, `#nota/ID`.
@@ -88,7 +104,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - Datos de pacientes identificables: **no**. La app es para conocimiento clínico personal.
 
 ## Hoja de ruta
-1. ✅ Notas: carpetas/subcarpetas, etiquetas, editor enriquecido, imágenes, bibliografía con PDF, índice, enlaces entre notas, offline, modo lectura con copiar sección
+1. ✅ Notas: carpetas/subcarpetas, etiquetas, editor enriquecido, imágenes, bibliografía con PDF, índice, enlaces entre notas, offline, modo lectura con copiar sección, copia de seguridad y restauración
 2. ✅ Prerredactados (plantillas de texto para copiar, con campos rellenables)
 3. Vademécum personal
 4. Chat conmigo mismo (enviarse textos y documentos)

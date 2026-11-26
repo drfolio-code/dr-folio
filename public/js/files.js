@@ -9,7 +9,7 @@ const loading = new Map();     // fileId -> Promise<objectURL>
 
 const chunksCol = (fileId) => collection(db, 'users', store.uid, 'files', fileId, 'chunks');
 
-function blobToBase64(blob) {
+export function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result).split(',')[1] || '');
@@ -18,7 +18,7 @@ function blobToBase64(blob) {
   });
 }
 
-function base64ToBytes(b64) {
+export function base64ToBytes(b64) {
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);

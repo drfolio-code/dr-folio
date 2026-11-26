@@ -17,6 +17,7 @@ import {
 import { MODULES, NAV_HOME, NAV_SEARCH } from './modules.js';
 import { initViewport } from './viewport.js';
 import { openPdfViewer } from './pdfviewer.js';
+import { initBackup, openBackup, backupReminder, backupPublicReason } from './backup.js';
 
 // ====================== Estado ======================
 const S = {
@@ -208,6 +209,12 @@ function startApp(user) {
     newFolder: (parentId) => newFolder(parentId, TREES.snippets)
   });
 
+  initBackup({
+    beforeRun: () => { saveSoon.flush(); flushSnippet(); },
+    isPublic: () => getMode() === 'public',
+    onChange: () => { if (S.view.type === 'home') renderHomeSoon(); }
+  });
+
   bindUi();
   initHistory();
   applyHash();
@@ -234,7 +241,7 @@ const renderSidebarSoon = debounce(() => renderSidebar(), 60);
 
 function onData(name, changed) {
   updateSync();
-  if (S.view.type === 'home' && ['notes', 'snippets', 'folders', 'tags'].includes(name)) renderHomeSoon();
+  if (S.view.type === 'home' && ['notes', 'snippets', 'folders', 'tags', 'files', 'snippetFolders'].includes(name)) renderHomeSoon();
   if (S.view.type === 'search' && ['notes', 'snippets', 'folders', 'snippetFolders', 'tags'].includes(name)) renderFindSoon();
   if (['notes', 'snippets'].includes(name)) renderNavSoon();
   if (name === 'snippets' || name === 'snippetFolders') migrateCategories();
@@ -1450,6 +1457,7 @@ function renderHome() {
       soon ? el('span', { class: 'mod-badge' }, 'Próximamente')
         : n ? el('span', { class: 'mod-count' }, n) : null);
   }));
+  $('#home-backup').replaceChildren(backupReminder() || '');
   renderHomeNotes();
 }
 
@@ -1990,6 +1998,7 @@ function openSettings() {
   const publicMode = getMode() === 'public';
   const idleSel = el('select', { onchange: (e) => { localStorage.setItem('drfolio.idle', e.target.value); toast('Guardado', 'ok'); } },
     [5, 15, 30, 60].map((m) => el('option', { value: m, selected: String(m) === String(idleMinutes()) }, `${m} min`)));
+  let closeSettings = null;
   modal({
     title: 'Ajustes',
     body: [
@@ -2010,41 +2019,18 @@ function openSettings() {
         el('div', { class: 'settings-row', style: { borderBottom: 0 } }, el('span', {}, 'Espacio usado'),
           el('span', {}, `${formatBytes(used)} de 1 GB · ${live} notas · ${store.snippets.size} prerredactados · ${store.files.size} archivos`)),
         el('div', { class: 'meter' }, el('div', { style: { width: `${pct.toFixed(1)}%` } }))),
-      el('div', { class: 'settings-row' }, el('span', {}, 'Copia de seguridad'),
-        el('span', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' } },
-          el('button', { class: 'btn sm', type: 'button', onclick: () => exportBackup(false) }, 'Solo notas'),
-          el('button', { class: 'btn sm', type: 'button', onclick: () => exportBackup(true) }, 'Con archivos'))),
+      el('div', { class: 'settings-row' }, el('span', {}, 'Copia de seguridad',
+        publicMode ? [el('br'), el('span', { class: 'muted small' }, backupPublicReason)] : null),
+        publicMode ? el('span', { class: 'muted' }, '🔒 No disponible')
+          : el('button', { class: 'btn sm', type: 'button', onclick: () => { closeSettings?.(); openBackup(); } }, 'Exportar / Restaurar…')),
       el('div', { class: 'settings-row' }, el('span', {}, 'Archivos sin usar'),
         el('button', { class: 'btn sm', type: 'button', onclick: cleanOrphans }, 'Limpiar')),
       el('div', { class: 'settings-row' }, el('span', { class: 'muted small' }, `Dr.Folio v${APP_VERSION}`),
         el('button', { class: 'btn sm primary danger', type: 'button', onclick: () => doLogout() }, 'Cerrar sesión'))
     ],
-    actions: [{ label: 'Cerrar', primary: true }]
+    actions: [{ label: 'Cerrar', primary: true }],
+    onOpen: (_, c) => { closeSettings = c; }
   });
-}
-
-async function exportBackup(withFiles) {
-  saveSoon.flush();
-  const data = {
-    app: 'Dr.Folio', version: APP_VERSION, exportedAt: new Date().toISOString(),
-    folders: [...store.folders.values()], tags: [...store.tags.values()],
-    notes: [...store.notes.values()], files: [...store.files.values()],
-    snippets: [...store.snippets.values()], snippetFolders: [...store.snippetFolders.values()]
-  };
-  if (withFiles) {
-    toast(`Preparando ${store.files.size} archivos…`, '', 4000);
-    data.fileData = {};
-    for (const f of store.files.values()) {
-      try {
-        const blob = await fileBlob(f.id);
-        data.fileData[f.id] = await new Promise((res) => {
-          const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob);
-        });
-      } catch { /* archivo no disponible */ }
-    }
-  }
-  const stamp = new Date().toISOString().slice(0, 10);
-  download(`drfolio-copia-${stamp}${withFiles ? '-completa' : ''}.json`, new Blob([JSON.stringify(data)], { type: 'application/json' }));
 }
 
 async function cleanOrphans() {
