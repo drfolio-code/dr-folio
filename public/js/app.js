@@ -15,6 +15,7 @@ import {
 } from './snippets.js';
 import { MODULES } from './modules.js';
 import { initViewport } from './viewport.js';
+import { openPdfViewer } from './pdfviewer.js';
 
 // ====================== Estado ======================
 const S = {
@@ -1075,21 +1076,24 @@ async function openViewer({ fileId, src, name, kind, mime }) {
   const type = mime || meta?.mime || '';
   const isImg = kind === 'image' || type.startsWith('image/');
   const isPdf = type === 'application/pdf';
+  const fileName = name || meta?.name || 'archivo';
+  const openTab = () => { window.open(url, '_blank'); return false; };
+  const save = async () => {
+    const blob = fileId ? await fileBlob(fileId) : await (await fetch(url)).blob();
+    download(fileName, blob);
+    return false;
+  };
+  if (isPdf) { openPdfViewer({ url, name: name || meta?.name || 'PDF', onOpenTab: openTab, onDownload: save }); return; }
   const body = isImg
     ? el('div', { class: 'viewer-img' }, el('img', { src: url, alt: name || '' }))
-    : isPdf ? el('iframe', { class: 'viewer', src: url, title: name || 'PDF' })
-      : el('p', {}, 'Este tipo de archivo no se puede previsualizar. Descárgalo para abrirlo.');
+    : el('p', {}, 'Este tipo de archivo no se puede previsualizar. Descárgalo para abrirlo.');
   modal({
     title: name || meta?.name || 'Archivo',
-    wide: isImg || isPdf,
+    wide: isImg,
     body,
     actions: [
-      { label: '↗ Abrir en pestaña', onClick: () => { window.open(url, '_blank'); return false; } },
-      { label: '⬇ Descargar', onClick: async () => {
-        const blob = fileId ? await fileBlob(fileId) : await (await fetch(url)).blob();
-        download(name || meta?.name || 'archivo', blob);
-        return false;
-      } },
+      { label: '↗ Abrir en pestaña', onClick: openTab },
+      { label: '⬇ Descargar', onClick: save },
       { label: 'Cerrar', primary: true }
     ]
   });

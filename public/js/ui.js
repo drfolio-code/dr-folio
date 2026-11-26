@@ -14,7 +14,7 @@ export const modalOpen = () => openCount > 0;
  * Modal genérico. actions: [{label, primary, danger, value, onClick}]
  * onClick puede devolver false para no cerrar. Resuelve con el value de la acción o undefined.
  */
-export function modal({ title, body, actions = [{ label: 'Cerrar', value: undefined }], wide = false, onOpen }) {
+export function modal({ title, body, actions = [{ label: 'Cerrar', value: undefined }], wide = false, cls = '', onOpen }) {
   return new Promise((resolve) => {
     openCount++;
     const close = (val) => {
@@ -32,13 +32,13 @@ export function modal({ title, body, actions = [{ label: 'Cerrar', value: undefi
           close(a.value);
         }
       }, a.label))) : null;
-    const box = el('div', { class: `modal ${wide ? 'wide' : ''}`, role: 'dialog', 'aria-modal': 'true' },
+    const box = el('div', { class: `modal ${wide ? 'wide' : ''} ${cls}`, role: 'dialog', 'aria-modal': 'true' },
       el('div', { class: 'modal-head' },
         el('h3', {}, title || ''),
         el('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Cerrar', onclick: () => close(undefined) }, '✕')),
       el('div', { class: 'modal-body' }, body || ''),
       foot);
-    const back = el('div', { class: 'modal-back', onmousedown: (e) => { if (e.target === back) close(undefined); } }, box);
+    const back = el('div', { class: `modal-back ${cls ? `has-${cls}` : ''}`, onmousedown: (e) => { if (e.target === back) close(undefined); } }, box);
     const onKey = (e) => {
       if (e.key === 'Escape') { e.stopPropagation(); close(undefined); }
       if (e.key === 'Enter' && !e.shiftKey && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'BUTTON') {

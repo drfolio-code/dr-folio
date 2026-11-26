@@ -505,3 +505,57 @@ body.kb-open .ed-inner { padding-bottom: 24px; }
 }
 .modal.wide .modal-body { flex: 1; padding: 0; min-height: 0; }
 .modal.wide .viewer, .modal.wide .viewer-img { height: 100%; }
+
+/* ===================== Visor de PDF (PDF.js) ===================== */
+.modal.pdf { max-width: 1100px; height: 92vh; max-height: 92vh; }
+.modal.pdf .modal-head { padding: 10px 12px 6px; gap: 6px; }
+.modal.pdf .modal-head h3 { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pdfv-act { flex: none; }
+.pdfv { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.pdfv-bar, .pdfv-find { display: flex; align-items: center; gap: 2px; padding: 4px 8px; border-top: 1px solid var(--border); overflow-x: auto; flex: none; scrollbar-width: none; }
+.pdfv-bar::-webkit-scrollbar { display: none; }
+.pdfv-bar .icon-btn, .pdfv-find .icon-btn { min-width: 36px; height: 36px; font-size: 18px; flex: none; }
+.pdfv-zoom { min-width: 44px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); flex: none; }
+.pdfv-sep { width: 1px; height: 22px; background: var(--border); margin: 0 6px; flex: none; }
+.pdfv-pages-ctl { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--muted); white-space: nowrap; flex: none; }
+.pdfv input.pdfv-page-in { width: 48px; flex: none; padding: 5px 4px; text-align: center; font-size: 16px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); }
+.pdfv-find[hidden] { display: none; }
+.pdfv .pdfv-find input { flex: 1; width: auto; min-width: 110px; padding: 6px 10px; font-size: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text); }
+.pdfv-count { font-size: 12px; color: var(--muted); white-space: nowrap; padding: 0 6px; font-variant-numeric: tabular-nums; flex: none; }
+.pdfv-scroll {
+  flex: 1; min-height: 0; overflow: auto; background: #525659; position: relative; outline: none;
+  touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+}
+.pdfv-pages { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px; width: max-content; min-width: 100%; box-sizing: border-box; will-change: transform; }
+.pdfv-page { position: relative; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); flex: none; --scale-round-x: 1px; --scale-round-y: 1px; }
+.pdfv-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.pdfv-msg { color: #e5e7eb; text-align: center; padding: 40px 20px; font-size: 15px; position: absolute; inset: 0; }
+/* Capa de texto de PDF.js (seleccionar texto y resaltar búsquedas) */
+.pdfv .textLayer { position: absolute; inset: 0; overflow: hidden; line-height: 1; text-align: initial; opacity: 1; z-index: 1;
+  -webkit-text-size-adjust: none; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0;
+  --min-font-size: 1; --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size)); --min-font-size-inv: calc(1 / var(--min-font-size)); }
+.pdfv .textLayer span, .pdfv .textLayer br { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0 0; }
+.pdfv .textLayer > :not(.markedContent), .pdfv .textLayer .markedContent span:not(.markedContent) {
+  --font-height: 0; font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1; --rotate: 0deg; transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv)); }
+.pdfv .textLayer .markedContent { display: contents; }
+.pdfv .textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
+.pdfv .textLayer ::selection { background: rgba(14, 116, 144, .3); }
+.pdfv .textLayer mark { color: transparent; background: rgba(250, 204, 21, .5); border-radius: 2px; padding: 0; }
+.pdfv .textLayer mark.selected { background: rgba(234, 88, 12, .55); }
+/* Móvil (vertical u horizontal): pantalla completa */
+@media (max-width: 639px), (max-height: 520px) and (orientation: landscape) {
+  .modal-back.has-pdf { padding: 0; align-items: stretch; top: var(--app-top, 0px); height: var(--app-h, 100dvh); bottom: auto; }
+  .modal.pdf { max-width: none; width: 100%; height: 100%; max-height: none; border-radius: 0;
+    padding: var(--safe-top) var(--safe-right) 0 var(--safe-left); }
+  .modal.pdf .modal-body { padding-bottom: 0; }
+  .pdfv-scroll { padding-bottom: var(--safe-bottom); }
+  .pdfv-act span { display: none; }
+  .pdfv-pages { gap: 6px; padding: 6px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .modal.pdf .modal-head { padding-top: 4px; padding-bottom: 2px; }
+  .pdfv-bar, .pdfv-find { padding-top: 1px; padding-bottom: 1px; }
+  .pdfv-bar .icon-btn, .pdfv-find .icon-btn { height: 32px; }
+}
+@media (max-width: 900px) { .pdfv-act span { display: none; } }
