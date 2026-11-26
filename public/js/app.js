@@ -2212,7 +2212,7 @@ function openSettings() {
         el('br'), el('span', { class: 'muted small' }, 'iPhone con la app instalada. Solo en este dispositivo'),
         el('br'), el('span', { class: 'muted small', style: { fontSize: '11px' } }, screenInfo())),
         el('select', { onchange: (e) => { setFitMode(e.target.value); toast('Guardado', 'ok'); } },
-          [['auto', 'Automático'], ['off', 'Sin corrección']].map(([v, t]) => el('option', { value: v, selected: fitMode() === v }, t)))),
+          [['auto', 'Automático'], ['screen', 'Prueba'], ['off', 'Sin corrección']].map(([v, t]) => el('option', { value: v, selected: fitMode() === v }, t)))),
       el('div', {},
         el('div', { class: 'settings-row', style: { borderBottom: 0 } }, el('span', {}, 'Espacio usado'),
           el('span', {}, `${formatBytes(used)} de 1 GB · ${live} notas · ${store.snippets.size} prerredactados · ${store.files.size} archivos`)),

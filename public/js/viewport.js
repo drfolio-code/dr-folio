@@ -57,32 +57,37 @@ function screenH() {
   const land = window.innerWidth > window.innerHeight;
   return land ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
 }
-// Ajuste del alto en el iPhone instalado (Ajustes): 'auto' | 'off' (sin corrección)
+// Ajuste del alto en el iPhone instalado (Ajustes): 'auto' | 'screen' (prueba: alto de la pantalla) | 'off'
 const FIT_KEY = 'drfolio.fit';
-export function fitMode() { try { return localStorage.getItem(FIT_KEY) === 'off' ? 'off' : 'auto'; } catch { return 'auto'; } }
+export function fitMode() { try { const m = localStorage.getItem(FIT_KEY); return m === 'off' || m === 'screen' ? m : 'auto'; } catch { return 'auto'; } }
 export function setFitMode(m) { try { localStorage.setItem(FIT_KEY, m); } catch {} update(); }
 /** Medidas para diagnosticar (se muestran en Ajustes) */
 export function screenInfo() {
   const m = (css) => { const d = document.createElement('div'); d.style.cssText = `position:fixed;top:0;left:0;width:0;visibility:hidden;height:${css}`; document.body.appendChild(d); const h = Math.round(d.getBoundingClientRect().height); d.remove(); return h; };
-  return `pantalla ${screen.width}×${screen.height} · ventana ${window.innerWidth}×${window.innerHeight} · visible ${Math.round(vv?.height || 0)} · vh ${m('100vh')} · arriba ${m('env(safe-area-inset-top,0px)')} · abajo ${m('env(safe-area-inset-bottom,0px)')} · ${navigator.standalone ? 'instalada' : 'navegador'}${root.classList.contains('fit-screen') ? ' · ajustada' : ''}`;
+  const r = (sel) => { const e = document.querySelector(sel); if (!e) return '-'; const b = e.getBoundingClientRect(); return `${Math.round(b.top)}–${Math.round(b.bottom)}`; };
+  return `pantalla ${screen.width}×${screen.height} · ventana ${window.innerWidth}×${window.innerHeight} · cliente ${root.clientHeight} · visible ${Math.round(vv?.height || 0)}+${Math.round(vv?.offsetTop || 0)} · vh ${m('100vh')} · lvh ${m('100lvh')} · arriba ${m('env(safe-area-inset-top,0px)')} · abajo ${m('env(safe-area-inset-bottom,0px)')} · app ${r('#app')} · barra ${r('#tabbar')} · scroll ${Math.round(window.scrollY)} · ${navigator.standalone ? 'instalada' : 'navegador'} · ${root.className || '-'}`;
 }
 /**
  * App instalada en iPhone (standalone): iOS da a la página una ventana más baja que la pantalla
- * (le resta la barra de estado) y quedaba un hueco abajo. Sí se puede dibujar debajo si html, body
- * y la app tienen el alto de la pantalla: se fija --scr-h y html.fit-screen.
+ * (le resta la barra de estado) y queda un hueco abajo.
+ * 'auto': no suma además el margen de la barra de inicio (html.short-h, --h-gap).
+ * 'screen' (prueba): html, body y la app con el alto de la pantalla (html.fit-screen, --scr-h).
  */
 function fullHeight() {
-  let on = false;
-  if (fitMode() === 'auto' && navigator.standalone === true && screen?.width && screen?.height) {
+  const mode = fitMode();
+  let gap = 0;
+  if (mode !== 'off' && navigator.standalone === true && screen?.width && screen?.height) {
     const land = window.innerWidth > window.innerHeight;
     const sw = land ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
     const g = screenH() - window.innerHeight;
     // Solo si la ventana es la pantalla entera (no en iPad con varias ventanas) y le falta alto
-    on = Math.abs(window.innerWidth - sw) <= 2 && g > 2 && g < 120;
+    if (Math.abs(window.innerWidth - sw) <= 2 && g > 2 && g < 120) gap = g;
   }
-  if (on) root.style.setProperty('--scr-h', `${screenH()}px`);
-  else root.style.removeProperty('--scr-h');
-  root.classList.toggle('fit-screen', on);
+  const fit = mode === 'screen' && gap > 0, short = mode === 'auto' && gap > 0;
+  if (fit) root.style.setProperty('--scr-h', `${screenH()}px`); else root.style.removeProperty('--scr-h');
+  if (short) root.style.setProperty('--h-gap', `${gap}px`); else root.style.removeProperty('--h-gap');
+  root.classList.toggle('fit-screen', fit);
+  root.classList.toggle('short-h', short);
 }
 
 const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
