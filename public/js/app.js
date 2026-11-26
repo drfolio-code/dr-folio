@@ -10,8 +10,9 @@ import { createEditor, escapeHtml } from './editor.js';
 import { el, $, $$, debounce, norm, shortDate, longDate, formatBytes, download } from './util.js';
 import { toast, modal, prompt, confirm, menu, picker, colorPicker, modalOpen } from './ui.js';
 import {
-  initSnippets, renderSnippetList, newSnippet, openSnippet, closeSnippet, currentSnippet,
-  flushSnippet, onSnippetsChange, pickSnippetText
+  initSnippets, newSnippet, openSnippet, closeSnippet, currentSnippet, flushSnippet, onSnippetsChange, pickSnippetText,
+  snippetCard, snippetItemMenu, snippetMatches, snippetsForView, sortSnippets, allSnippets, moveSnippetTo,
+  snipSort, setSnipSort, SNIP_SORTS, migrateCategories
 } from './snippets.js';
 import { MODULES } from './modules.js';
 import { initViewport } from './viewport.js';
@@ -34,6 +35,83 @@ const S = {
   loggingOut: false
 };
 let editor = null;
+
+// ====================== Árboles de carpetas ======================
+// El mismo explorador (ruta, carpetas, menús, arrastrar, buscar) sirve para Notas y para Prerredactados.
+// Cada árbol describe dónde están sus carpetas, sus elementos y sus textos.
+const TREES = {
+  notes: {
+    id: 'notes', col: 'folders', itemCol: 'notes', map: () => store.folders,
+    root: 'notes', folder: 'folder', views: ['all', 'pinned', 'recent', 'tag', 'trash'],
+    rootHash: '#/notas', rootName: 'Notas', rootIcon: '🗂',
+    one: 'nota', many: 'notas',
+    items: () => liveNotes(),
+    newItem: () => newNote(),
+    matches: (n, words) => words.every((w) => searchable(n).includes(w)),
+    sortItems: (list) => sortNotes(list),
+    block: (list) => notesBlock(list),
+    moveItem: (id, folderId) => moveNoteTo(id, folderId),
+    folderSort: () => S.folderSort,
+    sortValue: () => S.folderSort,
+    setSort: (m) => { S.folderSort = m; localStorage.setItem('drfolio.folderSort', m); },
+    sortOptions: [['manual', 'Orden manual'], ['name', 'Por nombre']],
+    folderSelect: true,
+    shortcuts: () => {
+      const live = liveNotes();
+      return [['🗂', 'Todas las notas', live.length, 'all'], ['📌', 'Fijadas', live.filter((n) => n.pinned).length, 'pinned'], ['🕘', 'Recientes', null, 'recent']];
+    },
+    txt: {
+      Many: 'Notas', newBtn: '＋ Nota', newOne: 'Nueva nota', newHere: 'Nueva nota aquí', folderHint: 'Nombre (p. ej. Urgencias)',
+      loose: 'Notas sin carpeta', itemsHere: 'Notas', rootDest: 'sin carpeta',
+      noFolders: 'Aún no tienes carpetas. Crea la primera con «＋ Carpeta» (p. ej. Urgencias).',
+      onlySubs: 'No hay notas sueltas en esta carpeta (mira en sus subcarpetas).',
+      emptyFolder: 'Carpeta vacía. Crea una nota o una subcarpeta.',
+      searchAll: 'Buscar en todas las notas…', searchingAll: 'Buscando en todas las notas', searchAllBtn: 'Buscar en todas',
+      noMatch: 'No hay notas que coincidan.'
+    }
+  },
+  snippets: {
+    id: 'snippets', col: 'snippetFolders', itemCol: 'snippets', map: () => store.snippetFolders,
+    root: 'snippets', folder: 'sfolder', views: ['sall', 'sfav', 'sused', 'srecent'],
+    rootHash: '#/snippets', rootName: 'Prerredactados', rootIcon: '📋',
+    one: 'prerredactado', many: 'prerredactados',
+    items: () => allSnippets(),
+    newItem: () => newSnippetHere(),
+    matches: (s, words) => snippetMatches(s, words),
+    sortItems: (list) => sortSnippets(list),
+    block: (list, opts) => snippetsBlock(list, opts),
+    moveItem: (id, folderId) => moveSnippetTo(id, folderId),
+    folderSort: () => (snipSort() === 'manual' ? 'manual' : 'name'),
+    sortValue: () => snipSort(),
+    setSort: (m) => setSnipSort(m),
+    sortOptions: SNIP_SORTS,
+    folderSelect: false, // el orden se elige arriba, en «Ordenar»
+    shortcuts: () => {
+      const all = allSnippets();
+      return [['📋', 'Todos', all.length, 'sall'], ['⭐', 'Favoritos', all.filter((s) => s.favorite).length, 'sfav'],
+        ['🔥', 'Más usados', null, 'sused'], ['🕘', 'Recientes', null, 'srecent']];
+    },
+    txt: {
+      Many: 'Prerredactados', newBtn: '＋ Prerredactado', newOne: 'Nuevo prerredactado', newHere: 'Nuevo prerredactado aquí',
+      folderHint: 'Nombre (p. ej. Traumatología)',
+      loose: 'Sin carpeta', itemsHere: 'Prerredactados', rootDest: '«Prerredactados» (sin carpeta)',
+      noFolders: 'Aún no tienes carpetas. Crea la primera con «＋ Carpeta» (p. ej. Urgencias).',
+      onlySubs: 'No hay prerredactados sueltos en esta carpeta (mira en sus subcarpetas).',
+      emptyFolder: 'Carpeta vacía. Crea un prerredactado o una subcarpeta.',
+      searchAll: 'Buscar en todos los prerredactados…', searchingAll: 'Buscando en todos los prerredactados', searchAllBtn: 'Buscar en todos',
+      noMatch: 'No hay prerredactados que coincidan.'
+    }
+  }
+};
+/** Árbol al que pertenece una vista (o null: Inicio) */
+const treeOf = (type) => Object.values(TREES).find((T) => type === T.root || type === T.folder || T.views.includes(type)) || null;
+const isSnipView = (type = S.view.type) => treeOf(type)?.id === 'snippets';
+/** Nuevo prerredactado en la carpeta abierta (o en Favoritos si estás ahí) */
+function newSnippetHere() {
+  const v = S.view;
+  newSnippet({ folderId: v.type === 'sfolder' ? v.id : null, favorite: v.type === 'sfav' });
+}
+
 
 // ====================== Arranque ======================
 if ('serviceWorker' in navigator) {
@@ -120,7 +198,8 @@ function startApp(user) {
     renderSidebar: () => renderSidebar(),
     pushHash: (replace) => pushHash(replace),
     showList: () => showList(),
-    showPane
+    showPane,
+    newFolder: (parentId) => newFolder(parentId, TREES.snippets)
   });
 
   bindUi();
@@ -148,6 +227,7 @@ const renderSidebarSoon = debounce(() => renderSidebar(), 60);
 function onData(name, changed) {
   updateSync();
   if (S.view.type === 'home' && ['notes', 'snippets', 'folders', 'tags'].includes(name)) renderHomeSoon();
+  if (name === 'snippets' || name === 'snippetFolders') migrateCategories();
   if (name === 'notes') {
     renderListSoon();
     renderSidebarSoon();
@@ -162,7 +242,10 @@ function onData(name, changed) {
   } else if (name === 'snippets') {
     onSnippetsChange(changed);
     renderSidebarSoon();
-    if (S.view.type === 'snippets') renderListSoon();
+    if (isSnipView()) renderListSoon();
+  } else if (name === 'snippetFolders') {
+    onSnippetsChange(null);
+    if (isSnipView()) renderListSoon();
   }
 }
 
@@ -200,9 +283,9 @@ function bindUi() {
   $$('.nav-item').forEach((b) => b.addEventListener('click', () => setView({ type: b.dataset.view, id: null })));
   $('#btn-new-folder').addEventListener('click', () => newFolder(null));
   $('#btn-settings').addEventListener('click', openSettings);
-  ['#btn-new-note', '#btn-new-note-empty'].forEach((s) => $(s).addEventListener('click', () => (S.view.type === 'snippets' ? newSnippet() : newNote())));
+  ['#btn-new-note', '#btn-new-note-empty'].forEach((s) => $(s).addEventListener('click', () => (isSnipView() ? newSnippetHere() : newNote())));
   $('#btn-new-note-side').addEventListener('click', () => {
-    if (S.view.type === 'snippets') setView({ type: 'notes', id: null }).then(() => newNote()); else newNote();
+    if (isSnipView()) setView({ type: 'notes', id: null }).then(() => newNote()); else newNote();
   });
   $('#btn-explorer').addEventListener('click', () => setView({ type: 'notes', id: null }));
   $('#btn-layout').addEventListener('click', () => {
@@ -211,8 +294,9 @@ function bindUi() {
     renderList();
   });
   $('#btn-list-more').addEventListener('click', (e) => {
-    if (S.view.type === 'folder' && store.folders.has(S.view.id)) folderMenu(e.currentTarget, store.folders.get(S.view.id), { here: true });
-    else rootMenu(e.currentTarget);
+    const T = treeOf(S.view.type) || TREES.notes;
+    if (S.view.type === T.folder && T.map().has(S.view.id)) folderMenu(e.currentTarget, T.map().get(S.view.id), { here: true, T });
+    else rootMenu(e.currentTarget, T);
   });
   dropTarget($('#btn-explorer'), null);
   ['#btn-menu', '#btn-menu-home'].forEach((s) => $(s).addEventListener('click', () => $('#app').classList.add('drawer')));
@@ -233,8 +317,12 @@ function bindUi() {
     if (e.key === 'Escape') { $('#search').value = ''; S.search = ''; renderList(); }
     if (e.key === 'Enter') { e.preventDefault(); $('#search').blur(); }
   });
-  $('#sort').value = S.sort;
-  $('#sort').addEventListener('change', () => { S.sort = $('#sort').value; localStorage.setItem('drfolio.sort', S.sort); renderList(); });
+  $('#sort').addEventListener('change', () => {
+    const val = $('#sort').value;
+    if ($('#sort').dataset.kind === 'snippets') setSnipSort(val);
+    else { S.sort = val; localStorage.setItem('drfolio.sort', S.sort); }
+    renderList();
+  });
   $('#btn-empty-trash').addEventListener('click', emptyTrash);
 
   // Editor
@@ -272,7 +360,7 @@ function bindUi() {
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveSoon.flush(); flushSnippet(); setSaveStatus('Guardado ✓'); }
     else if (mod && e.key.toLowerCase() === 'k' && !editor.isFocused()) { e.preventDefault(); if (S.view.type === 'home') $('#home-search').focus(); else { showList(); $('#search').focus(); } }
-    else if (mod && e.altKey && e.key.toLowerCase() === 'n') { e.preventDefault(); if (S.view.type === 'snippets') newSnippet(); else newNote(); }
+    else if (mod && e.altKey && e.key.toLowerCase() === 'n') { e.preventDefault(); if (isSnipView()) newSnippetHere(); else newNote(); }
     else if (e.key === 'Escape' && !modalOpen()) closeDrawer();
   });
 
@@ -291,27 +379,27 @@ const showList = () => { $('#app').dataset.view = 'list'; };
 //   lv = nivel dentro del explorador de Notas (0 = raíz «Notas», 1 = carpeta principal, 2 = subcarpeta…)
 //   nt = 1 si esa entrada es una nota (o un prerredactado) abierta encima de la lista
 // Al entrar en una carpeta se apilan también sus carpetas padre, así «atrás» (Android) sube un nivel:
-// nota → Cardio → Urgencias → Notas → Inicio.
-const EXPLORER = new Set(['notes', 'folder', 'all', 'pinned', 'recent', 'tag', 'trash']);
-const isExplorer = (t) => EXPLORER.has(t);
+// nota → Cardio → Urgencias → Notas → Inicio (igual en Prerredactados: #/sfolder/ID).
+const isExplorer = (t) => !!treeOf(t);
 
 function hashFor(view, noteId) {
   if (view.type === 'home') return '#/inicio';
-  let h = view.type === 'notes' ? '#/notas' : `#/${view.type}${view.id ? `/${view.id}` : ''}`;
+  const T = treeOf(view.type);
+  let h = T && view.type === T.root ? T.rootHash : `#/${view.type}${view.id ? `/${view.id}` : ''}`;
   if (noteId) h += `/n/${noteId}`;
-  else if (view.type === 'snippets' && currentSnippet()) h += `/s/${currentSnippet()}`;
+  else if (isSnipView(view.type) && currentSnippet()) h += `/s/${currentSnippet()}`;
   return h;
 }
-/** Cadena de rutas desde «Notas» hasta la vista (para el historial y la ruta de navegación). */
+/** Cadena de rutas desde la raíz del árbol («Notas» o «Prerredactados») hasta la vista (historial y ruta de navegación). */
 function chainFor(view) {
-  if (!isExplorer(view.type)) return [];
-  const root = '#/notas';
-  if (view.type === 'notes') return [root];
-  if (view.type === 'folder') {
-    const path = folderPath(view.id);
-    return [root, ...(path.length ? path.map((f) => `#/folder/${f.id}`) : [`#/folder/${view.id}`])];
+  const T = treeOf(view.type);
+  if (!T) return [];
+  if (view.type === T.root) return [T.rootHash];
+  if (view.type === T.folder) {
+    const path = folderPath(view.id, T.map());
+    return [T.rootHash, ...(path.length ? path.map((f) => `#/${T.folder}/${f.id}`) : [`#/${T.folder}/${view.id}`])];
   }
-  return [root, hashFor(view)];
+  return [T.rootHash, hashFor(view)];
 }
 const lvFor = (view) => Math.max(0, chainFor(view).length - 1);
 
@@ -319,7 +407,7 @@ function pushHash(replace = false) {
   const h = hashFor(S.view, S.noteId);
   if (location.hash === h) return;
   const d = history.state?.d || 0;
-  const st = { lv: lvFor(S.view), nt: S.noteId || (S.view.type === 'snippets' && currentSnippet()) ? 1 : 0 };
+  const st = { lv: lvFor(S.view), nt: S.noteId || (isSnipView() && currentSnippet()) ? 1 : 0 };
   if (replace) history.replaceState({ d, ...st }, '', h); else history.pushState({ d: d + 1, ...st }, '', h);
 }
 function pushChain(chain, from, d) {
@@ -343,9 +431,13 @@ function parseHash(hash) {
   let noteId = null;
   let snipId = null;
   if (parts[0] === 'nota' && parts[1]) { noteId = parts[1]; view = { type: 'all', id: null }; }
-  else if (parts[0] === 'snippets') {
-    view = { type: 'snippets', id: null };
+  else if (['snippets', 'sall', 'sfav', 'sused', 'srecent'].includes(parts[0])) {
+    view = { type: parts[0], id: null };
     if (parts[1] === 's') snipId = parts[2];
+  }
+  else if (parts[0] === 'sfolder' && parts[1]) {
+    view = { type: 'sfolder', id: parts[1] };
+    if (parts[2] === 's') snipId = parts[3];
   }
   else if (parts[0] === 'notas') {
     view = { type: 'notes', id: null };
@@ -468,10 +560,10 @@ function renderSidebar() {
   $('#count-pinned').textContent = live.filter((n) => n.pinned).length || '';
   $('#count-snippets').textContent = store.snippets.size || '';
   $('#count-trash').textContent = [...store.notes.values()].filter((n) => n.trashed).length || '';
-  $$('.nav-item').forEach((b) => b.classList.toggle('active', S.view.type === b.dataset.view));
+  $$('.nav-item').forEach((b) => b.classList.toggle('active', S.view.type === b.dataset.view || (b.dataset.view === 'snippets' && isSnipView())));
 
   // Recuento por carpeta (incluye subcarpetas)
-  const totals = folderTotals(live);
+  const totals = folderTotals(TREES.notes, live);
   const total = (id) => totals.get(id) || 0;
 
   const tree = $('#folder-tree');
@@ -526,13 +618,13 @@ function toggleFolder(id) {
   renderSidebar();
 }
 
-// ---------- Carpetas ----------
-/** Recuento de notas por carpeta, incluidas sus subcarpetas: Map(id → total) */
-function folderTotals(live = liveNotes()) {
+// ---------- Carpetas (sirven para los dos árboles: T = TREES.notes | TREES.snippets) ----------
+/** Recuento de elementos por carpeta, incluidas sus subcarpetas: Map(id → total) */
+function folderTotals(T = TREES.notes, items = T.items()) {
   const direct = new Map();
-  for (const n of live) if (n.folderId) direct.set(n.folderId, (direct.get(n.folderId) || 0) + 1);
+  for (const n of items) if (n.folderId) direct.set(n.folderId, (direct.get(n.folderId) || 0) + 1);
   const kids = new Map();
-  for (const f of store.folders.values()) {
+  for (const f of T.map().values()) {
     const k = f.parentId || null;
     if (!kids.has(k)) kids.set(k, []);
     kids.get(k).push(f.id);
@@ -547,81 +639,83 @@ function folderTotals(live = liveNotes()) {
     out.set(id, t);
     return t;
   };
-  for (const id of store.folders.keys()) sum(id);
+  for (const id of T.map().keys()) sum(id);
   return out;
 }
 
 /** Subcarpetas ordenadas según la preferencia (manual = campo `order`, o por nombre) */
-function sortedChildren(parentId) {
-  const list = childFolders(parentId);
-  if (S.folderSort === 'name') list.sort((a, b) => a.name.localeCompare(b.name, 'es', { numeric: true, sensitivity: 'base' }));
+function sortedChildren(parentId, T = TREES.notes) {
+  const list = childFolders(parentId, T.map());
+  if (T.folderSort() !== 'manual') list.sort((a, b) => a.name.localeCompare(b.name, 'es', { numeric: true, sensitivity: 'base' }));
   return list;
 }
 
-function setFolderSort(mode) {
-  S.folderSort = mode;
-  localStorage.setItem('drfolio.folderSort', mode);
+function setFolderSort(mode, T = TREES.notes) {
+  T.setSort(mode);
   renderSidebar(); renderList();
 }
 
 /** Subir / bajar una carpeta entre sus hermanas (orden manual). Renumera el campo `order`. */
-function shiftFolder(f, dir) {
-  if (S.folderSort !== 'manual') { setFolderSort('manual'); toast('Orden manual activado', 'ok'); }
-  const sibs = childFolders(f.parentId || null);
+function shiftFolder(f, dir, T = TREES.notes) {
+  if (T.folderSort() !== 'manual') { T.setSort('manual'); toast('Orden manual activado', 'ok'); }
+  const sibs = childFolders(f.parentId || null, T.map());
   const i = sibs.findIndex((x) => x.id === f.id);
   const j = i + dir;
   if (i < 0 || j < 0 || j >= sibs.length) return;
   [sibs[i], sibs[j]] = [sibs[j], sibs[i]];
   sibs.forEach((x, k) => {
     const order = (k + 1) * 1000;
-    if (x.order !== order) { x.order = order; patch('folders', x.id, { order }); }
+    if (x.order !== order) { x.order = order; patch(T.col, x.id, { order }); }
   });
   renderSidebar(); renderList();
 }
 
-async function newFolder(parentId) {
-  const name = await prompt(parentId ? 'Nueva subcarpeta' : 'Nueva carpeta', '', { placeholder: 'Nombre (p. ej. Urgencias)' });
+async function newFolder(parentId, T = TREES.notes) {
+  const name = await prompt(parentId ? 'Nueva subcarpeta' : 'Nueva carpeta', '', { placeholder: T.txt.folderHint });
   if (!name) return;
-  const id = newId('folders');
+  const id = newId(T.col);
   const now = Date.now();
-  put('folders', id, { name, parentId: parentId || null, color: null, order: now, createdAt: now, updatedAt: now });
-  if (parentId) { S.expanded.add(parentId); localStorage.setItem('drfolio.expanded', JSON.stringify([...S.expanded])); }
+  const data = { name, parentId: parentId || null, color: null, order: now, createdAt: now, updatedAt: now };
+  T.map().set(id, { id, ...data }); // visible al instante
+  put(T.col, id, data);
+  if (parentId && T.id === 'notes') { S.expanded.add(parentId); localStorage.setItem('drfolio.expanded', JSON.stringify([...S.expanded])); }
+  renderSidebar(); renderList();
   return id;
 }
 
-function folderMenu(anchor, f, { here = false } = {}) {
-  const sibs = childFolders(f.parentId || null);
+function folderMenu(anchor, f, { here = false, T = TREES.notes } = {}) {
+  const sibs = childFolders(f.parentId || null, T.map());
   const i = sibs.findIndex((x) => x.id === f.id);
-  const inView = S.view.type === 'folder' && S.view.id === f.id;
+  const inView = S.view.type === T.folder && S.view.id === f.id;
   menu(anchor, [
-    here || inView ? null : { icon: '📂', label: 'Abrir', onClick: () => setView({ type: 'folder', id: f.id }) },
-    { icon: '＋', label: 'Nueva subcarpeta', onClick: () => newFolder(f.id) },
-    { icon: '✎', label: 'Nueva nota aquí', onClick: () => (inView ? newNote() : setView({ type: 'folder', id: f.id }).then(() => newNote())) },
+    here || inView ? null : { icon: '📂', label: 'Abrir', onClick: () => setView({ type: T.folder, id: f.id }) },
+    { icon: '＋', label: 'Nueva subcarpeta', onClick: () => newFolder(f.id, T) },
+    { icon: '✎', label: T.txt.newHere, onClick: () => (inView ? T.newItem() : setView({ type: T.folder, id: f.id }).then(() => T.newItem())) },
     '-',
     { icon: '✏️', label: 'Renombrar', onClick: async () => {
       const name = await prompt('Renombrar carpeta', f.name);
-      if (name) patch('folders', f.id, { name, updatedAt: Date.now() });
+      if (name) patch(T.col, f.id, { name, updatedAt: Date.now() });
     } },
     { icon: '🎨', label: 'Color', onClick: async () => {
       const c = await colorPicker('Color de la carpeta', ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', ''], 'label');
-      if (c !== undefined) patch('folders', f.id, { color: c || null });
+      if (c !== undefined) patch(T.col, f.id, { color: c || null });
     } },
-    { icon: '↗', label: 'Mover a…', onClick: () => moveFolder(f) },
-    i > 0 ? { icon: '⬆', label: 'Subir', onClick: () => shiftFolder(f, -1) } : null,
-    i >= 0 && i < sibs.length - 1 ? { icon: '⬇', label: 'Bajar', onClick: () => shiftFolder(f, 1) } : null,
+    { icon: '↗', label: 'Mover a…', onClick: () => moveFolder(f, T) },
+    i > 0 ? { icon: '⬆', label: 'Subir', onClick: () => shiftFolder(f, -1, T) } : null,
+    i >= 0 && i < sibs.length - 1 ? { icon: '⬇', label: 'Bajar', onClick: () => shiftFolder(f, 1, T) } : null,
     '-',
-    { icon: '🗑', label: 'Eliminar carpeta', danger: true, onClick: () => deleteFolder(f) }
+    { icon: '🗑', label: 'Eliminar carpeta', danger: true, onClick: () => deleteFolder(f, T) }
   ].filter(Boolean));
 }
 
-/** Menú ⋯ de la raíz «Notas» */
-function rootMenu(anchor) {
+/** Menú ⋯ de la raíz («Notas» o «Prerredactados») */
+function rootMenu(anchor, T = TREES.notes) {
+  const cur = T.sortValue();
   menu(anchor, [
-    { icon: '＋', label: 'Nueva carpeta', onClick: () => newFolder(null) },
-    { icon: '✎', label: 'Nueva nota', onClick: () => newNote() },
+    { icon: '＋', label: 'Nueva carpeta', onClick: () => newFolder(null, T) },
+    { icon: '✎', label: T.txt.newOne, onClick: () => T.newItem() },
     '-',
-    { icon: S.folderSort === 'manual' ? '●' : '○', label: 'Ordenar carpetas: manual', onClick: () => setFolderSort('manual') },
-    { icon: S.folderSort === 'name' ? '●' : '○', label: 'Ordenar carpetas: por nombre', onClick: () => setFolderSort('name') }
+    ...T.sortOptions.map(([value, label]) => ({ icon: cur === value ? '●' : '○', label: `Ordenar: ${label.toLowerCase()}`, onClick: () => setFolderSort(value, T) }))
   ]);
 }
 
@@ -651,17 +745,17 @@ function bindContext(node, open, { touch = true } = {}) {
 /** true si el clic llega justo al soltar tras mantener pulsado (hay que ignorarlo) */
 const longPressed = (node) => Date.now() - Number(node.dataset.lp || 0) < 900;
 
-// ---------- Arrastrar notas (y carpetas) a una carpeta (ordenador / tablet) ----------
+// ---------- Arrastrar notas / prerredactados (y carpetas) a una carpeta (ordenador / tablet) ----------
 const DRAG_TYPE = 'application/x-drfolio';
-let dragging = null; // { kind: 'note'|'folder', id }
+let dragging = null; // { tree: 'notes'|'snippets', kind: 'item'|'folder', id }
 const canDrag = () => matchMedia('(pointer: fine), (min-width: 640px)').matches;
-function makeDraggable(node, kind, id) {
+function makeDraggable(node, kind, id, T = TREES.notes) {
   if (!canDrag()) return;
   node.draggable = true;
   node.addEventListener('dragstart', (e) => {
-    dragging = { kind, id };
+    dragging = { tree: T.id, kind, id };
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData(DRAG_TYPE, `${kind}:${id}`); // tipo propio: el editor no lo pega como texto
+    e.dataTransfer.setData(DRAG_TYPE, `${T.id}:${kind}:${id}`); // tipo propio: el editor no lo pega como texto
     document.body.classList.add('dragging');
   });
   node.addEventListener('dragend', () => {
@@ -670,15 +764,15 @@ function makeDraggable(node, kind, id) {
     $$('.drop-over').forEach((x) => x.classList.remove('drop-over'));
   });
 }
-const canDropOn = (folderId) => {
-  if (!dragging) return false;
-  if (dragging.kind === 'note') return true;
-  return folderId !== dragging.id && !(folderId && descendantIds(dragging.id).has(folderId));
+const canDropOn = (folderId, T) => {
+  if (!dragging || dragging.tree !== T.id) return false; // no se mezclan los dos árboles
+  if (dragging.kind === 'item') return true;
+  return folderId !== dragging.id && !(folderId && descendantIds(dragging.id, T.map()).has(folderId));
 };
-/** Zona donde soltar: folderId = carpeta destino, null = «Notas» (sin carpeta / nivel principal) */
-function dropTarget(node, folderId) {
+/** Zona donde soltar: folderId = carpeta destino, null = raíz (sin carpeta / nivel principal) */
+function dropTarget(node, folderId, T = TREES.notes) {
   node.addEventListener('dragover', (e) => {
-    if (!canDropOn(folderId)) return;
+    if (!canDropOn(folderId, T)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     node.classList.add('drop-over');
@@ -686,12 +780,12 @@ function dropTarget(node, folderId) {
   node.addEventListener('dragleave', (e) => { if (!node.contains(e.relatedTarget)) node.classList.remove('drop-over'); });
   node.addEventListener('drop', (e) => {
     node.classList.remove('drop-over');
-    if (!canDropOn(folderId)) return;
+    if (!canDropOn(folderId, T)) return;
     e.preventDefault(); e.stopPropagation();
     const { kind, id } = dragging;
     dragging = null;
-    if (kind === 'note') moveNoteTo(id, folderId);
-    else moveFolderTo(id, folderId);
+    if (kind === 'item') T.moveItem(id, folderId);
+    else moveFolderTo(id, folderId, T);
   });
 }
 function moveNoteTo(id, folderId) {
@@ -703,42 +797,45 @@ function moveNoteTo(id, folderId) {
   renderList(); renderSidebar();
   if (S.noteId === id) renderNoteChrome();
 }
-function moveFolderTo(id, parentId) {
-  const f = store.folders.get(id);
+function moveFolderTo(id, parentId, T = TREES.notes) {
+  const f = T.map().get(id);
   if (!f || (f.parentId || null) === (parentId || null)) return;
   f.parentId = parentId || null;
   const order = Date.now();
   f.order = order;
-  patch('folders', id, { parentId: parentId || null, order, updatedAt: Date.now() });
-  toast(`Carpeta movida a ${parentId ? `«${store.folders.get(parentId)?.name || 'carpeta'}»` : 'el nivel principal'}`, 'ok');
+  patch(T.col, id, { parentId: parentId || null, order, updatedAt: Date.now() });
+  toast(`Carpeta movida a ${parentId ? `«${T.map().get(parentId)?.name || 'carpeta'}»` : 'el nivel principal'}`, 'ok');
   renderList(); renderSidebar();
 }
 
-
-async function moveFolder(f) {
-  const banned = descendantIds(f.id);
+async function moveFolder(f, T = TREES.notes) {
+  const banned = descendantIds(f.id, T.map());
   const items = [{ id: '__root', label: '— Nivel principal —' },
-    ...flatFolders().filter((x) => !banned.has(x.id)).map((x) => ({ id: x.id, label: x.name, depth: x.depth }))];
+    ...flatFolders(null, T.map()).filter((x) => !banned.has(x.id)).map((x) => ({ id: x.id, label: x.name, depth: x.depth }))];
   const target = await picker(`Mover «${f.name}» a…`, items);
   if (!target) return;
-  patch('folders', f.id, { parentId: target === '__root' ? null : target, order: Date.now(), updatedAt: Date.now() });
+  moveFolderTo(f.id, target === '__root' ? null : target, T);
 }
 
-async function deleteFolder(f) {
-  const parent = f.parentId ? store.folders.get(f.parentId) : null;
-  const notes = [...store.notes.values()].filter((n) => n.folderId === f.id);
-  const kids = childFolders(f.id);
-  const dest = parent ? `«${parent.name}»` : 'sin carpeta';
+/** Eliminar carpeta: no se borra nada, su contenido (subcarpetas y elementos) sube a la carpeta superior */
+async function deleteFolder(f, T = TREES.notes) {
+  const parent = f.parentId ? T.map().get(f.parentId) : null;
+  const items = [...store[T.itemCol].values()].filter((n) => n.folderId === f.id);
+  const kids = childFolders(f.id, T.map());
+  const dest = parent ? `«${parent.name}»` : T.txt.rootDest;
   const ok = await confirm('Eliminar carpeta',
-    notes.length || kids.length
-      ? `«${f.name}» tiene ${notes.length} nota(s) y ${kids.length} subcarpeta(s). No se borra nada: pasarán a ${dest}.`
+    items.length || kids.length
+      ? `«${f.name}» tiene ${plural(items.length, T.one, T.many)} y ${plural(kids.length, 'subcarpeta', 'subcarpetas')}. No se borra nada: pasarán a ${dest}.`
       : `¿Eliminar la carpeta «${f.name}»?`,
     { okLabel: 'Eliminar carpeta', danger: true });
   if (!ok) return;
-  for (const k of kids) patch('folders', k.id, { parentId: f.parentId || null });
-  for (const n of notes) patch('notes', n.id, { folderId: f.parentId || null });
-  remove('folders', f.id);
-  if (S.view.type === 'folder' && S.view.id === f.id) setView(f.parentId ? { type: 'folder', id: f.parentId } : { type: 'notes', id: null });
+  const up = f.parentId || null;
+  for (const k of kids) { k.parentId = up; patch(T.col, k.id, { parentId: up }); }
+  for (const n of items) { n.folderId = up; patch(T.itemCol, n.id, { folderId: up }); }
+  T.map().delete(f.id);
+  remove(T.col, f.id);
+  if (S.view.type === T.folder && S.view.id === f.id) setView(up ? { type: T.folder, id: up } : { type: T.root, id: null });
+  else { renderList(); renderSidebar(); }
 }
 
 // ---------- Etiquetas ----------
@@ -839,7 +936,12 @@ function viewTitle() {
   if (v.type === 'pinned') return 'Fijadas';
   if (v.type === 'trash') return 'Papelera';
   if (v.type === 'snippets') return 'Prerredactados';
+  if (v.type === 'sall') return 'Todos los prerredactados';
+  if (v.type === 'sfav') return '⭐ Favoritos';
+  if (v.type === 'sused') return 'Más usados';
+  if (v.type === 'srecent') return 'Recientes';
   if (v.type === 'folder') return store.folders.get(v.id)?.name || 'Carpeta';
+  if (v.type === 'sfolder') return store.snippetFolders.get(v.id)?.name || 'Carpeta';
   if (v.type === 'tag') return `#${store.tags.get(v.id)?.name || 'etiqueta'}`;
   return 'Todas las notas';
 }
@@ -857,34 +959,43 @@ function snippetNode(n, search = S.search) {
   return frag;
 }
 
+/** El selector «Ordenar» cambia de opciones según el árbol (notas: fecha/título · prerredactados: manual/nombre/uso/recientes) */
+function syncSortSelect(T) {
+  const sel = $('#sort');
+  const kind = T?.id === 'snippets' ? 'snippets' : 'notes';
+  if (sel.dataset.kind !== kind) {
+    const opts = kind === 'snippets' ? SNIP_SORTS : [['updated', 'Modificadas'], ['created', 'Creadas'], ['title', 'Título']];
+    sel.replaceChildren(...opts.map(([value, label]) => el('option', { value }, label)));
+    sel.dataset.kind = kind;
+  }
+  sel.value = kind === 'snippets' ? snipSort() : S.sort;
+}
+
 function renderList() {
   if (S.view.type === 'home') return;
   const v = S.view;
-  const explorer = isExplorer(v.type);
+  const T = treeOf(v.type);
+  const snip = T?.id === 'snippets';
   $('#list-title').textContent = viewTitle();
   const box = $('#note-list');
-  $('#btn-new-note').title = v.type === 'snippets' ? 'Nuevo prerredactado' : 'Nueva nota';
-  $('#btn-layout').classList.toggle('hidden', !explorer || v.type === 'trash');
+  $('#btn-new-note').title = snip ? 'Nuevo prerredactado' : 'Nueva nota';
+  $('#btn-layout').classList.toggle('hidden', !T || v.type === 'trash');
   $('#btn-layout').textContent = S.layout === 'grid' ? '☷' : '⊞';
   $('#btn-layout').title = S.layout === 'grid' ? 'Ver como lista' : 'Ver como cuadrícula';
-  $('#btn-list-more').classList.toggle('hidden', !(v.type === 'notes' || v.type === 'folder'));
-  $('#sort').classList.toggle('hidden', v.type === 'recent');
-  $('#search').placeholder = v.type === 'folder' ? `Buscar en «${store.folders.get(v.id)?.name || 'carpeta'}»…`
-    : v.type === 'notes' ? 'Buscar en todas las notas…  (Ctrl+K)' : 'Buscar…  (Ctrl+K)';
+  $('#btn-list-more').classList.toggle('hidden', !T || !(v.type === T.root || v.type === T.folder));
+  syncSortSelect(T);
+  $('#sort').classList.toggle('hidden', ['recent', 'sused', 'srecent'].includes(v.type));
+  $('#search').placeholder = T && v.type === T.folder ? `Buscar en «${T.map().get(v.id)?.name || 'carpeta'}»…`
+    : T && v.type === T.root ? `${T.txt.searchAll}  (Ctrl+K)` : 'Buscar…  (Ctrl+K)';
   renderCrumbs();
-  if (v.type === 'snippets') {
-    $('#list-trash-bar').classList.add('hidden');
-    renderSnippetList(box, { search: S.search, sort: S.sort });
-    return;
-  }
-  $('#snip-cats').classList.add('hidden');
+  if (snip) { $('#list-trash-bar').classList.add('hidden'); renderSnippetView(box, T); return; }
   $('#list-trash-bar').classList.toggle('hidden', v.type !== 'trash' || !notesForView().length);
   if (!store.loaded.notes) { box.replaceChildren(el('div', { class: 'list-empty' }, 'Cargando notas…')); return; }
   if (v.type === 'folder' && !store.folders.has(v.id)) {
     box.replaceChildren(el('div', { class: 'list-empty' }, store.loaded.folders ? 'Esta carpeta ya no existe.' : 'Cargando carpetas…'));
     return;
   }
-  if (v.type === 'notes' || v.type === 'folder') { renderExplorer(box); return; }
+  if (v.type === 'notes' || v.type === 'folder') { renderExplorer(box, TREES.notes); return; }
   const notes = notesForView();
   if (!notes.length) {
     box.replaceChildren(el('div', { class: 'list-empty' },
@@ -895,22 +1006,44 @@ function renderList() {
   box.replaceChildren(el('div', { class: `fx ${S.layout === 'grid' ? 'grid' : ''}` }, notesBlock(notes)));
 }
 
-/** Ruta de navegación: Notas › Urgencias › Cardio (cada tramo vuelve a ese nivel; también se puede soltar ahí una nota) */
+/** Prerredactados: explorador de carpetas o una de las vistas fijas (Todos, Favoritos, Más usados, Recientes) */
+function renderSnippetView(box, T) {
+  const v = S.view;
+  if (!store.loaded.snippets) { box.replaceChildren(el('div', { class: 'list-empty' }, 'Cargando prerredactados…')); return; }
+  if (v.type === T.folder && !T.map().has(v.id)) {
+    box.replaceChildren(el('div', { class: 'list-empty' }, store.loaded.snippetFolders ? 'Esta carpeta ya no existe.' : 'Cargando carpetas…'));
+    return;
+  }
+  if (v.type === T.root || v.type === T.folder) { renderExplorer(box, T); return; }
+  let list = snippetsForView(v.type);
+  const q = norm(S.search.trim());
+  if (q) list = list.filter((s) => snippetMatches(s, q.split(/\s+/)));
+  if (!list.length) {
+    box.replaceChildren(el('div', { class: 'list-empty' }, q ? 'No hay prerredactados que coincidan.'
+      : v.type === 'sfav' ? 'Aún no tienes favoritos. Toca ☆ en un prerredactado para añadirlo.'
+        : v.type === 'sused' ? 'Todavía no has copiado ni insertado ningún prerredactado.' : 'Aún no hay prerredactados.'));
+    return;
+  }
+  box.replaceChildren(el('div', { class: `fx ${S.layout === 'grid' ? 'grid' : ''}` }, snippetsBlock(list, { showPath: true })));
+}
+
+/** Ruta de navegación: Notas › Urgencias › Cardio (cada tramo vuelve a ese nivel; también se puede soltar ahí) */
 function renderCrumbs() {
   const v = S.view;
+  const T = treeOf(v.type);
   const bar = $('#crumbs');
-  if (!isExplorer(v.type) || v.type === 'notes') { bar.classList.add('hidden'); bar.replaceChildren(); return; }
-  const segs = [{ label: 'Notas', view: { type: 'notes', id: null }, drop: null }];
-  if (v.type === 'folder') {
-    for (const f of folderPath(v.id)) segs.push({ label: f.name, view: { type: 'folder', id: f.id }, drop: f.id });
+  if (!T || v.type === T.root) { bar.classList.add('hidden'); bar.replaceChildren(); return; }
+  const segs = [{ label: T.rootName, view: { type: T.root, id: null }, drop: null }];
+  if (v.type === T.folder) {
+    for (const f of folderPath(v.id, T.map())) segs.push({ label: f.name, view: { type: T.folder, id: f.id }, drop: f.id });
   } else segs.push({ label: viewTitle() });
   const nodes = [];
   segs.forEach((sg, i) => {
     if (i) nodes.push(el('span', { class: 'sep', 'aria-hidden': 'true' }, '›'));
     const last = i === segs.length - 1;
     if (last) { nodes.push(el('span', { class: 'cur', 'aria-current': 'page' }, sg.label)); return; }
-    const b = el('button', { type: 'button', onclick: () => setView(sg.view) }, i === 0 ? '🗂 Notas' : sg.label);
-    if ('drop' in sg) dropTarget(b, sg.drop);
+    const b = el('button', { type: 'button', onclick: () => setView(sg.view) }, i === 0 ? `${T.rootIcon} ${T.rootName}` : sg.label);
+    if ('drop' in sg) dropTarget(b, sg.drop, T);
     nodes.push(b);
   });
   bar.replaceChildren(...nodes);
@@ -930,101 +1063,112 @@ function sortNotes(list) {
   return list.sort((a, b) => (!!b.pinned - !!a.pinned) || cmp(a, b));
 }
 
-/** Explorador: raíz «Notas» o una carpeta (subcarpetas primero, luego sus notas) */
-function renderExplorer(box) {
+/** Explorador (Notas o Prerredactados): raíz o una carpeta (subcarpetas primero, luego sus elementos) */
+function renderExplorer(box, T) {
   const v = S.view;
-  const folderId = v.type === 'folder' ? v.id : null;
-  const totals = folderTotals();
+  const folderId = v.type === T.folder ? v.id : null;
+  const totals = folderTotals(T);
   const wrap = el('div', { class: `fx ${S.layout === 'grid' ? 'grid' : ''}` });
   const q = norm(S.search.trim());
 
-  if (q) { renderExplorerSearch(wrap, folderId, q.split(/\s+/), totals); box.replaceChildren(wrap); return; }
+  if (q) { renderExplorerSearch(wrap, folderId, q.split(/\s+/), totals, T); box.replaceChildren(wrap); return; }
 
   if (!folderId) {
-    const live = liveNotes();
-    const tile = (ico, label, count, type) => el('button', { class: 'fx-tile', type: 'button', onclick: () => setView({ type, id: null }) },
-      el('span', { class: 'fx-tile-ico' }, ico), el('span', { class: 'fx-tile-lbl' }, label),
-      count != null ? el('span', { class: 'fx-tile-n' }, count) : null);
-    wrap.append(el('div', { class: 'fx-short' },
-      tile('🗂', 'Todas las notas', live.length, 'all'),
-      tile('📌', 'Fijadas', live.filter((n) => n.pinned).length, 'pinned'),
-      tile('🕘', 'Recientes', null, 'recent')));
+    const tiles = T.shortcuts();
+    wrap.append(el('div', { class: `fx-short n${tiles.length}` }, tiles.map(([ico, label, count, type]) =>
+      el('button', { class: 'fx-tile', type: 'button', onclick: () => setView({ type, id: null }) },
+        el('span', { class: 'fx-tile-ico' }, ico), el('span', { class: 'fx-tile-lbl' }, label),
+        count != null ? el('span', { class: 'fx-tile-n' }, count) : null))));
   }
 
   wrap.append(el('div', { class: 'fx-actions' },
-    el('button', { class: 'btn primary', type: 'button', onclick: () => newNote() }, '＋ Nota'),
-    el('button', { class: 'btn', type: 'button', onclick: () => newFolder(folderId) }, folderId ? '＋ Subcarpeta' : '＋ Carpeta')));
+    el('button', { class: 'btn primary', type: 'button', onclick: () => T.newItem() }, T.txt.newBtn),
+    el('button', { class: 'btn', type: 'button', onclick: () => newFolder(folderId, T) }, folderId ? '＋ Subcarpeta' : '＋ Carpeta')));
 
-  const folders = sortedChildren(folderId);
-  const notes = sortNotes(liveNotes().filter((n) => (n.folderId || null) === folderId));
+  const folders = sortedChildren(folderId, T);
+  const items = T.sortItems(T.items().filter((n) => (n.folderId || null) === folderId));
 
   if (folders.length) {
-    const sortSel = el('select', { 'aria-label': 'Ordenar carpetas', onchange: (e) => setFolderSort(e.target.value) },
-      el('option', { value: 'manual' }, 'Orden manual'), el('option', { value: 'name' }, 'Por nombre'));
-    sortSel.value = S.folderSort;
+    let sortSel = null;
+    if (T.folderSelect) {
+      sortSel = el('select', { 'aria-label': 'Ordenar carpetas', onchange: (e) => setFolderSort(e.target.value, T) },
+        T.sortOptions.map(([value, label]) => el('option', { value }, label)));
+      sortSel.value = T.sortValue();
+    }
     wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `${folderId ? 'Subcarpetas' : 'Carpetas'} · ${folders.length}`), sortSel),
-      el('div', { class: 'fx-folders' }, folders.map((f) => folderItem(f, totals))));
+      el('div', { class: 'fx-folders' }, folders.map((f) => folderItem(f, totals, {}, T))));
   } else if (!folderId) {
-    wrap.append(el('div', { class: 'fx-hint' }, 'Aún no tienes carpetas. Crea la primera con «＋ Carpeta» (p. ej. Urgencias).'));
+    wrap.append(el('div', { class: 'fx-hint' }, T.txt.noFolders));
   }
 
-  if (notes.length) {
-    wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `${folderId ? 'Notas' : 'Notas sin carpeta'} · ${notes.length}`)), notesBlock(notes));
+  if (items.length) {
+    wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `${folderId ? T.txt.itemsHere : T.txt.loose} · ${items.length}`)), T.block(items));
   } else if (folderId) {
-    wrap.append(el('div', { class: 'fx-hint' }, folders.length ? 'No hay notas sueltas en esta carpeta (mira en sus subcarpetas).' : 'Carpeta vacía. Crea una nota o una subcarpeta.'));
+    wrap.append(el('div', { class: 'fx-hint' }, folders.length ? T.txt.onlySubs : T.txt.emptyFolder));
   }
   box.replaceChildren(wrap);
 }
 
-/** Buscar en la carpeta actual (y sus subcarpetas) o en todas */
-function renderExplorerSearch(wrap, folderId, words, totals) {
+/** Buscar en la carpeta actual (y sus subcarpetas) o en todo el árbol */
+function renderExplorerSearch(wrap, folderId, words, totals, T) {
   const scoped = folderId && !S.searchAll;
-  const ids = scoped ? descendantIds(folderId) : null;
+  const m = T.map();
+  const ids = scoped ? descendantIds(folderId, m) : null;
   if (folderId) {
-    const name = store.folders.get(folderId)?.name || 'carpeta';
+    const name = m.get(folderId)?.name || 'carpeta';
     wrap.append(el('div', { class: 'fx-scope' },
-      el('span', {}, scoped ? `Buscando en «${name}» y sus subcarpetas` : 'Buscando en todas las notas'),
+      el('span', {}, scoped ? `Buscando en «${name}» y sus subcarpetas` : T.txt.searchingAll),
       el('button', { class: 'btn sm', type: 'button', onclick: () => { S.searchAll = !S.searchAll; renderList(); } },
-        scoped ? 'Buscar en todas' : `Solo en «${name}»`)));
+        scoped ? T.txt.searchAllBtn : `Solo en «${name}»`)));
   }
-  const folders = flatFolders().filter((f) => f.id !== folderId && (!ids || ids.has(f.id)) && matchesWords(f.name, words))
-    .map((f) => store.folders.get(f.id)).filter(Boolean);
-  const notes = sortNotes(liveNotes().filter((n) => (!ids || ids.has(n.folderId)) && words.every((w) => searchable(n).includes(w))));
+  const folders = flatFolders(null, m).filter((f) => f.id !== folderId && (!ids || ids.has(f.id)) && matchesWords(f.name, words))
+    .map((f) => m.get(f.id)).filter(Boolean);
+  const items = T.sortItems(T.items().filter((n) => (!ids || ids.has(n.folderId)) && T.matches(n, words)));
   if (folders.length) wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `Carpetas · ${folders.length}`)),
-    el('div', { class: 'fx-folders' }, folders.slice(0, 30).map((f) => folderItem(f, totals, { showPath: true }))));
-  wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `Notas · ${notes.length}`)));
-  if (notes.length) wrap.append(notesBlock(notes.slice(0, 200)));
-  else wrap.append(el('div', { class: 'fx-hint' }, 'No hay notas que coincidan.'));
+    el('div', { class: 'fx-folders' }, folders.slice(0, 30).map((f) => folderItem(f, totals, { showPath: true }, T))));
+  wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `${T.txt.Many} · ${items.length}`)));
+  if (items.length) wrap.append(T.block(items.slice(0, 200), { showPath: true }));
+  else wrap.append(el('div', { class: 'fx-hint' }, T.txt.noMatch));
 }
 
 function notesBlock(notes) {
   return el('div', { class: 'fx-notes' }, notes.map((n) => noteCard(n)));
 }
 
-/** Tarjeta / fila de carpeta: tocar = abrir; mantener pulsado, clic derecho o ⋯ = opciones; soltar nota = mover */
-function folderItem(f, totals, { showPath = false } = {}) {
-  const subs = childFolders(f.id).length;
+function snippetsBlock(list, { showPath = false } = {}) {
+  return el('div', { class: 'fx-notes' }, list.map((s) => {
+    const card = snippetCard(s, { search: S.search, showPath, onLongPress: longPressed });
+    // Como las notas: en el móvil se mantiene pulsado para el menú; en ordenador/tablet se arrastra (y clic derecho = menú)
+    bindContext(card, (a) => snippetItemMenu(a, s), { touch: !canDrag() });
+    makeDraggable(card, 'item', s.id, TREES.snippets);
+    return card;
+  }));
+}
+
+/** Tarjeta / fila de carpeta: tocar = abrir; mantener pulsado, clic derecho o ⋯ = opciones; soltar = mover */
+function folderItem(f, totals, { showPath = false } = {}, T = TREES.notes) {
+  const subs = childFolders(f.id, T.map()).length;
   const n = totals.get(f.id) || 0;
-  const open = (e) => { if (!longPressed(item) && !e.target.closest('.fx-more')) setView({ type: 'folder', id: f.id }); };
-  const parent = showPath && f.parentId ? folderPath(f.parentId).map((x) => x.name).join(' › ') : '';
+  const open = (e) => { if (!longPressed(item) && !e.target.closest('.fx-more')) setView({ type: T.folder, id: f.id }); };
+  const parent = showPath && f.parentId ? folderPath(f.parentId, T.map()).map((x) => x.name).join(' › ') : '';
   const item = el('div', {
     class: 'fx-folder', role: 'button', tabindex: '0', style: f.color ? { '--fc': f.color } : {},
-    'aria-label': `Carpeta ${f.name}, ${plural(n, 'nota', 'notas')}`,
+    'aria-label': `Carpeta ${f.name}, ${plural(n, T.one, T.many)}`,
     onclick: open,
-    onkeydown: (e) => { if (e.key === 'Enter') setView({ type: 'folder', id: f.id }); }
+    onkeydown: (e) => { if (e.key === 'Enter') setView({ type: T.folder, id: f.id }); }
   },
     el('span', { class: 'fx-ico', 'aria-hidden': 'true' }),
     el('span', { class: 'fx-txt' },
       el('span', { class: 'fx-name' }, f.name),
-      el('span', { class: 'fx-meta' }, plural(n, 'nota', 'notas'), subs ? ` · ${plural(subs, 'subcarpeta', 'subcarpetas')}` : ''),
+      el('span', { class: 'fx-meta' }, plural(n, T.one, T.many), subs ? ` · ${plural(subs, 'subcarpeta', 'subcarpetas')}` : ''),
       parent ? el('span', { class: 'fx-meta' }, `en ${parent}`) : null),
     el('button', {
       class: 'fx-more', type: 'button', title: 'Opciones', 'aria-label': `Opciones de ${f.name}`,
-      onclick: (e) => { e.stopPropagation(); folderMenu(e.currentTarget, f); }
+      onclick: (e) => { e.stopPropagation(); folderMenu(e.currentTarget, f, { T }); }
     }, '⋯'));
-  bindContext(item, (a) => folderMenu(a, f));
-  dropTarget(item, f.id);
-  makeDraggable(item, 'folder', f.id);
+  bindContext(item, (a) => folderMenu(a, f, { T }));
+  dropTarget(item, f.id, T);
+  makeDraggable(item, 'folder', f.id, T);
   return item;
 }
 
@@ -1062,7 +1206,7 @@ function noteCard(n, { search = S.search, sort = S.sort } = {}) {
         (n.refs || []).length ? el('span', {}, `· 📚 ${n.refs.length}`) : null));
   // En el móvil se mantiene pulsado para el menú; en ordenador/tablet se arrastra a una carpeta (y clic derecho = menú)
   bindContext(card, (a) => noteListMenu(a, n), { touch: !canDrag() });
-  if (!n.trashed) makeDraggable(card, 'note', n.id);
+  if (!n.trashed) makeDraggable(card, 'item', n.id);
   return card;
 }
 
@@ -1147,7 +1291,7 @@ function openNote(id, { push = false, focusTitle = false, fromHash = false } = {
     return;
   }
   if (S.noteId !== id) saveSoon.flush();
-  if (S.view.type === 'snippets') { closeSnippet({ fromHash: true }); S.view = { type: 'all', id: null }; renderSidebar(); }
+  if (isSnipView()) { closeSnippet({ fromHash: true }); S.view = { type: 'all', id: null }; renderSidebar(); }
   if (S.view.type === 'home') { S.view = { type: 'all', id: null }; renderSection(); renderSidebar(); }
   S.noteId = id;
   S.dirty = false;
@@ -1181,7 +1325,7 @@ function showPane(which) {
   $('#editor-empty').classList.toggle('hidden', which !== 'empty');
   if (which !== 'note') editor?.hideFloating();
   if (which !== 'empty') $('#app').dataset.view = 'editor';
-  const snip = S.view.type === 'snippets';
+  const snip = isSnipView();
   $('#btn-new-note-empty').textContent = snip ? '＋ Nuevo prerredactado' : '＋ Nueva nota';
   $('#editor-empty-msg').textContent = snip ? 'Selecciona un prerredactado o crea uno nuevo.' : 'Selecciona una nota o crea una nueva.';
 }
@@ -1580,7 +1724,7 @@ async function exportBackup(withFiles) {
     app: 'Dr.Folio', version: APP_VERSION, exportedAt: new Date().toISOString(),
     folders: [...store.folders.values()], tags: [...store.tags.values()],
     notes: [...store.notes.values()], files: [...store.files.values()],
-    snippets: [...store.snippets.values()]
+    snippets: [...store.snippets.values()], snippetFolders: [...store.snippetFolders.values()]
   };
   if (withFiles) {
     toast(`Preparando ${store.files.size} archivos…`, '', 4000);

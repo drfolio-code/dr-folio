@@ -7,7 +7,8 @@
 //                   refs:[{id, cite, url, fileId, fileName, fileSize}], createdAt, updatedAt }
 //   files/{id}    { noteId, name, mime, size, kind:'image'|'file', chunks, createdAt }
 //   files/{id}/chunks/{000..}  { d: base64 }
-//   snippets/{id} { title, body, category, uses, lastUsedAt, createdAt, updatedAt }  (prerredactados)
+//   snippets/{id} { title, body, category (antiguo), folderId|null, favorite, order, uses, lastUsedAt, createdAt, updatedAt }
+//   snippetFolders/{id} { name, parentId|null, color, order, createdAt, updatedAt }  (árbol propio de los prerredactados)
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from '../vendor/libs.js';
 import { db } from './db.js';
 
@@ -18,12 +19,13 @@ export const store = {
   notes: new Map(),
   files: new Map(),
   snippets: new Map(),
+  snippetFolders: new Map(),
   pending: {},     // escrituras pendientes de subir por colección
   loaded: {},      // primera carga completada por colección
   fromCache: {}
 };
 
-const COLS = ['folders', 'tags', 'notes', 'files', 'snippets'];
+const COLS = ['folders', 'tags', 'notes', 'files', 'snippets', 'snippetFolders'];
 let unsubs = [];
 
 export const col = (name) => collection(db, 'users', store.uid, name);
@@ -71,30 +73,31 @@ export const patch = (name, id, data) => guard(updateDoc(ref(name, id), data));
 export const remove = (name, id) => guard(deleteDoc(ref(name, id)));
 
 // ---------- Ayudas sobre carpetas ----------
-export function childFolders(parentId) {
-  return [...store.folders.values()]
+// Sirven para los dos árboles: `m` = store.folders (Notas, por defecto) o store.snippetFolders (Prerredactados)
+export function childFolders(parentId, m = store.folders) {
+  return [...m.values()]
     .filter((f) => (f.parentId || null) === (parentId || null))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name, 'es'));
 }
 
-export function folderPath(id) {
+export function folderPath(id, m = store.folders) {
   const path = [];
-  let f = store.folders.get(id);
+  let f = m.get(id);
   const seen = new Set();
   while (f && !seen.has(f.id)) {
     seen.add(f.id);
     path.unshift(f);
-    f = f.parentId ? store.folders.get(f.parentId) : null;
+    f = f.parentId ? m.get(f.parentId) : null;
   }
   return path;
 }
 
-export function descendantIds(id) {
+export function descendantIds(id, m = store.folders) {
   const out = new Set([id]);
   let grew = true;
   while (grew) {
     grew = false;
-    for (const f of store.folders.values()) {
+    for (const f of m.values()) {
       if (f.parentId && out.has(f.parentId) && !out.has(f.id)) { out.add(f.id); grew = true; }
     }
   }
@@ -102,10 +105,10 @@ export function descendantIds(id) {
 }
 
 /** Lista plana del árbol para selectores */
-export function flatFolders(parentId = null, depth = 0, out = []) {
-  for (const f of childFolders(parentId)) {
+export function flatFolders(parentId = null, m = store.folders, depth = 0, out = []) {
+  for (const f of childFolders(parentId, m)) {
     out.push({ ...f, depth });
-    flatFolders(f.id, depth + 1, out);
+    flatFolders(f.id, m, depth + 1, out);
   }
   return out;
 }
@@ -126,6 +129,7 @@ export function usageBytes() {
   for (const n of store.notes.values()) b += (n.html?.length || 0) + (n.text?.length || 0) + 500;
   for (const f of store.folders.values()) b += 200 + (f.name?.length || 0);
   for (const t of store.tags.values()) b += 150 + (t.name?.length || 0);
+  for (const f of store.snippetFolders.values()) b += 200 + (f.name?.length || 0);
   for (const s of store.snippets.values()) b += 300 + (s.body?.length || 0) + (s.title?.length || 0);
   return b;
 }

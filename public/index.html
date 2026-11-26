@@ -118,14 +118,12 @@
           <option value="updated">Modificadas</option>
           <option value="created">Creadas</option>
           <option value="title">Título</option>
-          <option value="uses">Más usados</option>
         </select>
       </div>
       <div id="list-trash-bar" class="trash-bar hidden">
         <span>Las notas de la papelera no aparecen en búsquedas.</span>
         <button class="btn sm danger" id="btn-empty-trash">Vaciar papelera</button>
       </div>
-      <div id="snip-cats" class="snip-cats hidden"></div>
       <div id="note-list" class="note-list"></div>
     </section>
 
@@ -145,6 +143,7 @@
           <span class="crumb">📋 Prerredactado</span>
           <span class="spacer"></span>
           <span id="snip-status" class="save-status"></span>
+          <button class="icon-btn snip-star" id="snip-fav" title="Añadir a favoritos" aria-label="Favorito">☆</button>
           <button class="btn sm primary" id="snip-copy">⧉ Copiar</button>
           <button class="icon-btn" id="snip-menu" title="Más opciones" aria-label="Más opciones">⋯</button>
         </div>
@@ -152,8 +151,7 @@
           <div class="ed-inner">
             <input id="snip-title" class="ed-title" placeholder="Título (p. ej. Exploración neurológica normal)" autocomplete="off" maxlength="200">
             <div class="snip-meta">
-              <input id="snip-cat" list="snip-cat-suggest" placeholder="Categoría (p. ej. Exploración)" autocomplete="off" maxlength="60">
-              <datalist id="snip-cat-suggest"></datalist>
+              <button class="folder-pill" id="snip-folder" type="button" title="Mover a otra carpeta">📁 Sin carpeta</button>
             </div>
             <textarea id="snip-body" class="snip-body" placeholder="Escribe aquí el texto que quieras copiar.&#10;&#10;Campos a rellenar: {edad}, {lado:derecho|izquierdo}" spellcheck="true"></textarea>
             <p class="muted small">Consejo: escribe <code>{campo}</code> para un hueco a rellenar al copiar, o <code>{campo:opción1|opción2}</code> para elegir entre opciones.</p>

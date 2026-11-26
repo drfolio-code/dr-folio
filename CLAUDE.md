@@ -21,8 +21,8 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/js/modules.js` | Lista de módulos de la pantalla de Inicio (`id, name, icon, desc, route, status: 'active'\|'soon'`). Añadir un módulo = una línea aquí |
 | `public/js/viewport.js` | Alto real visible (`--app-h`/`--app-top` con visualViewport) para que el teclado del móvil no tape el editor |
 | `public/js/editor.js` | Editor `contenteditable`: barra de formato, pegado limpio (DOMPurify), tablas, listas de tareas, enlaces entre notas, índice |
-| `public/js/snippets.js` | Prerredactados: lista, editor de texto plano, campos `{campo}` / `{campo:a\|b}`, copiar e insertar en notas |
-| `public/js/store.js` | Datos en memoria sincronizados con Firestore (`onSnapshot`) + ayudas de carpetas |
+| `public/js/snippets.js` | Prerredactados: tarjetas, favoritos, orden, mover, editor de texto plano, campos `{campo}` / `{campo:a\|b}`, copiar, selector para insertar en notas (carpetas, favoritos, más usados, buscar) y migración categoría → carpeta |
+| `public/js/store.js` | Datos en memoria sincronizados con Firestore (`onSnapshot`) + ayudas de carpetas (`childFolders`, `folderPath`, `descendantIds`, `flatFolders`: último parámetro = mapa del árbol, por defecto `store.folders`) |
 | `public/js/files.js` | Imágenes/PDF guardados **en Firestore en trozos base64** (no hay Storage en Spark) |
 | `public/js/db.js` | Inicialización Firebase, login, modo dispositivo, logout |
 | `public/js/ui.js` | Modales, menús, selectores, toasts propios (no usar alert/prompt: fallan en PWA iOS). `modal({cls})` añade clase al modal y `has-CLS` al fondo |
@@ -32,12 +32,15 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/sw.js` | Service worker (app offline, red primero). PDF.js va en una caché aparte `PDFJS_CACHE` (caché primero): **si se actualiza pdfjs-dist, cambiar `PDFJS_CACHE`** |
 
 ## Rutas y navegación
-- `#/inicio` (por defecto tras el login), `#/notas[/n/NOTA]` (explorador raíz), `#/all|pinned|recent|trash[/n/NOTA]`, `#/folder/ID[/n/NOTA]`, `#/tag/ID[/n/NOTA]`, `#/snippets[/s/ID]`, `#nota/ID`.
+- `#/inicio` (por defecto tras el login), `#/notas[/n/NOTA]` (explorador raíz), `#/all|pinned|recent|trash[/n/NOTA]`, `#/folder/ID[/n/NOTA]`, `#/tag/ID[/n/NOTA]`, `#nota/ID`.
+- Prerredactados: `#/snippets[/s/ID]` (raíz), `#/sfolder/ID[/s/ID]`, `#/sall|sfav|sused|srecent[/s/ID]` (Todos, Favoritos, Más usados, Recientes).
 - `history.state`: `d` = nº de entradas por encima de Inicio (el botón 🏠 hace `history.go(-d)`); `lv` = nivel en el explorador (0 = Notas, 1 = carpeta principal…); `nt` = 1 si la entrada es una nota/prerredactado abierto.
 - Al entrar en una carpeta, `goView()` apila también sus carpetas padre (`chainFor`), así «atrás» (Android) sube un nivel: nota → Cardio → Urgencias → Notas → Inicio. Tocar un tramo de la ruta retrocede con `backTo(nivel)`.
 - Al arrancar, `initHistory()` deja `#/inicio` y la cadena de carpetas debajo de la ruta abierta.
 
-## Explorador de Notas (`renderExplorer` en app.js)
+## Explorador de carpetas (`renderExplorer(box, T)` en app.js)
+- Un solo explorador para los dos árboles: `TREES.notes` y `TREES.snippets` describen colección de carpetas, elementos, tarjeta, búsqueda, orden, accesos y textos. `treeOf(tipoDeVista)` da el árbol; `isSnipView()`. Todas las funciones de carpeta (`folderMenu`, `newFolder`, `moveFolder`, `deleteFolder`, `shiftFolder`, `dropTarget`, `makeDraggable`, `folderItem`, `renderCrumbs`) reciben el árbol `T` (por defecto Notas). Al arrastrar no se mezclan los árboles.
+- Prerredactados: orden único `drfolio.snipSort` = `manual|name|uses|recent` (selector «Ordenar»; las carpetas usan `order` en manual y nombre en el resto). Manual de prerredactados = campo `order` (Subir/Bajar en su menú).
 - Inicio → «Notas» abre `#/notas`: accesos Todas/Fijadas/Recientes, botones ＋ Nota / ＋ Carpeta, carpetas principales (color, nº de notas con subcarpetas, nº de subcarpetas) y notas sin carpeta.
 - En una carpeta: ruta `#crumbs` (Notas › A › B, tramos pulsables y zona donde soltar), subcarpetas y debajo sus notas directas.
 - Menú de carpeta (`folderMenu`): ⋯, clic derecho o mantener pulsado (`bindContext`, 500 ms) → abrir, subcarpeta, nota, renombrar, color, mover, subir/bajar, eliminar.
@@ -55,7 +58,9 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
   - Índice insertado: `<div class="note-toc" data-toc="1"></div>` (se guarda vacío; `refreshTocBlocks()` lo rellena con los H1–H3 al mostrar)
   - Secciones plegadas: `data-collapsed="1"` en el título (solo títulos de primer nivel del contenido); `.fold-hidden`/`.foldable` son clases de vista, no se guardan
 - `files/{id}`: `noteId, name, mime, size, kind, chunks, createdAt` + subcolección `chunks/{000..}` `{d: base64}` (700 KB por trozo)
-- `snippets/{id}`: `title, body (texto plano), category, uses, lastUsedAt, createdAt, updatedAt` (prerredactados)
+- `snippets/{id}`: `title, body (texto plano), folderId|null, favorite, order, category (antiguo, no se borra), uses, lastUsedAt, createdAt, updatedAt` (prerredactados)
+- `snippetFolders/{id}`: misma forma que `folders` (`name, parentId|null, color, order, createdAt, updatedAt`), árbol propio de los prerredactados, separado del de notas
+- **Migración categoría → carpeta** (`migrateCategories` en snippets.js, v1.6.0): cuando llegan `snippets` y `snippetFolders` **del servidor** (no de caché), cada prerredactado **sin el campo `folderId`** pasa a la carpeta de su `category` (raíz; `null` si no tenía). El ID de carpeta es fijo según el nombre (`catFolderId`: `cat-<slug>-<hash>`, sin tildes/mayúsculas), así varios dispositivos escriben la misma carpeta y no se duplica; al tener ya `folderId`, no se repite. `category` se conserva para poder volver atrás.
 - Fechas en milisegundos (`Date.now()`), no `serverTimestamp`.
 
 ## Seguridad
