@@ -109,6 +109,11 @@ function setGap(gap) {
 const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
 
 export function initViewport() {
+  // iPhone/iPad: sin «interactive-widget» (es de Chrome Android; en iOS puede acortar la ventana)
+  if (typeof navigator.standalone === 'boolean') {
+    const m = document.querySelector('meta[name="viewport"]');
+    if (m) m.content = m.content.replace(/,\s*interactive-widget=[^,]*/, '');
+  }
   update();
   if (vv) { vv.addEventListener('resize', schedule); vv.addEventListener('scroll', schedule); }
   window.addEventListener('resize', schedule);
