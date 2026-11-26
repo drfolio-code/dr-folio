@@ -449,6 +449,15 @@ export function createEditor(opts) {
       scrollToHeading(+tocLink.dataset.h, { fromToc: true });
       return;
     }
+    // Plegar / desplegar el índice (solo vista; se recuerda en el dispositivo)
+    const tocHead = e.target.closest('.note-toc .toc-head');
+    if (tocHead && inContent(tocHead) && !e.target.closest('.toc-del')) {
+      e.preventDefault();
+      const closed = !tocHead.closest('.note-toc').classList.contains('toc-closed');
+      try { localStorage.setItem('drfolio.tocClosed', closed ? '1' : '0'); } catch { /* */ }
+      $$('.note-toc', content).forEach((b) => b.classList.toggle('toc-closed', closed));
+      return;
+    }
     const tocDel = e.target.closest('.note-toc .toc-del');
     if (tocDel && inContent(tocDel)) {
       e.preventDefault();
@@ -652,7 +661,11 @@ export function createEditor(opts) {
     const hs = headings();
     for (const b of blocks) {
       b.contentEditable = 'false';
-      const head = el('div', { class: 'toc-head' }, el('span', {}, 'Índice'),
+      let closed = false;
+      try { closed = localStorage.getItem('drfolio.tocClosed') === '1'; } catch { /* */ }
+      b.classList.toggle('toc-closed', closed);
+      const head = el('div', { class: 'toc-head', role: 'button', title: 'Mostrar u ocultar el índice' },
+        el('span', { class: 'toc-title' }, el('span', { class: 'toc-chev', 'aria-hidden': 'true' }), `Índice${hs.length ? ` · ${hs.length}` : ''}`),
         readOnly ? null : el('button', { type: 'button', class: 'toc-del', title: 'Quitar índice', 'aria-label': 'Quitar índice' }, '✕'));
       if (!hs.length) {
         b.replaceChildren(head, el('p', { class: 'toc-empty' }, 'Añade títulos (Título 1, 2 o 3) y aparecerán aquí.'));
@@ -804,7 +817,7 @@ export function createEditor(opts) {
       clone.querySelectorAll('span.fld').forEach((sp) => sp.replaceWith(...sp.childNodes));
       clone.querySelectorAll('img[data-file]').forEach((i) => i.removeAttribute('src'));
       clone.querySelectorAll('.selected,.loading,.flash,.broken,.fold-hidden,.foldable').forEach((n) => n.classList.remove('selected', 'loading', 'flash', 'broken', 'fold-hidden', 'foldable'));
-      clone.querySelectorAll('.note-toc').forEach((n) => { n.replaceChildren(); n.removeAttribute('contenteditable'); });
+      clone.querySelectorAll('.note-toc').forEach((n) => { n.replaceChildren(); n.removeAttribute('contenteditable'); n.classList.remove('toc-closed'); });
       const html = sanitize(clone.innerHTML);
       return html === '<br>' || html === '<p><br></p>' ? '' : html;
     },
@@ -816,6 +829,17 @@ export function createEditor(opts) {
     /** Texto plano de toda la nota (para «Copiar nota entera») */
     allText() { return nodesToPlain(content.childNodes); },
     hasTocBlock() { return !!content.querySelector('.note-toc'); },
+    /** Añade el índice al principio o lo quita (opcional). Funciona también en lectura; quien llama guarda. */
+    toggleTocBlock() {
+      const had = $$('.note-toc', content);
+      if (had.length) had.forEach((b) => b.remove());
+      else content.prepend(el('div', { class: 'note-toc', 'data-toc': '1' }));
+      refreshTocBlocks();
+      applyFolds();
+      updateCopyButtons();
+      markFields();
+      return !had.length;
+    },
     fileIds() { return $$('img[data-file]', content).map((i) => i.dataset.file); },
     headings,
     scrollToHeading,

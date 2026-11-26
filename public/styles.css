@@ -774,21 +774,29 @@ body.kb-open .ed-inner { padding-bottom: 24px; }
   .pdfv-bar .icon-btn, .pdfv-find .icon-btn { height: 32px; }
 }
 @media (max-width: 900px) { .pdfv-act span { display: none; } }
-/* ===== Índice dentro de la nota (estilo Evernote) ===== */
+/* ===== Índice dentro de la nota o del prerredactado (opcional, compacto y plegable) ===== */
+/* Tamaños fijos: no crece con A+/A− ni con la letra de lectura */
 .content .note-toc {
-  border: 1.5px solid var(--border); border-radius: 12px; padding: 10px 18px 12px; margin: 10px 0 18px;
-  background: var(--panel); user-select: none; -webkit-user-select: none; cursor: default;
+  border: 1px solid var(--border); border-radius: 10px; padding: 6px 12px 8px; margin: 4px 0 14px;
+  background: var(--panel-2); user-select: none; -webkit-user-select: none; cursor: default;
+  font-size: 14px; line-height: 1.35; width: fit-content; max-width: 100%; min-width: min(240px, 100%); box-sizing: border-box;
 }
-.content .note-toc .toc-head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin-bottom: 4px; }
-.content .note-toc .toc-del { border: 0; background: transparent; color: var(--muted); width: 26px; height: 26px; border-radius: 6px; font-size: 13px; }
-.content .note-toc .toc-del:hover { background: var(--panel-2); color: var(--danger); }
+.content .note-toc .toc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); cursor: pointer; min-height: 26px; }
+.content .note-toc .toc-title { display: inline-flex; align-items: center; gap: 6px; }
+.content .note-toc .toc-chev { width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); margin: -3px 2px 0; transition: transform .15s; }
+.content .note-toc.toc-closed .toc-chev { transform: rotate(-45deg); margin-top: 0; }
+.content .note-toc.toc-closed > :not(.toc-head) { display: none; }
+.content .note-toc .toc-del { border: 0; background: transparent; color: var(--muted); width: 26px; height: 26px; border-radius: 6px; font-size: 12px; }
+.content .note-toc .toc-del:hover { background: var(--panel); color: var(--danger); }
 .readonly .content .note-toc .toc-del { display: none; }
-.content .note-toc ol { margin: 0; padding-left: 1.5em; }
-.content .note-toc ol ol { margin: 2px 0 4px; list-style: lower-alpha; }
+.content .note-toc ol { margin: 2px 0 0; padding-left: 1.3em; }
+.content .note-toc ol ol { margin: 0; padding-left: 1.1em; list-style: lower-alpha; }
 .content .note-toc ol ol ol { list-style: lower-roman; }
-.content .note-toc li { margin: 5px 0; }
-.content .note-toc a { color: var(--accent-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 1.02em; }
-.content .note-toc .toc-empty { color: var(--muted); font-size: 14px; margin: 4px 0; }
+.content .note-toc li, .reading .content .note-toc li { margin: 0; font-size: 14px; }
+.content .note-toc li::marker { color: var(--muted); font-size: 12px; }
+.content .note-toc a { display: inline-block; padding: 3px 0; color: var(--accent); text-decoration: none; cursor: pointer; font-size: 14px; }
+.content .note-toc a:hover { text-decoration: underline; }
+.content .note-toc .toc-empty { color: var(--muted); font-size: 13px; margin: 2px 0; }
 
 /* ===== Secciones plegables ===== */
 .content > .foldable { position: relative; padding-right: 40px; }
@@ -869,6 +877,12 @@ body.kb-open .ed-inner { padding-bottom: 24px; }
 .reading .content p, .reading .content div { margin-bottom: .65em; }
 .reading .content li { margin: .25em 0; }
 .reading .content td, .reading .content th { padding: 7px 10px; }
+/* Títulos en lectura: proporción más contenida (la letra base ya es grande) */
+.reading .content h1 { font-size: 1.3em; line-height: 1.25; }
+.reading .content h2 { font-size: 1.15em; line-height: 1.3; margin-top: .9em; }
+.reading .content h3 { font-size: 1.04em; }
+.content .note-toc .toc-head, .reading .content .note-toc .toc-head { margin: 0; }
+.content .note-toc.toc-closed { padding-bottom: 6px; }
 .reading .ed-tags:not(:has(.chip)) { display: none; }
 /* «📋 Copiar sección» (solo en lectura; el botón no lleva texto para no ensuciar el índice) */
 .content .sec-copy {

@@ -78,7 +78,7 @@ export async function confirm(title, message, { okLabel = 'Aceptar', danger = fa
 export function menu(anchor, items) {
   closeMenu();
   const m = el('div', { class: 'menu', role: 'menu' },
-    items.map((it) => it === '-' ? el('hr') : el('button', {
+    items.filter(Boolean).map((it) => it === '-' ? el('hr') : el('button', {
       type: 'button', class: it.danger ? 'danger' : '',
       onclick: () => { closeMenu(); it.onClick(); }
     }, it.icon ? el('span', {}, iconOr(it.icon)) : null, it.label)));

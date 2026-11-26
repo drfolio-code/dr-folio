@@ -1922,11 +1922,24 @@ function onEditorChange() {
 
 // ---------- Índice ----------
 const renderTocSoon = debounce(() => renderToc(), 400);
+// Índice automático (panel arriba en notas con 2+ títulos): opcional, por defecto no (Ajustes, drfolio.autoToc = on|off).
+// El índice de la nota se añade o quita a mano: ⋯ → «Añadir índice» o botón ☰ de la barra.
+const autoToc = () => localStorage.getItem('drfolio.autoToc') === 'on';
+function toggleNoteToc() {
+  const n = store.notes.get(S.noteId);
+  if (!n || n.trashed || !S.bodyReady) return;
+  const on = editor.toggleTocBlock();
+  S.dirty = true;
+  saveSoon.cancel();
+  saveNow();
+  renderToc();
+  toast(on ? (editor.headings().length ? 'Índice añadido ✓' : 'Índice añadido: usa «Título 1/2/3» y se rellenará solo') : 'Índice quitado', 'ok', 2500);
+}
 function renderToc() {
   const hs = editor.headings();
   const toc = $('#toc');
   // Si la nota ya lleva su propio índice insertado, no duplicamos el panel superior
-  if (hs.length < 2 || editor.hasTocBlock()) { toc.classList.add('hidden'); return; }
+  if (!autoToc() || hs.length < 2 || editor.hasTocBlock()) { toc.classList.add('hidden'); return; }
   toc.classList.remove('hidden');
   $('#toc-list').replaceChildren(...hs.map((h, i) => el('a', {
     class: `l${h.tagName[1]}`, role: 'button', tabindex: '0',
@@ -1969,6 +1982,7 @@ function noteMenu(anchor) {
   }
   menu(anchor, [
     { icon: 'copy', label: 'Copiar nota entera', onClick: () => copyOut(editor.allText()) },
+    S.bodyReady ? { icon: 'list', label: editor.hasTocBlock() ? 'Quitar índice' : 'Añadir índice', onClick: toggleNoteToc } : null,
     S.reading ? { icon: 'pencil', label: 'Editar', onClick: () => setReading(false) } : { icon: 'book-open', label: 'Modo lectura', onClick: () => setReading(true) },
     '-',
     { icon: 'folder-input', label: 'Mover a carpeta…', onClick: () => moveNote(n.id) },
@@ -2269,6 +2283,11 @@ function openSettings() {
         el('select', { onchange: (e) => { localStorage.setItem('drfolio.noteMode', e.target.value); toast('Guardado', 'ok'); } },
           el('option', { value: 'read', selected: openMode() === 'read' }, '📖 Lectura'),
           el('option', { value: 'edit', selected: openMode() === 'edit' }, '✏️ Edición'))),
+      el('div', { class: 'settings-row' }, el('span', {}, 'Índice automático en notas con títulos',
+        el('br'), el('span', { class: 'muted small' }, 'Si no, añádelo cuando quieras: ⋯ → «Añadir índice»')),
+        el('select', { onchange: (e) => { localStorage.setItem('drfolio.autoToc', e.target.value); if (S.noteId) renderToc(); toast('Guardado', 'ok'); } },
+          el('option', { value: 'off', selected: !autoToc() }, 'No'),
+          el('option', { value: 'on', selected: autoToc() }, 'Sí'))),
       el('div', { class: 'settings-row' }, el('span', {}, 'Pantalla encendida al leer una nota',
         el('br'), el('span', { class: 'muted small' }, 'wakeLock' in navigator ? 'Solo en este dispositivo' : 'Este navegador no lo permite')),
         el('select', { disabled: !('wakeLock' in navigator), onchange: (e) => { localStorage.setItem('drfolio.wakeLock', e.target.value); updateWakeLock(); toast('Guardado', 'ok'); } },

@@ -338,6 +338,7 @@ export function snippetItemMenu(anchor, s, { inList = true } = {}) {
     inList ? { icon: 'file-text', label: 'Abrir', onClick: () => openSnippet(s.id, { push: true }) } : null,
     { icon: 'copy', label: 'Copiar sin formato', onClick: () => { saveSoon.flush(); copySnippet(s.id); } },
     { icon: 'clipboard-list', label: 'Copiar con formato (Word, correo)', onClick: () => { saveSoon.flush(); copySnippet(s.id, { rich: true }); } },
+    !inList && curId === s.id ? { icon: 'list', label: editor.hasTocBlock() ? 'Quitar índice' : 'Añadir índice', onClick: toggleToc } : null,
     !inList && curId === s.id ? (reading
       ? { icon: 'pencil', label: 'Editar', onClick: () => setReading(false) }
       : { icon: 'book-open', label: 'Modo lectura', onClick: () => setReading(true) }) : null,
@@ -527,6 +528,16 @@ function fillForm(s) {
   requestAnimationFrame(() => fitTitle($('#snip-title')));
   editor.setContent(htmlOf(s));
   renderChrome(s);
+}
+
+/** Índice opcional (⋯ → Añadir / Quitar índice), también en lectura */
+function toggleToc() {
+  if (!curId) return;
+  const on = editor.toggleTocBlock();
+  dirty = true;
+  saveSoon.cancel();
+  saveNow();
+  toast(on ? (editor.headings().length ? 'Índice añadido ✓' : 'Índice añadido: usa «Título 1/2/3» y se rellenará solo') : 'Índice quitado', 'ok', 2500);
 }
 
 /** Lectura / edición: igual que en las notas */
