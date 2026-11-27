@@ -15,7 +15,7 @@ import { addQuota, budget } from './backup.js';
 import {
   REG_FIELDS, genLine, lineOf, regSummary, drugMatches, byName, liveDrugs, drugKey, drugByName,
   drugBodyOf, loadDrugBody, writeDrug, deleteDrugDocs, parseDrugImport, mergeList, regKey, hasDetail, EXTRA_LISTS, presBrandsOf,
-  baseKey, drugByBase, withForm, duplicateGroups, mergeGroupLight, mergePres
+  baseKey, drugByBase, withForm, duplicateGroups, mergeGroupLight, mergePres, presByGroup
 } from './drugbody.js';
 import {
   SCOPES, scopeName, FLUIDS, REG_TYPES, regType, typeSlug, parseChuletario, CHULETARIO_SOURCE
@@ -779,10 +779,18 @@ function renderPres() {
   $('#drug-pres-rows').classList.toggle('hidden', rd);
   $('#drug-add-pres').classList.toggle('hidden', rd);
   // Lectura: cada presentación con sus marcas debajo (p. ej. 37,5/325 mg comp · Zaldiar · Pazital)
-  if (rd) list.replaceChildren(...(d.presentations || []).map((p) => {
+  // v1.26.0: agrupadas por vía de administración (Oral, IV, IM, SC, Inhalada, Tópica…; presGroup en drugbody.js)
+  const chip = (p) => {
     const b = presBrandsOf(d, p);
     return el('span', { class: `pres-chip ${b.length ? 'has-brands' : ''}` }, el('span', {}, p), b.length ? el('span', { class: 'pres-brands' }, b.join(' · ')) : null);
-  }));
+  };
+  if (rd) {
+    const groups = presByGroup(d);
+    list.classList.toggle('grouped', groups.length > 1);
+    list.replaceChildren(...(groups.length > 1
+      ? groups.map((g) => el('div', { class: 'pres-group' }, el('div', { class: 'pres-glabel' }, g.group), el('div', { class: 'pres-gitems' }, ...g.items.map(chip))))
+      : (d.presentations || []).map(chip)));
+  }
   else $('#drug-pres-rows').replaceChildren(...form.pres.map(presRow));
   $('#drug-pres-dl').replaceChildren(...presList().map((p) => el('option', { value: p })));
 }

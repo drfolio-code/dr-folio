@@ -197,6 +197,9 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - **Actualizar la plantilla** (aviso «Vademécum revisado (plantilla v4) · Actualizar» si ya se cargó una anterior): en `runImport` con `template`, las fichas **sin tocar** (`reviewed === false` y `updatedAt ≤ importedAt + 5 s`) se reemplazan enteras (como «Reemplazar»); las revisadas o editadas solo se completan. «Unir fichas repetidas» conserva `importedAt` si todas estaban sin tocar.
 - Probado con el Firebase simulado: 331 fichas v2 → unir (317) → revisar 1 y editar 1 → Actualizar: 315 actualizadas, 2 completadas; ficha de midazolam en 390×844.
 
+### Presentaciones por vía de administración (v1.26.0)
+- En lectura, «Presentaciones» se agrupa por vía (`presByGroup`/`presGroup` en drugbody.js, orden `PRES_GROUPS`: Oral, Sublingual, IV, IV / IM, IV / SC, IM, SC, Inyectable, Infiltración, Intraarticular, Inhalada, Nebulizada, Intranasal, Tópica, Oftálmica, Ótica, Vaginal, Rectal, Transdérmica, Gas medicinal, Otras). Automático, sin campo nuevo: por la forma del texto (comp, cáps, sobres, jarabe → Oral; colirio; parche; crema…) y, en ampollas/viales/jeringas/sueros, por la vía de las indicaciones cuya `pres` es esa presentación (si ninguna, por todas las inyectables de la ficha). Con un solo grupo no se ponen títulos. La edición no cambia.
+
 ### Formato del JSON de importación (Vademécum → ⋯ / «Importar»)
 Ejemplo completo en `ejemplos/vademecum-ejemplo.json`. Se acepta `{ "format": "drfolio-vademecum", "version": 1, "drugs": [ … ] }` o directamente la lista `[ … ]`. Claves en inglés o en español:
 

@@ -387,3 +387,76 @@ export function withForm(regs, fromName, toName) {
     return said.includes(norm(form).slice(0, 7)) ? r : { ...r, indication: r.indication ? `${r.indication} · ${form}` : form };
   });
 }
+
+// ====================== Presentaciones por vía de administración (v1.26.0) ======================
+// La vía sale de la forma (comp, colirio, parche…) y, en ampollas, viales, jeringas y sueros, de las indicaciones que
+// usan esa presentación (IV, IM, SC…); si ninguna la usa, de todas las indicaciones inyectables de la ficha.
+const INJ_LABEL = { IV: 'Intravenosa (IV)', IM: 'Intramuscular (IM)', SC: 'Subcutánea (SC)' };
+export const PRES_GROUPS = ['Oral', 'Sublingual', 'Intravenosa (IV)', 'IV / IM', 'IV / SC', 'IV / IM / SC', 'Intramuscular (IM)', 'IM / SC',
+  'Subcutánea (SC)', 'Inyectable', 'Infiltración', 'Intraarticular', 'Inhalada', 'Nebulizada', 'Intranasal', 'Tópica', 'Oftálmica', 'Ótica',
+  'Vaginal', 'Rectal', 'Transdérmica', 'Gas medicinal', 'Otras'];
+const FORM_RULES = [
+  [/colirio|oftalm/, 'Oftálmica'], [/otic|oido/, 'Ótica'], [/vaginal|ovulo/, 'Vaginal'],
+  [/supositorio|rectal|microenema|enema/, 'Rectal'], [/parche|transderm|aposito/, 'Transdérmica'],
+  [/nebuliz/, 'Nebulizada'], [/spray nasal|polvo nasal|nasal|intranasal/, 'Intranasal'],
+  [/sublingual|\bsl\b/, 'Sublingual'],
+  [/inh\b|aerosol|turbuhaler|accuhaler|ellipta|respimat|nexthaler|breezhaler|inhalacion|inhalador/, 'Inhalada'],
+  [/bala|gas medicinal|\bgas\b|concentrador|gafas nasales|mascarilla/, 'Gas medicinal'],
+  [/crema|pomada|\bgel\b|locion|champu|laca|polvo|unguento|\d% solucion|solucion acuosa|colutorio|para chupar|spray|apli/, 'Tópica'],
+  [/\bcomp|caps|capsula|sobre|jarabe|suspension|grageas|liotab|bucodispers|chicle|gotas|solucion|bebible|masticable|granulado|frasco|\bvo\b/, 'Oral']
+];
+const INJ_RE = /\bamp\b|ampolla(?! bebible)|vial|\bjer\b|jeringa|pluma|flexpen|kwikpen|solostar|flextouch|autoinyector|bolsa|^[\d.,]+\s*ml$|\d% [\d.,]+ ml$/;
+function routeKinds(r) {
+  const t = norm([r.type, r.route].map(str).join(' '));
+  const k = new Set();
+  if (/\biv\b|bolo|perfus|intraven|\bio\b/.test(t)) k.add('IV');
+  if (/\bim\b|intramusc/.test(t)) k.add('IM');
+  if (/\bsc\b|subcut/.test(t) && !/infiltr/.test(t)) k.add('SC');
+  if (/infiltr|bloqueo/.test(t)) k.add('INF');
+  if (/intraarticular/.test(t)) k.add('IA');
+  if (/nebuliz/.test(t)) k.add('NEB');
+  if (/intranasal/.test(t)) k.add('IN');
+  return k;
+}
+function injLabel(k) {
+  if (k.has('IA')) return 'Intraarticular';
+  if (k.has('INF') && !k.has('IV')) return 'Infiltración';
+  if (k.has('NEB') && !k.has('IV') && !k.has('IM')) return 'Nebulizada';
+  const v = ['IV', 'IM', 'SC'].filter((x) => k.has(x));
+  if (!v.length) return k.has('IN') ? 'Intranasal' : '';
+  return v.length === 1 ? INJ_LABEL[v[0]] : v.join(' / ');
+}
+/** Vía de administración de una presentación (uno de PRES_GROUPS) */
+export function presGroup(d, pres) {
+  const p = norm(str(pres)).trim();
+  if (!INJ_RE.test(p)) {
+    for (const [re, g] of FORM_RULES) if (re.test(p)) return g;
+  }
+  const pk = p.replace(/\s+/g, '');
+  const own = new Set(), all = new Set();
+  for (const r of arr(d?.regimens)) {
+    const k = routeKinds(r || {});
+    for (const x of k) all.add(x);
+    if (norm(str(r?.pres)).replace(/\s+/g, '') === pk) for (const x of k) own.add(x);
+  }
+  if (/autoinyector/.test(p)) return 'Intramuscular (IM)';
+  if (/pluma|flexpen|kwikpen|solostar|flextouch|\bjer\b|jeringa/.test(p) && !own.size) return 'Subcutánea (SC)';
+  if (INJ_RE.test(p) || /\bml\b/.test(p)) {
+    if (/nebuliz/.test(p)) return 'Nebulizada';
+    const l = injLabel(own) || (/\biv\b|perfus/.test(p) ? INJ_LABEL.IV : /\bim\b/.test(p) ? INJ_LABEL.IM : '') || injLabel(all);
+    return l || 'Inyectable';
+  }
+  return 'Otras';
+}
+/** Presentaciones agrupadas por vía: [{ group, items: [texto] }] en el orden de PRES_GROUPS */
+export function presByGroup(d) {
+  const m = new Map();
+  for (const p of arr(d?.presentations)) {
+    const g = presGroup(d, p);
+    if (!m.has(g)) m.set(g, []);
+    m.get(g).push(p);
+  }
+  // «Otras» sola junto a un único grupo → va con ese grupo (p. ej. «monodosis» de un colirio)
+  if (m.has('Otras') && m.size === 2) { const g = [...m.keys()].find((x) => x !== 'Otras'); m.get(g).push(...m.get('Otras')); m.delete('Otras'); }
+  return PRES_GROUPS.filter((g) => m.has(g)).map((g) => ({ group: g, items: m.get(g) }));
+}
