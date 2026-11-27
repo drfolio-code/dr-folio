@@ -22,7 +22,7 @@ import { el, download, formatBytes, longDate } from './util.js';
 import { modal, toast } from './ui.js';
 import { icon } from './icons.js';
 import { htmlOf } from './snipbody.js';
-import { ensureAllDrugBodies, fullDrug, deriveDrugLight, rememberDrugBody, DRUG_DERIVED, lineOf, regSummary } from './drugbody.js';
+import { ensureAllDrugBodies, fullDrug, deriveDrugLight, rememberDrugBody, DRUG_DERIVED, lineOf, regSummary, presBrandsOf } from './drugbody.js';
 
 export const BACKUP_FORMAT = 'drfolio-backup';
 export const BACKUP_VERSION = 1;
@@ -301,9 +301,8 @@ function drugPageHtml(d) {
   const parts = [];
   if (d.brands?.length) parts.push(`<p><strong>Nombres comerciales:</strong> ${e(d.brands.join(', '))}</p>`);
   if (d.scopes?.length) parts.push(`<p><strong>Ámbito:</strong> ${e(d.scopes.map((k) => ({ ap: 'Atención Primaria', urg: 'Urgencias', mont: 'Rescate de montaña' }[k] || k)).join(', '))}</p>`);
-  if (d.pregnancy?.cat || d.pregnancy?.note) parts.push(`<p><strong>Embarazo${d.pregnancy.cat ? ` (${d.pregnancy.cat === 'N' ? 'precaución' : `Cat. ${e(d.pregnancy.cat)}`})` : ''}:</strong> ${e(d.pregnancy.note || '')}</p>`);
   if (d.fluids?.length) parts.push(`<p><strong>Sueros:</strong> ${e(d.fluids.join(', '))}</p>`);
-  if (d.presentations?.length) parts.push(`<h2>Presentaciones</h2><ul>${d.presentations.map((p) => `<li>${e(p)}</li>`).join('')}</ul>`);
+  if (d.presentations?.length) parts.push(`<h2>Presentaciones</h2><ul>${d.presentations.map((p) => { const b = presBrandsOf(d, p); return `<li>${e(p)}${b.length ? ` <span class="muted">(${e(b.join(', '))})</span>` : ''}</li>`; }).join('')}</ul>`);
   if (d.regimens?.length) {
     parts.push(`<h2>Indicaciones</h2><table><thead><tr><th>Indicación</th><th>Tipo</th><th>Dosis</th><th>Para el informe</th></tr></thead><tbody>${d.regimens.map((r) => `<tr><td>${e(r.indication || '')}</td><td>${e(r.type || '')}</td><td>${e([r.text || '', regSummary(r)].filter(Boolean).join(' · '))}</td><td>${e(lineOf(d.name, r))}</td></tr>`).join('')}</tbody></table>`);
   }
@@ -591,6 +590,7 @@ function fixDoc(c, d) {
     x.presentations = strs(x.presentations);
     x.regimens = Array.isArray(x.regimens) ? x.regimens.filter(isObj) : [];
     for (const f of ['fluids', 'observations', 'contraindications', 'compat', 'scopes']) if (f in x) x[f] = strs(x[f]); // v1.22.0
+    if ('presBrands' in x) x.presBrands = Array.isArray(x.presBrands) ? x.presBrands.filter((v) => isObj(v) && typeof v.p === 'string').map((v) => ({ p: v.p, b: strs(v.b) })) : [];
     if ('pregnancy' in x) x.pregnancy = isObj(x.pregnancy) ? { cat: String(x.pregnancy.cat || ''), note: String(x.pregnancy.note || '') } : { cat: '', note: '' };
     if ('source' in x) x.source = isObj(x.source) ? { text: String(x.source.text || ''), url: /^https?:\/\//i.test(String(x.source.url || '')) ? String(x.source.url) : '' } : { text: '', url: '' };
   }

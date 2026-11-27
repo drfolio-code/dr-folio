@@ -14,10 +14,10 @@ import { textToHtml } from './snipbody.js';
 import { addQuota, budget } from './backup.js';
 import {
   REG_FIELDS, genLine, lineOf, regSummary, drugMatches, byName, liveDrugs, drugKey, drugByName,
-  drugBodyOf, loadDrugBody, writeDrug, deleteDrugDocs, parseDrugImport, mergeList, regKey, hasDetail, EXTRA_LISTS
+  drugBodyOf, loadDrugBody, writeDrug, deleteDrugDocs, parseDrugImport, mergeList, regKey, hasDetail, EXTRA_LISTS, presBrandsOf
 } from './drugbody.js';
 import {
-  PREG_CATS, pregLabel, SCOPES, scopeName, FLUIDS, REG_TYPES, regType, typeSlug, parseChuletario, CHULETARIO_SOURCE
+  SCOPES, scopeName, FLUIDS, REG_TYPES, regType, typeSlug, parseChuletario, CHULETARIO_SOURCE
 } from './chuletario.js';
 
 let ctx = null;          // ayudas de app.js
@@ -28,11 +28,12 @@ let bodyReady = false;   // «Mis notas» cargada (si no, no se edita ni se guar
 let dirtyLight = false;  // nombre, marcas, presentaciones o pautas sin guardar
 let dirtyBody = false;   // «Mis notas» sin guardar
 let loadedHtml = '';
-let form = null;         // copia editable de la ficha abierta { brands, regimens, fluids, scopes, pregnancy, source }
+let form = null;         // copia editable de la ficha abierta { brands, pres: [{p, b}], regimens, fluids, scopes, source }
 const LISTS = ['observations', 'contraindications', 'compat'];
 const formOf = (d) => ({
   brands: [...(d.brands || [])], regimens: clone(d.regimens || []), fluids: [...(d.fluids || [])], scopes: [...(d.scopes || [])],
-  pregnancy: { cat: d.pregnancy?.cat || '', note: d.pregnancy?.note || '' }, source: { text: d.source?.text || '', url: d.source?.url || '' }
+  source: { text: d.source?.text || '', url: d.source?.url || '' },
+  pres: (d.presentations || []).map((p) => ({ p, b: [...presBrandsOf(d, p)] }))
 });
 const isRd = () => $('#drug-wrap').classList.contains('reading');
 const listBox = (k) => document.querySelector(`#drug-wrap textarea.dlist-edit[data-list="${k}"]`);
@@ -178,9 +179,8 @@ function drugAsText(d) {
   if (!d) return '';
   const out = [d.name || 'Sin nombre'];
   if (d.brands?.length) out.push(`Nombres comerciales: ${d.brands.join(', ')}`);
-  if (d.pregnancy?.cat || d.pregnancy?.note) out.push(`${pregLabel(d.pregnancy) || 'Embarazo'}${d.pregnancy.note ? `: ${d.pregnancy.note}` : ''}`);
   if (d.fluids?.length) out.push(`Sueros: ${d.fluids.join(', ')}`);
-  if (d.presentations?.length) out.push('', 'Presentaciones:', ...d.presentations.map((p) => `- ${p}`));
+  if (d.presentations?.length) out.push('', 'Presentaciones:', ...d.presentations.map((p) => { const b = presBrandsOf(d, p); return `- ${p}${b.length ? ` (${b.join(', ')})` : ''}`; }));
   if (d.regimens?.length) {
     out.push('', 'Indicaciones:');
     for (const r of d.regimens) {
@@ -311,7 +311,7 @@ function planImport(items) {
       a.brands = mergeList(a.brands, it.brands)[0];
       a.presentations = mergeList(a.presentations, it.presentations)[0];
       for (const f of EXTRA_LISTS) a[f] = mergeList(a[f], it[f])[0];
-      if (!a.pregnancy?.cat && !a.pregnancy?.note) a.pregnancy = it.pregnancy;
+      a.presBrands = [...(a.presBrands || []), ...(it.presBrands || [])];
       if (!a.source?.text && !a.source?.url) a.source = it.source;
       const keys = new Set(a.regimens.map(regKey));
       a.regimens.push(...it.regimens.filter((r) => !keys.has(regKey(r))));
@@ -464,7 +464,6 @@ function fillForm(d) {
   fillLists(d);
   $('#drug-title').value = d.name || '';
   requestAnimationFrame(() => fitTitle($('#drug-title')));
-  $('#drug-pres').value = (d.presentations || []).join('\n');
   const id = d.id;
   const b = drugBodyOf(id);
   bodyReady = !!b;
@@ -547,7 +546,6 @@ function renderChrome() {
   $('#drug-trash').classList.toggle('hidden', !trashed);
   renderBrands();
   renderScopes();
-  renderPreg();
   renderFluids();
   renderPres();
   renderRegs();
@@ -577,28 +575,6 @@ function renderScopes() {
       changedLight(); renderScopes();
     } }, on ? icon('check') : null, name);
   }));
-}
-
-// ---------- Embarazo (desplegable de color) ----------
-function renderPreg() {
-  const d = store.drugs.get(curId);
-  const box = $('#drug-preg');
-  if (isRd()) {
-    const p = d.pregnancy || {};
-    box.classList.toggle('hidden', !p.cat && !p.note);
-    if (!p.cat && !p.note) { box.replaceChildren(); return; }
-    const label = pregLabel(p) || 'Embarazo';
-    box.replaceChildren(p.note
-      ? el('details', { class: `preg cat-${p.cat || 'N'}` }, el('summary', {}, label), el('div', { class: 'preg-note' }, p.note))
-      : el('div', { class: `preg no-note cat-${p.cat || 'N'}` }, label));
-    return;
-  }
-  box.classList.remove('hidden');
-  const sel = el('select', { 'aria-label': 'Categoría en el embarazo', onchange: (e) => { form.pregnancy.cat = e.target.value; changedLight(); } },
-    PREG_CATS.map(([v, l]) => el('option', { value: v, selected: form.pregnancy.cat === v }, l)));
-  const note = el('textarea', { rows: 2, placeholder: 'Nota sobre el embarazo (opcional)', oninput: (e) => { form.pregnancy.note = e.target.value; changedLight(); } });
-  note.value = form.pregnancy.note;
-  box.replaceChildren(el('div', { class: 'preg-edit' }, el('label', { class: 'rf' }, 'Embarazo (categoría)', sel), el('label', { class: 'rf preg-note-edit' }, 'Nota', note)));
 }
 
 // ---------- Sueros compatibles (chips) ----------
@@ -684,6 +660,7 @@ function renderBrands() {
     rd ? null : el('button', { class: 'x', type: 'button', 'aria-label': `Quitar ${b}`, onclick: () => { form.brands.splice(i, 1); changedLight(); renderBrands(); } }, '×')));
   if (rd && !chips.length) chips.push(el('span', { class: 'muted small' }, 'Sin nombres comerciales'));
   $('#drug-brand-chips').replaceChildren(...chips);
+  if (!rd) renderPres(); // las marcas se pueden asignar a cada presentación
 }
 function addBrands(raw) {
   const input = $('#drug-brand-input');
@@ -699,14 +676,48 @@ function addBrands(raw) {
 // ---------- Presentaciones ----------
 function renderPres() {
   const d = store.drugs.get(curId);
-  const rd = $('#drug-wrap').classList.contains('reading');
-  const list = rd ? (d.presentations || []) : [];
-  $('#drug-pres-list').replaceChildren(...list.map((p) => el('span', { class: 'pres-chip' }, p)));
-  $('#drug-pres-list').classList.toggle('hidden', !rd);
-  $('#drug-pres').classList.toggle('hidden', rd);
+  if (!d || !form) return;
+  const rd = isRd();
+  const list = $('#drug-pres-list');
+  list.classList.toggle('hidden', !rd);
+  $('#drug-pres-rows').classList.toggle('hidden', rd);
+  $('#drug-add-pres').classList.toggle('hidden', rd);
+  // Lectura: cada presentación con sus marcas debajo (p. ej. 37,5/325 mg comp · Zaldiar · Pazital)
+  if (rd) list.replaceChildren(...(d.presentations || []).map((p) => {
+    const b = presBrandsOf(d, p);
+    return el('span', { class: `pres-chip ${b.length ? 'has-brands' : ''}` }, el('span', {}, p), b.length ? el('span', { class: 'pres-brands' }, b.join(' · ')) : null);
+  }));
+  else $('#drug-pres-rows').replaceChildren(...form.pres.map(presRow));
   $('#drug-pres-dl').replaceChildren(...presList().map((p) => el('option', { value: p })));
 }
-const presList = () => $('#drug-pres').value.split('\n').map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+/** Fila editable: presentación + marcas que la tienen (toca una marca para asignarla) */
+function presRow(row, i) {
+  const inp = el('input', { type: 'text', value: row.p, placeholder: 'p. ej. 37,5/325 mg comp · 1 amp = 1 mL = 1 mg', maxlength: 150, autocomplete: 'off', 'aria-label': `Presentación ${i + 1}` });
+  inp.addEventListener('input', () => { row.p = inp.value; changedLight(); });
+  inp.addEventListener('change', () => $('#drug-pres-dl').replaceChildren(...presList().map((p) => el('option', { value: p }))));
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addPres(); } });
+  const chips = form.brands.map((b) => {
+    const on = row.b.includes(b);
+    return el('button', { type: 'button', class: `chip toggle ${on ? 'on' : ''}`, 'aria-pressed': String(on), title: on ? `Quitar ${b}` : `Esta presentación es de ${b}`,
+      onclick: () => { const k = row.b.indexOf(b); if (k >= 0) row.b.splice(k, 1); else row.b.push(b); changedLight(); renderPres(); } }, on ? icon('check') : null, b);
+  });
+  return el('div', { class: 'pres-row' },
+    el('div', { class: 'pres-row-top' }, inp,
+      el('button', { class: 'icon-btn', type: 'button', title: 'Quitar esta presentación', 'aria-label': 'Quitar esta presentación', onclick: () => { form.pres.splice(i, 1); changedLight(); renderPres(); } }, icon('x'))),
+    form.brands.length ? el('div', { class: 'pres-row-brands' }, el('span', { class: 'muted small' }, 'Marca:'), ...chips)
+      : el('div', { class: 'muted small' }, 'Añade arriba los nombres comerciales para indicar de cuál es cada presentación.'));
+}
+function addPres() {
+  form.pres.push({ p: '', b: [] });
+  changedLight();
+  renderPres();
+  const inputs = $('#drug-pres-rows').querySelectorAll('input');
+  inputs[inputs.length - 1]?.focus();
+}
+const presList = () => (form?.pres || []).map((r) => String(r.p || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+/** Para guardar: solo presentaciones con nombre y marcas que sigan existiendo */
+const presBrandsList = () => (form?.pres || []).map((r) => ({ p: String(r.p || '').replace(/\s+/g, ' ').trim(), b: r.b.filter((b) => form.brands.includes(b)) }))
+  .filter((r) => r.p && r.b.length);
 
 // ---------- Pautas ----------
 function renderRegs() {
@@ -730,6 +741,7 @@ function regView(name, r) {
   return el('div', { class: `reg ${r.type ? `t-${typeSlug(r.type)}` : ''}` },
     el('div', { class: 'reg-head' }, el('b', {}, r.indication || 'Indicación')),
     r.type ? el('span', { class: `reg-type t-${typeSlug(r.type)}` }, r.type) : null,
+    (() => { const b = r.pres ? presBrandsOf(store.drugs.get(curId), r.pres) : []; return b.length ? el('div', { class: 'reg-brands' }, icon('tag'), ` ${r.pres}: ${b.join(' · ')}`) : null; })(),
     r.text ? el('div', { class: 'reg-text' }, r.text) : null,
     detail ? el('div', { class: 'reg-sum' }, regSummary(r)) : null,
     el('div', { class: `reg-line ${showLine ? '' : 'only-btn'}` }, showLine ? el('span', { class: 'reg-txt' }, line) : null,
@@ -815,10 +827,9 @@ function saveNow() {
   if (dirtyLight) {
     Object.assign(light, {
       name: $('#drug-title').value.replace(/\s+/g, ' ').trim(),
-      brands: [...form.brands], presentations: presList(),
+      brands: [...form.brands], presentations: presList(), presBrands: presBrandsList(),
       regimens: form.regimens.map((r) => ({ ...r, line: r.lineAuto === false ? String(r.line || '') : '' })),
       fluids: [...form.fluids], scopes: [...form.scopes],
-      pregnancy: { cat: form.pregnancy.cat || '', note: String(form.pregnancy.note || '').trim() },
       source: { text: String(form.source.text || '').trim(), url: /^https?:\/\//i.test(form.source.url || '') ? form.source.url : '' },
       observations: listVals('observations'), contraindications: listVals('contraindications'), compat: listVals('compat')
     });
@@ -859,7 +870,6 @@ export function onDrugsChange(changed) {
   form = formOf(d);
   fillLists(d);
   if ($('#drug-title').value !== (d.name || '')) { $('#drug-title').value = d.name || ''; fitTitle($('#drug-title')); }
-  $('#drug-pres').value = (d.presentations || []).join('\n');
   renderChrome();
 }
 
@@ -931,7 +941,7 @@ export function initDrugs(appCtx) {
     if (e.key === 'Backspace' && !bi.value && form?.brands.length) { form.brands.pop(); changedLight(); renderBrands(); }
   });
   bi.addEventListener('blur', () => { if (bi.value.trim()) addBrands(bi.value); });
-  $('#drug-pres').addEventListener('input', () => { changedLight(); $('#drug-pres-dl').replaceChildren(...presList().map((p) => el('option', { value: p }))); });
+  $('#drug-add-pres').addEventListener('click', addPres);
   $('#drug-add-reg').addEventListener('click', addRegimen);
   // Ficha ampliada (v1.22.0): listas, sugerencias y secciones plegables
   for (const ta of document.querySelectorAll('#drug-wrap textarea.dlist-edit')) ta.addEventListener('input', changedLight);
@@ -977,7 +987,7 @@ function renderRegsLines() {
 function extrasOf(x) {
   const out = {};
   for (const f of EXTRA_LISTS) if (x[f]?.length) out[f] = [...x[f]];
-  if (x.pregnancy?.cat || x.pregnancy?.note) out.pregnancy = { cat: x.pregnancy.cat || '', note: x.pregnancy.note || '' };
+  if (x.presBrands?.length) out.presBrands = x.presBrands.map((e) => ({ p: e.p, b: [...e.b] }));
   if (x.source?.text || x.source?.url) out.source = { text: x.source.text || '', url: x.source.url || '' };
   return out;
 }
@@ -986,7 +996,14 @@ function completeExtras(d, it) {
   const light = {};
   let n = 0;
   for (const f of EXTRA_LISTS) { const [next, k] = mergeList(d[f] || [], it[f] || []); if (k) { light[f] = next; n += k; } }
-  if (!d.pregnancy?.cat && !d.pregnancy?.note && (it.pregnancy?.cat || it.pregnancy?.note)) { light.pregnancy = { cat: it.pregnancy.cat || '', note: it.pregnancy.note || '' }; n++; }
+  const pb = [...(d.presBrands || [])];
+  for (const e of it.presBrands || []) {
+    const cur = pb.find((x) => norm(x.p) === norm(e.p));
+    if (!cur) { pb.push({ p: e.p, b: [...e.b] }); n++; continue; }
+    const [b, k] = mergeList(cur.b, e.b);
+    if (k) { cur.b = b; n++; }
+  }
+  if (pb.length !== (d.presBrands || []).length || n) light.presBrands = pb;
   if (!d.source?.text && !d.source?.url && (it.source?.text || it.source?.url)) { light.source = { ...it.source }; n++; }
   return { light, n };
 }
@@ -1028,8 +1045,6 @@ async function previewChuletario(p, { target = null, folderId = null }) {
     const b = el('button', { type: 'button', class: `scope-chip sc-${k} toggle ${scopes.has(k) ? 'on' : ''}`, onclick: () => { if (scopes.has(k)) scopes.delete(k); else scopes.add(k); b.classList.toggle('on', scopes.has(k)); } }, l);
     return b;
   }));
-  const cat = el('select', {}, PREG_CATS.map(([v, l]) => el('option', { value: v, selected: p.pregnancy.cat === v }, l)));
-  const pnote = area(p.pregnancy.note, 2, { placeholder: 'Nota sobre el embarazo' });
   const fluids = inp(p.fluids.join(', '), { placeholder: 'SSF, SG5 %…' });
   const pres = area(p.presentations.join('\n'), 2);
   const obs = area(p.observations.join('\n'), 3);
@@ -1075,8 +1090,7 @@ async function previewChuletario(p, { target = null, folderId = null }) {
       p.warnings.length ? el('p', { class: 'bk-warn' }, `⚠ ${p.warnings.join(' ')}`) : null,
       el('div', { class: 'chu-grid' }, field('Principio activo', name), field('Nombres comerciales', brands)),
       el('div', { class: 'chu-f' }, 'Ámbito', scopeRow),
-      el('div', { class: 'chu-grid' }, field('Embarazo', cat), field('Sueros compatibles', fluids)),
-      field('Nota sobre el embarazo', pnote),
+      field('Sueros compatibles', fluids),
       field('Presentaciones (una por línea)', pres),
       el('div', { class: 'chu-f' }, `Indicaciones (${regs.length})`, regBox),
       field('Observaciones (una por línea)', obs),
@@ -1098,7 +1112,6 @@ async function previewChuletario(p, { target = null, folderId = null }) {
       id: regId(), indication: r.indication.trim(), type: r.type || '', text: r.text.trim(),
       pres: '', route: '', dose: '', freq: '', duration: '', max: '', line: '', lineAuto: true
     })),
-    pregnancy: { cat: cat.value, note: pnote.value.trim() },
     observations: lines(obs), contraindications: lines(contra), compat: lines(compat),
     scopes: SCOPES.map(([k]) => k).filter((k) => scopes.has(k)),
     source: { ...CHULETARIO_SOURCE }
@@ -1121,7 +1134,7 @@ function saveChuletario(data, { target, mode, reviewed, folderId }) {
     if (mode === 'replace') {
       light = { name: data.name || target.name, brands: data.brands, presentations: data.presentations, regimens: data.regimens,
         fluids: data.fluids, observations: data.observations, contraindications: data.contraindications, compat: data.compat,
-        scopes: data.scopes, pregnancy: data.pregnancy, source: data.source };
+        scopes: data.scopes, source: data.source };
     } else {
       const keys = new Set((target.regimens || []).map(regKey));
       light = {

@@ -16,7 +16,7 @@ import { getDoc, getDocs, query, where, documentId, writeBatch } from '../vendor
 import { db } from './db.js';
 import { store, ref, col, commitBatch } from './store.js';
 import { norm } from './util.js';
-import { regType, scopeKey, PREG_CATS } from './chuletario.js';
+import { regType, scopeKey } from './chuletario.js';
 
 const str = (x) => (typeof x === 'string' ? x : x == null ? '' : String(x));
 const arr = (x) => (Array.isArray(x) ? x : []);
@@ -223,7 +223,7 @@ export function parseDrugImport(text, newRegId) {
       name,
       brands: list(pick(it, 'brands', 'marcas', 'nombresComerciales', 'nombres_comerciales', 'comerciales')).map((b) => b.slice(0, 80)).slice(0, 40),
       folder,
-      presentations: list(pick(it, 'presentations', 'presentaciones')).map((p) => p.slice(0, 150)).slice(0, 60),
+      ...presFields(pick(it, 'presentations', 'presentaciones')),
       regimens: regs,
       notes: str(pick(it, 'notes', 'notas', 'misNotas', 'mis_notas')).slice(0, 50000),
       ...extraFields(it)
@@ -243,18 +243,6 @@ export function mergeList(cur, add) {
 }
 
 // ====================== Campos ampliados (v1.22.0) ======================
-const CATS = PREG_CATS.map(([c]) => c).filter(Boolean);
-/** Embarazo: «C», «Cat. C», {cat, note} / {categoria, nota} → { cat, note } */
-export function normPregnancy(x) {
-  if (!x) return { cat: '', note: '' };
-  if (typeof x === 'string') {
-    const m = x.match(/^\s*(?:cat(?:egor[ií]a)?\.?\s*)?([ABCDXN])\b/i);
-    return m ? { cat: m[1].toUpperCase(), note: x.replace(m[0], '').replace(/^[\s:.\-–]+/, '').trim().slice(0, 3000) } : { cat: 'N', note: x.trim().slice(0, 3000) };
-  }
-  let cat = str(pick(x, 'cat', 'categoria', 'categoría', 'category')).trim().toUpperCase();
-  if (/^(NOTA|PRECAUCION|PRECAUCIÓN)/.test(cat)) cat = 'N';
-  return { cat: CATS.includes(cat) ? cat : '', note: str(pick(x, 'note', 'nota', 'texto', 'text')).trim().slice(0, 3000) };
-}
 export function normSource(x) {
   if (!x) return { text: '', url: '' };
   if (typeof x === 'string') { const u = x.match(/https?:\/\/\S+/); return { text: x.replace(u?.[0] || '', '').trim().slice(0, 200), url: u ? u[0] : '' }; }
@@ -265,7 +253,6 @@ const lst = (x, n = 300) => list(x).map((v) => v.slice(0, n)).slice(0, 60);
 /** Campos nuevos de una ficha importada (JSON) */
 function extraFields(it) {
   return {
-    pregnancy: normPregnancy(pick(it, 'pregnancy', 'embarazo')),
     fluids: lst(pick(it, 'fluids', 'sueros', 'suerosCompatibles', 'sueros_compatibles'), 40),
     observations: lst(pick(it, 'observations', 'observaciones')),
     contraindications: lst(pick(it, 'contraindications', 'contraindicaciones')),
@@ -276,3 +263,26 @@ function extraFields(it) {
 }
 /** Campos de lista ampliados (para unir sin repetir) */
 export const EXTRA_LISTS = ['fluids', 'observations', 'contraindications', 'compat', 'scopes'];
+
+/** Marcas de una presentación (v1.23.0): drugs.presBrands = [{ p: '37,5/325 mg comp', b: ['Zaldiar', 'Pazital'] }] */
+export function presBrandsOf(d, pres) {
+  const k = norm(str(pres)).replace(/\s+/g, ' ').trim();
+  if (!k) return [];
+  const x = arr(d?.presBrands).find((e) => norm(str(e?.p)).replace(/\s+/g, ' ').trim() === k);
+  return arr(x?.b).filter((b) => typeof b === 'string' && b.trim());
+}
+/** Presentaciones del JSON: texto, o { text|presentation|presentacion, brands|marcas } → { presentations, presBrands } */
+function presFields(raw) {
+  const presentations = [], presBrands = [];
+  const items = Array.isArray(raw) ? raw : typeof raw === 'string' ? raw.split(/\r?\n|;/) : [];
+  for (const x of items) {
+    if (x && typeof x === 'object') {
+      const t = cut(pick(x, 'text', 'texto', 'presentation', 'presentacion', 'presentación', 'name', 'nombre'), 150);
+      if (!t) continue;
+      presentations.push(t);
+      const b = list(pick(x, 'brands', 'marcas', 'brand', 'marca')).map((v) => v.slice(0, 80));
+      if (b.length) presBrands.push({ p: t, b });
+    } else { const t = cut(x, 150); if (t) presentations.push(t); }
+  }
+  return { presentations: presentations.slice(0, 60), presBrands: presBrands.slice(0, 60) };
+}
