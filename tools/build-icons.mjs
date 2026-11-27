@@ -13,6 +13,8 @@ const USED = [
   // Chat personal y barra inferior (v1.19.0)
   'paperclip', 'send-horizontal', 'pin-off', 'download', 'external-link', 'smartphone', 'monitor', 'file', 'hourglass',
   'circle-ellipsis', 'sliders-horizontal', 'chevron-up', 'message-square-plus', 'lock',
+  // Ficha ampliada del Vademécum (v1.22.0)
+  'clipboard-paste', 'droplet',
   // Acciones y menús
   'pencil', 'check', 'copy', 'copy-plus', 'printer', 'book-open', 'undo-2', 'x', 'file-text', 'file-plus', 'palette',
   'arrow-up', 'arrow-down', 'arrow-left', 'square-pen', 'layout-grid', 'list', 'ellipsis', 'save',

@@ -28,9 +28,11 @@ import { legacyNotes, migrateNotes, snippetsToMigrate, migrateSnippets } from '.
 import { icon, iconOr } from './icons.js';
 import {
   initDrugs, newDrug, openDrug, closeDrug, currentDrug, flushDrug, onDrugsChange, refreshDrugBacklinks, drugCard, drugItemMenu,
-  drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, templatePending, dismissTemplate, emptyDrugTrash, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading
+  drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, templatePending, dismissTemplate, emptyDrugTrash,
+  pasteChuletario, drugScope, setDrugScope, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading
 } from './drugs.js';
 import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies } from './drugbody.js';
+import { SCOPES } from './chuletario.js';
 import {
   startChat, stopChat, chatShown, unreadCount, chatReady, chatSearch, chatCard, chatFileIds, chatFilesInUse, fetchAllChat,
   settingsChanged, refreshChat, consumeShare, ttlDays, setTtl, TTL_OPTIONS
@@ -134,7 +136,7 @@ const TREES = {
     root: 'drugs', folder: 'dfolder', views: ['daz', 'dfav', 'drecent', 'dreview', 'dtrash'],
     rootHash: '#/vademecum', rootName: 'Vademécum', rootIcon: 'pill',
     one: 'fármaco', many: 'fármacos',
-    items: () => liveDrugs(),
+    items: () => liveDrugs().filter(scopeOk), // filtro por ámbito (AP / Urgencias / Montaña)
     newItem: () => newDrugHere(),
     matches: (d, words) => drugMatches(d, words),
     sortItems: (list) => list.sort(byName),
@@ -155,11 +157,13 @@ const TREES = {
     extraActions: (folderId) => [
       el('button', { class: 'btn', type: 'button', onclick: () => addManyDrugs(folderId) }, icon('list-plus'), ' Añadir varios'),
       el('button', { class: 'btn', type: 'button', onclick: () => importDrugs(folderId) }, icon('file-up'), ' Importar'),
+      el('button', { class: 'btn', type: 'button', onclick: () => pasteChuletario({ folderId }) }, icon('clipboard-paste'), ' Pegar del Chuletario'),
       // Plantilla de carpetas: en la raíz (también en ⋯ y en el aviso de arriba)
       !folderId ? el('button', { class: 'btn', type: 'button', onclick: () => importTemplate() }, icon('folder-plus'), ' Plantilla de carpetas') : null],
     menuExtra: (folderId) => [
       { icon: 'list-plus', label: folderId ? 'Añadir varios aquí…' : 'Añadir varios…', onClick: () => addManyDrugs(folderId) },
       { icon: 'file-up', label: folderId ? 'Importar fichas aquí (JSON)…' : 'Importar fichas (JSON)…', onClick: () => importDrugs(folderId) },
+      { icon: 'clipboard-paste', label: 'Pegar del Chuletario…', onClick: () => pasteChuletario({ folderId }) },
       { icon: 'folder-plus', label: 'Plantilla de carpetas (AP, urgencias, montaña)…', onClick: () => importTemplate() }],
     txt: {
       Many: 'Fármacos', newBtn: '＋ Fármaco', newOne: 'Nuevo fármaco', newHere: 'Nuevo fármaco aquí', folderHint: 'Grupo (p. ej. Analgésicos)',
@@ -1037,6 +1041,8 @@ function createMenu(anchor) {
     { icon: 'notebook-text', label: `Nota${inF(nf)}`, onClick: () => newNote() },
     { icon: 'clipboard-list', label: `Prerredactado${inF(sf)}`, onClick: () => (sec === 'snippets' ? newSnippetHere() : setView({ type: 'snippets', id: null }).then(() => newSnippet())) },
     { icon: 'pill', label: `Fármaco${inF(df)}`, onClick: () => (sec === 'drugs' ? newDrugHere() : setView({ type: 'drugs', id: null }).then(() => newDrug())) },
+    { icon: 'clipboard-paste', label: 'Fármaco desde el Chuletario', onClick: () => (sec === 'drugs' ? pasteChuletario({ folderId: df?.id || null })
+      : setView({ type: 'drugs', id: null }).then(() => pasteChuletario())) },
     { icon: 'message-circle', label: 'Mensaje al chat', onClick: () => openChat({ compose: true }) },
     '-',
     ...(sec === 'notes' ? [folderItem(TREES.notes, nf)] : sec === 'snippets' ? [folderItem(TREES.snippets, sf)] : sec === 'drugs' ? [folderItem(TREES.drugs, df)]
@@ -1737,8 +1743,15 @@ function renderDrugView(box, T) {
     box.replaceChildren(el('div', { class: 'list-empty' }, store.loaded.drugFolders ? 'Esta carpeta ya no existe.' : 'Cargando carpetas…'));
     return;
   }
+  // Filtro por ámbito (Atención Primaria / Urgencias / Rescate de montaña), recordado en el dispositivo
+  const scopeBar = () => el('div', { class: 'scope-bar', role: 'tablist', 'aria-label': 'Filtrar por ámbito' },
+    [['', 'Todos'], ...SCOPES.map(([k, , short]) => [k, short])].map(([k, l]) => el('button', {
+      type: 'button', class: `find-chip ${drugScope() === k ? 'on' : ''}`, role: 'tab', 'aria-selected': String(drugScope() === k),
+      onclick: () => { setDrugScope(k); renderList(); renderSidebar(); }
+    }, l)));
   if (v.type === T.root || v.type === T.folder) {
     renderExplorer(box, T);
+    box.prepend(scopeBar());
     // Aviso bien visible arriba mientras no se haya cargado (o descartado) la versión actual de la plantilla
     if (v.type === T.root && templatePending()) {
       box.prepend(el('div', { class: 'tpl-banner' },
@@ -1768,8 +1781,10 @@ function renderDrugView(box, T) {
         : v.type === 'drecent' ? 'Todavía no has consultado ninguna ficha.'
           : v.type === 'dreview' ? 'No hay fichas pendientes de revisar ✓'
             : v.type === 'dtrash' ? 'La papelera del Vademécum está vacía.' : 'Aún no hay fármacos. Crea el primero con ＋ o usa «Añadir varios».'));
+    if (drugScope() && v.type !== 'dtrash') box.prepend(scopeBar(), el('div', { class: 'fx-hint' }, 'Filtro de ámbito activo: las fichas sin ese ámbito no salen. Toca «Todos».'));
     return;
   }
+  if (v.type !== 'dtrash') head.unshift(scopeBar());
   const wrap = el('div', { class: `fx ${S.layout === 'grid' ? 'grid' : ''}` }, ...head);
   if (v.type === 'daz' && !q) wrap.append(...drugsAZ(list));
   else wrap.append(drugsBlock(list, { showPath: true }));

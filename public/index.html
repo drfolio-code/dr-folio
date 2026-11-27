@@ -250,26 +250,52 @@
               <div id="drug-brand-chips" class="chips"></div>
               <input id="drug-brand-input" placeholder="＋ nombre comercial" autocomplete="off" maxlength="80" enterkeyhint="done">
             </div>
-            <section class="drug-sec">
-              <h3>Presentaciones</h3>
-              <ul id="drug-pres-list" class="drug-pres-list"></ul>
-              <textarea id="drug-pres" class="drug-pres" rows="3" placeholder="Una por línea, p. ej.&#10;25 mg comp&#10;50 mg/2 ml amp" spellcheck="false"></textarea>
-            </section>
-            <section class="drug-sec">
-              <div class="drug-sec-head"><h3>Pautas</h3><button class="btn sm" id="drug-add-reg" type="button">＋ Añadir pauta</button></div>
-              <div id="drug-regs" class="drug-regs"></div>
-            </section>
-            <section class="drug-sec drug-notes">
-              <h3>Mis notas</h3>
-              <div id="drug-content" class="content drug-content" contenteditable="true" spellcheck="true" data-placeholder="Tus notas"></div>
-            </section>
+            <!-- Ficha ampliada (v1.22.0): ámbito, embarazo, sueros y secciones plegables (se recuerda si están abiertas) -->
+            <div id="drug-scopes" class="drug-scopes"></div>
+            <div id="drug-preg" class="drug-preg"></div>
+            <div id="drug-fluids" class="drug-fluids"></div>
+            <details class="dsec" data-sec="pres" open>
+              <summary><h3>Presentaciones</h3></summary>
+              <div class="dsec-body">
+                <div id="drug-pres-list" class="dchips"></div>
+                <textarea id="drug-pres" class="drug-pres" rows="3" placeholder="Una por línea, p. ej.&#10;25 mg comp&#10;1 amp = 1 mL = 1 mg" spellcheck="false"></textarea>
+              </div>
+            </details>
+            <details class="dsec" data-sec="regs" open>
+              <summary><h3>Indicaciones</h3></summary>
+              <div class="dsec-body">
+                <div id="drug-regs" class="drug-regs"></div>
+                <button class="btn sm" id="drug-add-reg" type="button">＋ Añadir indicación</button>
+              </div>
+            </details>
+            <details class="dsec" data-sec="observations" open>
+              <summary><h3>Observaciones</h3></summary>
+              <div class="dsec-body"><ul class="dlist" data-list="observations"></ul><textarea class="drug-pres dlist-edit" data-list="observations" rows="3" placeholder="Una por línea"></textarea></div>
+            </details>
+            <details class="dsec" data-sec="contraindications" open>
+              <summary><h3>Contraindicaciones</h3></summary>
+              <div class="dsec-body"><ul class="dlist" data-list="contraindications"></ul><textarea class="drug-pres dlist-edit" data-list="contraindications" rows="3" placeholder="Una por línea"></textarea></div>
+            </details>
+            <details class="dsec" data-sec="compat" open>
+              <summary><h3>Compatibilidad en Y</h3></summary>
+              <div class="dsec-body"><ul class="dlist" data-list="compat"></ul><textarea class="drug-pres dlist-edit" data-list="compat" rows="3" placeholder="Fármacos compatibles en Y (uno por línea o separados por comas)"></textarea></div>
+            </details>
+            <details class="dsec drug-notes" data-sec="notes" open>
+              <summary><h3>Mis notas</h3></summary>
+              <div class="dsec-body">
+                <div id="drug-content" class="content drug-content" contenteditable="true" spellcheck="true" data-placeholder="Tus notas"></div>
+              </div>
+            </details>
             <section id="drug-backlinks" class="backlinks hidden">
               <h4>Aparece en estas notas</h4>
               <div id="drug-backlink-list" class="chips"></div>
             </section>
+            <div id="drug-source" class="drug-source"></div>
             <p class="ed-meta muted small" id="drug-info"></p>
           </div>
         </div>
+        <datalist id="drug-type-dl"></datalist>
+        <datalist id="drug-fluid-dl"></datalist>
         <datalist id="drug-route-dl"></datalist>
         <datalist id="drug-freq-dl"></datalist>
         <datalist id="drug-pres-dl"></datalist>

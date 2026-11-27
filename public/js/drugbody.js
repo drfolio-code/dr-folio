@@ -16,6 +16,7 @@ import { getDoc, getDocs, query, where, documentId, writeBatch } from '../vendor
 import { db } from './db.js';
 import { store, ref, col, commitBatch } from './store.js';
 import { norm } from './util.js';
+import { regType, scopeKey, PREG_CATS } from './chuletario.js';
 
 const str = (x) => (typeof x === 'string' ? x : x == null ? '' : String(x));
 const arr = (x) => (Array.isArray(x) ? x : []);
@@ -29,7 +30,10 @@ export const REG_FIELDS = [
 export const DRUG_DERIVED = ['files', 'links', 'size', 'bodyAt'];
 
 /** Línea para el tratamiento del informe, generada de los campos: «Dexketoprofeno 25 mg comp: 1 comp cada 8 h durante 5 días» */
+/** ¿La pauta tiene campos detallados (vía, dosis, frecuencia…)? Si no, la línea sale del texto de la dosis (v1.22.0) */
+export const hasDetail = (r = {}) => ['pres', 'route', 'dose', 'freq', 'duration', 'max'].some((k) => str(r[k]).trim());
 export function genLine(name, r = {}) {
+  if (!hasDetail(r) && str(r.text).trim()) return `${str(name).trim()}${str(name).trim() ? ': ' : ''}${str(r.text).trim().replace(/\s*\n\s*/g, ' ')}`;
   const head = [str(name).trim(), str(r.pres).trim()].filter(Boolean).join(' ');
   const dur = str(r.duration).trim();
   const parts = [r.dose, r.route, r.freq].map((x) => str(x).trim()).filter(Boolean);
@@ -186,14 +190,16 @@ export function normRegimen(r, id) {
     dose: cut(pick(r, 'dose', 'dosis'), 120),
     freq: cut(pick(r, 'frequency', 'freq', 'frecuencia'), 120),
     duration: cut(pick(r, 'duration', 'duracion', 'duración'), 120),
-    max: cut(pick(r, 'max', 'maxDose', 'dosisMaxima', 'dosis_maxima', 'maxima', 'máxima'), 120)
+    max: cut(pick(r, 'max', 'maxDose', 'dosisMaxima', 'dosis_maxima', 'maxima', 'máxima'), 120),
+    type: regType(pick(r, 'type', 'tipo', 'etiqueta')) || cut(pick(r, 'type', 'tipo', 'etiqueta'), 30),
+    text: str(pick(r, 'text', 'texto', 'dosisTexto', 'dosis_texto', 'posologia', 'posología')).trim().slice(0, 1000)
   };
   const line = cut(pick(r, 'line', 'linea', 'línea', 'informe'), 500);
   out.lineAuto = !line;
   out.line = line;
   return Object.values(out).some((v, i) => i > 0 && v && typeof v === 'string') ? out : null;
 }
-export const regKey = (r) => norm([r.indication, r.route, r.dose, r.freq].map(str).join('|')).replace(/\s+/g, ' ');
+export const regKey = (r) => norm([r.indication, r.route, r.dose, r.freq, r.text].map(str).join('|')).replace(/\s+/g, ' ');
 
 /**
  * Lee el archivo de importación. Devuelve [{ name, brands, folder: [nombres], presentations, regimens, notes }]
@@ -219,7 +225,8 @@ export function parseDrugImport(text, newRegId) {
       folder,
       presentations: list(pick(it, 'presentations', 'presentaciones')).map((p) => p.slice(0, 150)).slice(0, 60),
       regimens: regs,
-      notes: str(pick(it, 'notes', 'notas', 'misNotas', 'mis_notas')).slice(0, 50000)
+      notes: str(pick(it, 'notes', 'notas', 'misNotas', 'mis_notas')).slice(0, 50000),
+      ...extraFields(it)
     });
   }
   if (!out.length) throw new Error('El archivo no tiene ningún fármaco con nombre («name»).');
@@ -234,3 +241,38 @@ export function mergeList(cur, add) {
   for (const x of arr(add)) { const k = norm(x).trim(); if (k && !seen.has(k)) { seen.add(k); outList.push(x); n++; } }
   return [outList, n];
 }
+
+// ====================== Campos ampliados (v1.22.0) ======================
+const CATS = PREG_CATS.map(([c]) => c).filter(Boolean);
+/** Embarazo: «C», «Cat. C», {cat, note} / {categoria, nota} → { cat, note } */
+export function normPregnancy(x) {
+  if (!x) return { cat: '', note: '' };
+  if (typeof x === 'string') {
+    const m = x.match(/^\s*(?:cat(?:egor[ií]a)?\.?\s*)?([ABCDXN])\b/i);
+    return m ? { cat: m[1].toUpperCase(), note: x.replace(m[0], '').replace(/^[\s:.\-–]+/, '').trim().slice(0, 3000) } : { cat: 'N', note: x.trim().slice(0, 3000) };
+  }
+  let cat = str(pick(x, 'cat', 'categoria', 'categoría', 'category')).trim().toUpperCase();
+  if (/^(NOTA|PRECAUCION|PRECAUCIÓN)/.test(cat)) cat = 'N';
+  return { cat: CATS.includes(cat) ? cat : '', note: str(pick(x, 'note', 'nota', 'texto', 'text')).trim().slice(0, 3000) };
+}
+export function normSource(x) {
+  if (!x) return { text: '', url: '' };
+  if (typeof x === 'string') { const u = x.match(/https?:\/\/\S+/); return { text: x.replace(u?.[0] || '', '').trim().slice(0, 200), url: u ? u[0] : '' }; }
+  const url = str(pick(x, 'url', 'enlace', 'link')).trim();
+  return { text: str(pick(x, 'text', 'texto', 'name', 'nombre')).trim().slice(0, 200), url: /^https?:\/\//i.test(url) ? url.slice(0, 500) : '' };
+}
+const lst = (x, n = 300) => list(x).map((v) => v.slice(0, n)).slice(0, 60);
+/** Campos nuevos de una ficha importada (JSON) */
+function extraFields(it) {
+  return {
+    pregnancy: normPregnancy(pick(it, 'pregnancy', 'embarazo')),
+    fluids: lst(pick(it, 'fluids', 'sueros', 'suerosCompatibles', 'sueros_compatibles'), 40),
+    observations: lst(pick(it, 'observations', 'observaciones')),
+    contraindications: lst(pick(it, 'contraindications', 'contraindicaciones')),
+    compat: lst(pick(it, 'compat', 'compatibility', 'compatibilidad', 'ySite', 'compatibilidadY')),
+    scopes: [...new Set(list(pick(it, 'scopes', 'scope', 'ambito', 'ámbito', 'ambitos', 'ámbitos')).map(scopeKey).filter(Boolean))],
+    source: normSource(pick(it, 'source', 'fuente'))
+  };
+}
+/** Campos de lista ampliados (para unir sin repetir) */
+export const EXTRA_LISTS = ['fluids', 'observations', 'contraindications', 'compat', 'scopes'];

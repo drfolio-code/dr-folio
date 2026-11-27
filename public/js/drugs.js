@@ -14,8 +14,11 @@ import { textToHtml } from './snipbody.js';
 import { addQuota, budget } from './backup.js';
 import {
   REG_FIELDS, genLine, lineOf, regSummary, drugMatches, byName, liveDrugs, drugKey, drugByName,
-  drugBodyOf, loadDrugBody, writeDrug, deleteDrugDocs, parseDrugImport, mergeList, regKey
+  drugBodyOf, loadDrugBody, writeDrug, deleteDrugDocs, parseDrugImport, mergeList, regKey, hasDetail, EXTRA_LISTS
 } from './drugbody.js';
+import {
+  PREG_CATS, pregLabel, SCOPES, scopeName, FLUIDS, REG_TYPES, regType, typeSlug, parseChuletario, CHULETARIO_SOURCE
+} from './chuletario.js';
 
 let ctx = null;          // ayudas de app.js
 let editor = null;       // editor de «Mis notas» (createEditor, el mismo de las notas)
@@ -25,7 +28,16 @@ let bodyReady = false;   // «Mis notas» cargada (si no, no se edita ni se guar
 let dirtyLight = false;  // nombre, marcas, presentaciones o pautas sin guardar
 let dirtyBody = false;   // «Mis notas» sin guardar
 let loadedHtml = '';
-let form = null;         // copia editable de la ficha abierta { brands, regimens }
+let form = null;         // copia editable de la ficha abierta { brands, regimens, fluids, scopes, pregnancy, source }
+const LISTS = ['observations', 'contraindications', 'compat'];
+const formOf = (d) => ({
+  brands: [...(d.brands || [])], regimens: clone(d.regimens || []), fluids: [...(d.fluids || [])], scopes: [...(d.scopes || [])],
+  pregnancy: { cat: d.pregnancy?.cat || '', note: d.pregnancy?.note || '' }, source: { text: d.source?.text || '', url: d.source?.url || '' }
+});
+const isRd = () => $('#drug-wrap').classList.contains('reading');
+const listBox = (k) => document.querySelector(`#drug-wrap textarea.dlist-edit[data-list="${k}"]`);
+const listVals = (k) => listBox(k).value.split('\n').map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
+function fillLists(d) { for (const k of LISTS) listBox(k).value = (d[k] || []).join('\n'); }
 
 const DF = () => store.drugFolders;
 export const currentDrug = () => curId;
@@ -40,12 +52,17 @@ const FREQS = ['dosis única', 'cada 4 h', 'cada 6 h', 'cada 8 h', 'cada 12 h', 
 /** Fármacos de una vista fija: daz (A-Z) | dfav | drecent | dreview | dtrash */
 export function drugsForView(type) {
   if (type === 'dtrash') return [...store.drugs.values()].filter((d) => d.trashed).sort((a, b) => (b.trashedAt || 0) - (a.trashedAt || 0));
-  const live = liveDrugs();
+  const live = liveDrugs().filter(scopeOk);
   if (type === 'dfav') return live.filter((d) => d.favorite).sort(byName);
   if (type === 'drecent') return live.filter((d) => d.lastViewedAt).sort((a, b) => (b.lastViewedAt || 0) - (a.lastViewedAt || 0)).slice(0, 50);
   if (type === 'dreview') return live.filter((d) => d.reviewed === false).sort(byName);
   return live.sort(byName);
 }
+
+// Filtro por ámbito (v1.22.0): '' = todos | 'ap' | 'urg' | 'mont' (por dispositivo). Las fichas sin ámbito solo salen en «Todos».
+export const drugScope = () => { const v = localStorage.getItem('drfolio.drugScope') || ''; return SCOPES.some(([k]) => k === v) ? v : ''; };
+export function setDrugScope(v) { localStorage.setItem('drfolio.drugScope', v || ''); }
+export const scopeOk = (d) => !drugScope() || (d.scopes || []).includes(drugScope());
 
 function markText(text, search) {
   const q = norm((search || '').trim()).split(/\s+/).filter(Boolean)[0];
@@ -134,6 +151,7 @@ export function drugItemMenu(anchor, d, { inList = true } = {}) {
     here ? { icon: 'copy', label: 'Copiar ficha entera', onClick: () => { saveSoon.flush(); copyLine(drugAsText(store.drugs.get(d.id))); } } : null,
     here && bodyReady ? { icon: 'list', label: editor.hasTocBlock() ? 'Quitar índice de «Mis notas»' : 'Añadir índice a «Mis notas»', onClick: toggleToc } : null,
     here ? (reading ? { icon: 'pencil', label: 'Editar', onClick: () => setReading(false) } : { icon: 'book-open', label: 'Modo lectura', onClick: () => setReading(true) }) : null,
+    here ? { icon: 'clipboard-paste', label: 'Pegar del Chuletario…', onClick: () => pasteChuletario({ targetId: d.id }) } : null,
     { icon: 'star', label: d.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos', onClick: () => toggleFavorite(d.id) },
     d.reviewed === false
       ? { icon: 'check', label: 'Marcar como revisada', onClick: () => setReviewed(d.id, true) }
@@ -160,11 +178,21 @@ function drugAsText(d) {
   if (!d) return '';
   const out = [d.name || 'Sin nombre'];
   if (d.brands?.length) out.push(`Nombres comerciales: ${d.brands.join(', ')}`);
+  if (d.pregnancy?.cat || d.pregnancy?.note) out.push(`${pregLabel(d.pregnancy) || 'Embarazo'}${d.pregnancy.note ? `: ${d.pregnancy.note}` : ''}`);
+  if (d.fluids?.length) out.push(`Sueros: ${d.fluids.join(', ')}`);
   if (d.presentations?.length) out.push('', 'Presentaciones:', ...d.presentations.map((p) => `- ${p}`));
   if (d.regimens?.length) {
-    out.push('', 'Pautas:');
-    for (const r of d.regimens) out.push(`- ${[r.indication, regSummary(r)].filter(Boolean).join(': ')}`, `  ${lineOf(d.name, r)}`);
+    out.push('', 'Indicaciones:');
+    for (const r of d.regimens) {
+      out.push(`- ${[r.indication, r.type ? `[${r.type}]` : '', hasDetail(r) ? regSummary(r) : ''].filter(Boolean).join(' ')}`);
+      if (r.text) out.push(`  ${r.text.replace(/\n/g, '\n  ')}`);
+      if (hasDetail(r) || r.lineAuto === false) out.push(`  ${lineOf(d.name, r)}`);
+    }
   }
+  for (const [k, t] of [['observations', 'Observaciones'], ['contraindications', 'Contraindicaciones'], ['compat', 'Compatibilidad en Y']]) {
+    if (d[k]?.length) out.push('', `${t}:`, ...d[k].map((x) => `- ${x}`));
+  }
+  if (d.source?.text || d.source?.url) out.push('', `Fuente: ${[d.source.text, d.source.url].filter(Boolean).join(' · ')}`);
   const notes = curId === d.id && bodyReady ? editor.allText() : (drugBodyOf(d.id)?.text || '');
   if (notes.trim()) out.push('', 'Mis notas:', notes.trim());
   return out.join('\n');
@@ -282,6 +310,9 @@ function planImport(items) {
       const a = seen.get(k);
       a.brands = mergeList(a.brands, it.brands)[0];
       a.presentations = mergeList(a.presentations, it.presentations)[0];
+      for (const f of EXTRA_LISTS) a[f] = mergeList(a[f], it[f])[0];
+      if (!a.pregnancy?.cat && !a.pregnancy?.note) a.pregnancy = it.pregnancy;
+      if (!a.source?.text && !a.source?.url) a.source = it.source;
       const keys = new Set(a.regimens.map(regKey));
       a.regimens.push(...it.regimens.filter((r) => !keys.has(regKey(r))));
       if (!a.notes && it.notes) a.notes = it.notes;
@@ -297,8 +328,9 @@ function planImport(items) {
     const keys = new Set((d.regimens || []).map(regKey));
     const newRegs = it.regimens.filter((r) => !keys.has(regKey(r)));
     const notes = !(d.bodyAt > 0) && it.notes.trim() ? it.notes : '';
-    if (!nb && !np && !newRegs.length && !notes) { plan.same.push(d); continue; }
-    plan.merge.push({ d, light: { brands, presentations, regimens: [...(d.regimens || []), ...newRegs] }, notes, added: { nb, np, nr: newRegs.length, notes: !!notes } });
+    const ex = completeExtras(d, it);
+    if (!nb && !np && !newRegs.length && !notes && !ex.n) { plan.same.push(d); continue; }
+    plan.merge.push({ d, light: { brands, presentations, regimens: [...(d.regimens || []), ...newRegs], ...ex.light }, notes, added: { nb, np, nr: newRegs.length, notes: !!notes, ne: ex.n } });
   }
   return plan;
 }
@@ -354,7 +386,7 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
           el('tr', {}, el('td', {}, 'Ya existen: sin cambios'), el('td', {}, String(plan.same.length))))),
         list(plan.create, (x) => x.name),
         plan.merge.length ? el('p', { class: 'small' }, 'Se añade a las fichas que ya tienes (sin borrar ni cambiar nada de lo que hay):') : null,
-        list(plan.merge, (m) => `${m.d.name}: ${[m.added.nb ? `${m.added.nb} nombre(s) comercial(es)` : '', m.added.np ? `${m.added.np} presentación(es)` : '', m.added.nr ? `${m.added.nr} pauta(s)` : '', m.added.notes ? 'notas' : ''].filter(Boolean).join(', ')}`),
+        list(plan.merge, (m) => `${m.d.name}: ${[m.added.nb ? `${m.added.nb} nombre(s) comercial(es)` : '', m.added.np ? `${m.added.np} presentación(es)` : '', m.added.nr ? `${m.added.nr} pauta(s)` : '', m.added.notes ? 'notas' : '', m.added.ne ? 'datos de la ficha (embarazo, sueros, observaciones…)' : ''].filter(Boolean).join(', ')}`),
         el('p', { class: 'bk-warn' }, '⚠ Las fichas nuevas o completadas quedan marcadas «Pendiente de revisar» hasta que pulses «✓ Revisada» en cada una. Comprueba las dosis antes de usarlas.'),
         el('p', { class: 'muted small' }, `Las nuevas van a ${folderId ? `«${DF().get(folderId)?.name || 'carpeta'}»` : 'la raíz del Vademécum'} (o a la carpeta que indique el archivo).`)
       ],
@@ -370,7 +402,7 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
     for (const it of plan.create) {
       const id = newId('drugs');
       const fid = it.folder.length ? folderFor(it.folder, null, batch, created) : folderId;
-      const light = { ...blankDrug({ name: it.name, folderId: fid, now, reviewed: false }), brands: it.brands, presentations: it.presentations, regimens: it.regimens, importedAt: now };
+      const light = { ...blankDrug({ name: it.name, folderId: fid, now, reviewed: false }), brands: it.brands, presentations: it.presentations, regimens: it.regimens, importedAt: now, ...extrasOf(it) };
       writeDrug(id, light, it.notes.trim() ? { html: textToHtml(it.notes), text: it.notes } : null, batch, { commit: false });
       n += 2; flush();
     }
@@ -428,7 +460,8 @@ export function closeDrug({ fromHash = false } = {}) {
 /** Rellena la ficha abierta con los datos guardados (y carga «Mis notas» si hace falta) */
 function fillForm(d) {
   if (!d) return;
-  form = { brands: [...(d.brands || [])], regimens: clone(d.regimens || []) };
+  form = formOf(d);
+  fillLists(d);
   $('#drug-title').value = d.name || '';
   requestAnimationFrame(() => fitTitle($('#drug-title')));
   $('#drug-pres').value = (d.presentations || []).join('\n');
@@ -513,10 +546,126 @@ function renderChrome() {
   $('#drug-review').classList.toggle('hidden', d.reviewed !== false || trashed);
   $('#drug-trash').classList.toggle('hidden', !trashed);
   renderBrands();
+  renderScopes();
+  renderPreg();
+  renderFluids();
   renderPres();
   renderRegs();
+  renderLists();
+  renderSource();
+  applySections();
   renderBacklinks();
   renderInfo(d);
+}
+
+// ---------- Ámbito: Atención Primaria / Urgencias / Rescate de montaña ----------
+function renderScopes() {
+  const d = store.drugs.get(curId);
+  const box = $('#drug-scopes');
+  if (isRd()) {
+    const cur = d.scopes || [];
+    box.classList.toggle('hidden', !cur.length);
+    box.replaceChildren(...cur.map((k) => el('span', { class: `scope-chip sc-${k}` }, scopeName(k))));
+    return;
+  }
+  box.classList.remove('hidden');
+  box.replaceChildren(el('span', { class: 'drug-lbl' }, 'Ámbito'), ...SCOPES.map(([k, name]) => {
+    const on = form.scopes.includes(k);
+    return el('button', { type: 'button', class: `scope-chip sc-${k} toggle ${on ? 'on' : ''}`, 'aria-pressed': String(on), onclick: () => {
+      const i = form.scopes.indexOf(k);
+      if (i >= 0) form.scopes.splice(i, 1); else form.scopes.push(k);
+      changedLight(); renderScopes();
+    } }, on ? icon('check') : null, name);
+  }));
+}
+
+// ---------- Embarazo (desplegable de color) ----------
+function renderPreg() {
+  const d = store.drugs.get(curId);
+  const box = $('#drug-preg');
+  if (isRd()) {
+    const p = d.pregnancy || {};
+    box.classList.toggle('hidden', !p.cat && !p.note);
+    if (!p.cat && !p.note) { box.replaceChildren(); return; }
+    const label = pregLabel(p) || 'Embarazo';
+    box.replaceChildren(p.note
+      ? el('details', { class: `preg cat-${p.cat || 'N'}` }, el('summary', {}, label), el('div', { class: 'preg-note' }, p.note))
+      : el('div', { class: `preg no-note cat-${p.cat || 'N'}` }, label));
+    return;
+  }
+  box.classList.remove('hidden');
+  const sel = el('select', { 'aria-label': 'Categoría en el embarazo', onchange: (e) => { form.pregnancy.cat = e.target.value; changedLight(); } },
+    PREG_CATS.map(([v, l]) => el('option', { value: v, selected: form.pregnancy.cat === v }, l)));
+  const note = el('textarea', { rows: 2, placeholder: 'Nota sobre el embarazo (opcional)', oninput: (e) => { form.pregnancy.note = e.target.value; changedLight(); } });
+  note.value = form.pregnancy.note;
+  box.replaceChildren(el('div', { class: 'preg-edit' }, el('label', { class: 'rf' }, 'Embarazo (categoría)', sel), el('label', { class: 'rf preg-note-edit' }, 'Nota', note)));
+}
+
+// ---------- Sueros compatibles (chips) ----------
+function renderFluids() {
+  const d = store.drugs.get(curId);
+  const box = $('#drug-fluids');
+  const rd = isRd();
+  const cur = rd ? (d.fluids || []) : form.fluids;
+  box.classList.toggle('hidden', rd && !cur.length);
+  const chips = cur.map((f, i) => el('span', { class: 'fluid-chip' }, icon('droplet'), f,
+    rd ? null : el('button', { class: 'x', type: 'button', 'aria-label': `Quitar ${f}`, onclick: () => { form.fluids.splice(i, 1); changedLight(); renderFluids(); } }, '×')));
+  let input = null;
+  if (!rd) {
+    input = el('input', { list: 'drug-fluid-dl', placeholder: '＋ suero (SSF, SG5 %…)', autocomplete: 'off', maxlength: 40, enterkeyhint: 'done' });
+    const add = () => {
+      const v = input.value.split(/[,;]+/).map((x) => x.trim()).filter(Boolean);
+      input.value = '';
+      const [next, n] = mergeList(form.fluids, v);
+      if (n) { form.fluids = next; changedLight(); renderFluids(); $('#drug-fluids input')?.focus(); }
+    };
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(); } });
+    input.addEventListener('change', () => { if (input.value.trim()) add(); });
+  }
+  box.replaceChildren(...[el('span', { class: 'drug-lbl' }, 'Sueros:'), el('div', { class: 'chips' }, ...chips), input].filter(Boolean));
+}
+
+// ---------- Observaciones, contraindicaciones, compatibilidad en Y ----------
+function renderLists() {
+  const d = store.drugs.get(curId);
+  const rd = isRd();
+  for (const k of LISTS) {
+    const items = d[k] || [];
+    const ul = document.querySelector(`#drug-wrap ul.dlist[data-list="${k}"]`);
+    ul.replaceChildren(...items.map((x) => el('li', {}, x)));
+    ul.classList.toggle('hidden', !rd);
+    listBox(k).classList.toggle('hidden', rd);
+    ul.closest('details').classList.toggle('hidden', rd && !items.length);
+  }
+}
+
+// ---------- Fuente ----------
+function renderSource() {
+  const d = store.drugs.get(curId);
+  const box = $('#drug-source');
+  if (isRd()) {
+    const s = d.source || {};
+    box.classList.toggle('hidden', !s.text && !s.url);
+    box.replaceChildren(...(s.text || s.url ? [el('span', { class: 'muted' }, 'Fuente: '),
+      s.url ? el('a', { href: s.url, target: '_blank', rel: 'noopener noreferrer' }, s.text || s.url) : el('span', {}, s.text)] : []));
+    return;
+  }
+  box.classList.remove('hidden');
+  const t = el('input', { type: 'text', placeholder: 'Fuente (p. ej. Chuletario de Urgencias · C. M. Prados Arredondo)', value: form.source.text, maxlength: 200, oninput: (e) => { form.source.text = e.target.value; changedLight(); } });
+  const u = el('input', { type: 'url', placeholder: 'https://…', value: form.source.url, maxlength: 500, oninput: (e) => { form.source.url = e.target.value.trim(); changedLight(); } });
+  box.replaceChildren(el('div', { class: 'src-edit' }, el('label', { class: 'rf' }, 'Fuente', t), el('label', { class: 'rf' }, 'Enlace', u)));
+}
+
+// ---------- Secciones plegables (se recuerda en este dispositivo si están abiertas) ----------
+const SEC_KEY = 'drfolio.drugSecs';
+const secState = () => { try { return JSON.parse(localStorage.getItem(SEC_KEY)) || {}; } catch { return {}; } };
+function applySections() {
+  const st = secState();
+  const d = store.drugs.get(curId);
+  for (const det of document.querySelectorAll('#drug-wrap details.dsec')) {
+    det.open = isRd() ? st[det.dataset.sec] !== false : true;
+    if (det.dataset.sec === 'pres') det.classList.toggle('hidden', isRd() && !(d?.presentations || []).length);
+  }
 }
 
 function renderInfo(d) {
@@ -552,7 +701,7 @@ function renderPres() {
   const d = store.drugs.get(curId);
   const rd = $('#drug-wrap').classList.contains('reading');
   const list = rd ? (d.presentations || []) : [];
-  $('#drug-pres-list').replaceChildren(...(rd ? (list.length ? list.map((p) => el('li', {}, p)) : [el('li', { class: 'muted small empty' }, 'Sin presentaciones')]) : []));
+  $('#drug-pres-list').replaceChildren(...list.map((p) => el('span', { class: 'pres-chip' }, p)));
   $('#drug-pres-list').classList.toggle('hidden', !rd);
   $('#drug-pres').classList.toggle('hidden', rd);
   $('#drug-pres-dl').replaceChildren(...presList().map((p) => el('option', { value: p })));
@@ -568,7 +717,7 @@ function renderRegs() {
   const regs = rd ? (d.regimens || []) : form.regimens;
   $('#drug-add-reg').classList.toggle('hidden', rd);
   if (!regs.length) {
-    box.replaceChildren(el('p', { class: 'muted small' }, rd ? 'Sin pautas. Pulsa «Editar» para añadir la primera.' : 'Añade una pauta por indicación (p. ej. «Dolor agudo · IV · 50 mg · cada 8 h»).'));
+    box.replaceChildren(el('p', { class: 'muted small' }, rd ? 'Sin indicaciones. Pulsa «Editar» para añadir la primera.' : 'Añade una indicación con su tipo (Bolo, Perfusión, IM…) y la dosis tal cual; los campos detallados son opcionales.'));
     return;
   }
   box.replaceChildren(...regs.map((r, i) => (rd ? regView(name, r) : regForm(r, i, regs.length))));
@@ -576,11 +725,16 @@ function renderRegs() {
 
 function regView(name, r) {
   const line = lineOf(name, r);
-  return el('div', { class: 'reg' },
-    el('div', { class: 'reg-head' }, el('b', {}, r.indication || 'Pauta'), el('span', { class: 'reg-sum' }, regSummary(r))),
-    el('div', { class: 'reg-line' }, el('span', { class: 'reg-txt' }, line),
+  const detail = hasDetail(r);
+  const showLine = detail || r.lineAuto === false || !r.text;
+  return el('div', { class: `reg ${r.type ? `t-${typeSlug(r.type)}` : ''}` },
+    el('div', { class: 'reg-head' }, el('b', {}, r.indication || 'Indicación')),
+    r.type ? el('span', { class: `reg-type t-${typeSlug(r.type)}` }, r.type) : null,
+    r.text ? el('div', { class: 'reg-text' }, r.text) : null,
+    detail ? el('div', { class: 'reg-sum' }, regSummary(r)) : null,
+    el('div', { class: `reg-line ${showLine ? '' : 'only-btn'}` }, showLine ? el('span', { class: 'reg-txt' }, line) : null,
       el('button', { class: 'btn sm primary reg-copy', type: 'button', title: 'Copiar para el informe', 'aria-label': `Copiar: ${line}`, onclick: (e) => copyLine(lineOf(store.drugs.get(curId)?.name, r), e.currentTarget) },
-        icon('copy'), el('span', { class: 'lbl' }, ' Copiar'))));
+        icon('copy'), el('span', { class: 'lbl' }, showLine ? ' Copiar' : ' Copiar línea'))));
 }
 
 function regForm(r, i, total) {
@@ -592,16 +746,25 @@ function regForm(r, i, total) {
   };
   lineBox.addEventListener('input', () => { r.lineAuto = false; r.line = lineBox.value; regen.classList.remove('hidden'); changedLight(); });
   regen.addEventListener('click', () => { r.lineAuto = true; r.line = ''; sync(); changedLight(); });
-  const fields = REG_FIELDS.map(([k, label, ph]) => {
+  const mk = ([k, label, ph]) => {
     const inp = el('input', { type: 'text', value: r[k] || '', placeholder: ph, autocomplete: 'off', maxlength: k === 'indication' ? 200 : 120,
       list: k === 'route' ? 'drug-route-dl' : k === 'freq' ? 'drug-freq-dl' : k === 'pres' ? 'drug-pres-dl' : null });
     inp.addEventListener('input', () => { r[k] = inp.value; sync(); changedLight(); });
     return el('label', { class: `rf rf-${k}` }, label, inp);
-  });
+  };
+  const fields = [mk(REG_FIELDS[0])];
+  const typeIn = el('input', { type: 'text', value: r.type || '', placeholder: 'Bolo, Perfusión, IM…', list: 'drug-type-dl', autocomplete: 'off', maxlength: 30 });
+  typeIn.addEventListener('input', () => { r.type = regType(typeIn.value) || typeIn.value.trim(); changedLight(); });
+  const textIn = el('textarea', { rows: 2, placeholder: 'Dosis tal cual (p. ej. 0,6-1 mg IV cada 3-5 min, máx 3 mg)' });
+  textIn.value = r.text || '';
+  textIn.addEventListener('input', () => { r.text = textIn.value; sync(); changedLight(); });
+  fields.push(el('label', { class: 'rf rf-type' }, 'Tipo', typeIn), el('label', { class: 'rf rf-text' }, 'Dosis (texto)', textIn));
+  const more = el('details', { class: 'reg-more', open: hasDetail(r) }, el('summary', {}, 'Campos detallados (opcional): vía, dosis, frecuencia, máx…'),
+    el('div', { class: 'reg-grid' }, REG_FIELDS.slice(1).map(mk)));
   sync();
   const mv = (dir) => { const a = form.regimens; [a[i], a[i + dir]] = [a[i + dir], a[i]]; changedLight(); renderRegs(); };
   return el('div', { class: 'reg reg-edit' },
-    el('div', { class: 'reg-tools' }, el('b', {}, `Pauta ${i + 1}`), el('span', { class: 'spacer' }),
+    el('div', { class: 'reg-tools' }, el('b', {}, `Indicación ${i + 1}`), el('span', { class: 'spacer' }),
       i > 0 ? el('button', { class: 'icon-btn', type: 'button', title: 'Subir', 'aria-label': 'Subir', onclick: () => mv(-1) }, icon('arrow-up')) : null,
       i < total - 1 ? el('button', { class: 'icon-btn', type: 'button', title: 'Bajar', 'aria-label': 'Bajar', onclick: () => mv(1) }, icon('arrow-down')) : null,
       el('button', { class: 'icon-btn', type: 'button', title: 'Quitar esta pauta', 'aria-label': 'Quitar esta pauta', onclick: async () => {
@@ -609,13 +772,14 @@ function regForm(r, i, total) {
         form.regimens.splice(i, 1); changedLight(); renderRegs();
       } }, icon('trash-2'))),
     el('div', { class: 'reg-grid' }, fields),
+    more,
     el('label', { class: 'rf rf-line' }, el('span', {}, 'Línea para el informe', el('span', { class: 'muted small' }, ' (se genera sola; puedes retocarla)')), lineBox),
     el('div', { class: 'reg-actions' }, regen,
       el('button', { class: 'btn sm primary reg-copy', type: 'button', onclick: (e) => copyLine(lineBox.value, e.currentTarget) }, icon('copy'), ' Copiar')));
 }
 
 function addRegimen() {
-  form.regimens.push({ id: regId(), indication: '', pres: '', route: '', dose: '', freq: '', duration: '', max: '', line: '', lineAuto: true });
+  form.regimens.push({ id: regId(), indication: '', type: '', text: '', pres: '', route: '', dose: '', freq: '', duration: '', max: '', line: '', lineAuto: true });
   changedLight();
   renderRegs();
   const last = $('#drug-regs').lastElementChild;
@@ -652,7 +816,11 @@ function saveNow() {
     Object.assign(light, {
       name: $('#drug-title').value.replace(/\s+/g, ' ').trim(),
       brands: [...form.brands], presentations: presList(),
-      regimens: form.regimens.map((r) => ({ ...r, line: r.lineAuto === false ? String(r.line || '') : '' }))
+      regimens: form.regimens.map((r) => ({ ...r, line: r.lineAuto === false ? String(r.line || '') : '' })),
+      fluids: [...form.fluids], scopes: [...form.scopes],
+      pregnancy: { cat: form.pregnancy.cat || '', note: String(form.pregnancy.note || '').trim() },
+      source: { text: String(form.source.text || '').trim(), url: /^https?:\/\//i.test(form.source.url || '') ? form.source.url : '' },
+      observations: listVals('observations'), contraindications: listVals('contraindications'), compat: listVals('compat')
     });
   }
   let body = null;
@@ -688,7 +856,8 @@ export function onDrugsChange(changed) {
   if (editing && !reading) { renderInfo(d); return; }
   const b = drugBodyOf(curId);
   if (!b || b.html !== loadedHtml) { const sc = $('#drug-scroll').scrollTop; fillForm(d); $('#drug-scroll').scrollTop = sc; return; }
-  form = { brands: [...(d.brands || [])], regimens: clone(d.regimens || []) };
+  form = formOf(d);
+  fillLists(d);
   if ($('#drug-title').value !== (d.name || '')) { $('#drug-title').value = d.name || ''; fitTitle($('#drug-title')); }
   $('#drug-pres').value = (d.presentations || []).join('\n');
   renderChrome();
@@ -744,7 +913,8 @@ async function duplicateDrug(id) {
   const nid = newId('drugs');
   const now = Date.now();
   const light = { ...blankDrug({ name: `${d.name || 'Sin nombre'} (copia)`, folderId: d.folderId, now, reviewed: d.reviewed !== false }),
-    brands: [...(d.brands || [])], presentations: [...(d.presentations || [])], regimens: clone(d.regimens || []).map((r) => ({ ...r, id: regId() })) };
+    brands: [...(d.brands || [])], presentations: [...(d.presentations || [])], regimens: clone(d.regimens || []).map((r) => ({ ...r, id: regId() })),
+    ...clone(extrasOf(d)) };
   writeDrug(nid, light, b.html ? { html: b.html, text: b.text } : null);
   openDrug(nid, { push: true });
 }
@@ -763,6 +933,17 @@ export function initDrugs(appCtx) {
   bi.addEventListener('blur', () => { if (bi.value.trim()) addBrands(bi.value); });
   $('#drug-pres').addEventListener('input', () => { changedLight(); $('#drug-pres-dl').replaceChildren(...presList().map((p) => el('option', { value: p }))); });
   $('#drug-add-reg').addEventListener('click', addRegimen);
+  // Ficha ampliada (v1.22.0): listas, sugerencias y secciones plegables
+  for (const ta of document.querySelectorAll('#drug-wrap textarea.dlist-edit')) ta.addEventListener('input', changedLight);
+  $('#drug-type-dl').replaceChildren(...REG_TYPES.map((v) => el('option', { value: v })));
+  $('#drug-fluid-dl').replaceChildren(...FLUIDS.map((v) => el('option', { value: v })));
+  for (const det of document.querySelectorAll('#drug-wrap details.dsec')) {
+    det.addEventListener('toggle', () => {
+      if (!curId || !isRd()) return;
+      const st = secState(); st[det.dataset.sec] = det.open;
+      try { localStorage.setItem(SEC_KEY, JSON.stringify(st)); } catch { /* nada */ }
+    });
+  }
   $('#drug-route-dl').replaceChildren(...ROUTES.map((v) => el('option', { value: v })));
   $('#drug-freq-dl').replaceChildren(...FREQS.map((v) => el('option', { value: v })));
   $('#drug-back').addEventListener('click', () => {
@@ -789,4 +970,171 @@ function renderRegsLines() {
   const name = $('#drug-title').value.trim();
   const boxes = [...document.querySelectorAll('#drug-regs .reg-edit')];
   boxes.forEach((b, i) => { const r = form?.regimens[i]; if (r && r.lineAuto !== false) b.querySelector('.reg-line-edit').value = genLine(name, r); });
+}
+
+// ====================== Campos ampliados (v1.22.0) ======================
+/** Campos nuevos de una ficha (o de lo importado/pegado), solo los que tienen algo */
+function extrasOf(x) {
+  const out = {};
+  for (const f of EXTRA_LISTS) if (x[f]?.length) out[f] = [...x[f]];
+  if (x.pregnancy?.cat || x.pregnancy?.note) out.pregnancy = { cat: x.pregnancy.cat || '', note: x.pregnancy.note || '' };
+  if (x.source?.text || x.source?.url) out.source = { text: x.source.text || '', url: x.source.url || '' };
+  return out;
+}
+/** «Completar»: une listas sin repetir y rellena embarazo y fuente solo si estaban vacíos. Devuelve { light, n } */
+function completeExtras(d, it) {
+  const light = {};
+  let n = 0;
+  for (const f of EXTRA_LISTS) { const [next, k] = mergeList(d[f] || [], it[f] || []); if (k) { light[f] = next; n += k; } }
+  if (!d.pregnancy?.cat && !d.pregnancy?.note && (it.pregnancy?.cat || it.pregnancy?.note)) { light.pregnancy = { cat: it.pregnancy.cat || '', note: it.pregnancy.note || '' }; n++; }
+  if (!d.source?.text && !d.source?.url && (it.source?.text || it.source?.url)) { light.source = { ...it.source }; n++; }
+  return { light, n };
+}
+
+// ====================== «Pegar del Chuletario» ======================
+/**
+ * Pega el texto copiado de una ficha del Chuletario de Urgencias, lo reparte en los campos y muestra una vista previa
+ * editable. targetId = ficha abierta (⋯ de la ficha); si no, se busca por nombre o se crea en folderId.
+ */
+export async function pasteChuletario({ folderId = null, targetId = null } = {}) {
+  saveSoon.flush();
+  const ta = el('textarea', { rows: 10, class: 'chu-input', placeholder: 'Pega aquí el texto copiado de la ficha (nombre, marca, embarazo, sueros, presentaciones, indicaciones…)', spellcheck: 'false' });
+  const canRead = !!navigator.clipboard?.readText;
+  const ok = await modal({
+    title: 'Pegar del Chuletario',
+    cls: 'chu-modal',
+    body: [
+      el('p', { class: 'muted small' }, 'En chuletariodeurgencias.es abre la ficha del fármaco, selecciona todo su texto, cópialo y pégalo aquí. Después podrás revisarlo antes de guardar.'),
+      canRead ? el('button', { class: 'btn sm', type: 'button', onclick: async () => {
+        try { ta.value = await navigator.clipboard.readText(); } catch { toast('No se pudo leer el portapapeles: mantén pulsado en el recuadro y pega', 'error', 4500); }
+      } }, icon('clipboard-paste'), ' Pegar del portapapeles') : null,
+      ta
+    ],
+    actions: [{ label: 'Cancelar' }, { label: 'Continuar', primary: true, value: true, onClick: () => { if (!ta.value.trim()) { toast('Pega primero el texto de la ficha', 'error'); return false; } return true; } }]
+  });
+  if (!ok) return null;
+  const parsed = parseChuletario(ta.value);
+  const target = targetId ? store.drugs.get(targetId) : null;
+  return previewChuletario(parsed, { target, folderId });
+}
+
+async function previewChuletario(p, { target = null, folderId = null }) {
+  const inp = (value, attrs = {}) => { const x = el('input', { type: 'text', ...attrs }); x.value = value || ''; return x; };
+  const area = (value, rows = 3, attrs = {}) => { const x = el('textarea', { rows, ...attrs }); x.value = value || ''; return x; };
+  const name = inp(p.name, { maxlength: 150, placeholder: 'Principio activo' });
+  const brands = inp(p.brands.join(', '), { placeholder: 'Separados por comas' });
+  const scopes = new Set(target?.scopes?.length ? target.scopes : ['urg']);
+  const scopeRow = el('div', { class: 'chu-scopes' }, ...SCOPES.map(([k, l]) => {
+    const b = el('button', { type: 'button', class: `scope-chip sc-${k} toggle ${scopes.has(k) ? 'on' : ''}`, onclick: () => { if (scopes.has(k)) scopes.delete(k); else scopes.add(k); b.classList.toggle('on', scopes.has(k)); } }, l);
+    return b;
+  }));
+  const cat = el('select', {}, PREG_CATS.map(([v, l]) => el('option', { value: v, selected: p.pregnancy.cat === v }, l)));
+  const pnote = area(p.pregnancy.note, 2, { placeholder: 'Nota sobre el embarazo' });
+  const fluids = inp(p.fluids.join(', '), { placeholder: 'SSF, SG5 %…' });
+  const pres = area(p.presentations.join('\n'), 2);
+  const obs = area(p.observations.join('\n'), 3);
+  const contra = area(p.contraindications.join('\n'), 2);
+  const compat = area(p.compat.join('\n'), 2);
+  const regs = p.regimens.map((r) => ({ ...r }));
+  const regBox = el('div', { class: 'chu-regs' });
+  const renderRegRows = () => regBox.replaceChildren(...regs.map((r, i) => {
+    const ind = inp(r.indication, { placeholder: 'Indicación' });
+    const type = inp(r.type, { list: 'drug-type-dl', placeholder: 'Tipo', class: 'chu-type' });
+    const text = area(r.text, 2, { placeholder: 'Dosis' });
+    ind.addEventListener('input', () => { r.indication = ind.value; });
+    type.addEventListener('input', () => { r.type = regType(type.value) || type.value.trim(); });
+    text.addEventListener('input', () => { r.text = text.value; });
+    return el('div', { class: `reg chu-reg ${r.type ? `t-${typeSlug(r.type)}` : ''}` },
+      el('div', { class: 'chu-reg-top' }, ind, type,
+        el('button', { class: 'icon-btn', type: 'button', title: 'Quitar', 'aria-label': 'Quitar esta indicación', onclick: () => { regs.splice(i, 1); renderRegRows(); } }, icon('x'))),
+      text);
+  }));
+  renderRegRows();
+  const reviewed = el('input', { type: 'checkbox', checked: true });
+  const mode = { v: 'complete' };
+  const modeBox = el('div', { class: 'chu-mode' });
+  const existing = () => target || drugByName(name.value);
+  const renderMode = () => {
+    const ex = existing();
+    if (!ex) { modeBox.replaceChildren(el('p', { class: 'muted small' }, `Se creará una ficha nueva${folderId ? ` en «${DF().get(folderId)?.name || 'carpeta'}»` : ''}.`)); return; }
+    const radio = (v, title, desc) => el('label', { class: 'bk-mode' },
+      el('input', { type: 'radio', name: 'chumode', value: v, checked: mode.v === v, onchange: () => { mode.v = v; } }),
+      el('span', {}, el('b', {}, title), el('br'), el('span', { class: 'muted small' }, desc)));
+    modeBox.replaceChildren(el('p', { class: 'bk-warn' }, `Ya tienes la ficha «${ex.name}». ¿Qué hago?`),
+      radio('complete', 'Completar', 'Añade lo que falte (marcas, sueros, indicaciones, observaciones…). No borra nada.'),
+      radio('replace', 'Reemplazar', 'Sustituye los datos de la ficha por los pegados. Se conservan carpeta, favorito y «Mis notas».'));
+  };
+  name.addEventListener('input', renderMode);
+  renderMode();
+  const field = (label, x) => el('label', { class: 'chu-f' }, label, x);
+  const go = await modal({
+    title: 'Revisa antes de guardar',
+    cls: 'chu-modal',
+    wide: true,
+    body: [
+      p.warnings.length ? el('p', { class: 'bk-warn' }, `⚠ ${p.warnings.join(' ')}`) : null,
+      el('div', { class: 'chu-grid' }, field('Principio activo', name), field('Nombres comerciales', brands)),
+      el('div', { class: 'chu-f' }, 'Ámbito', scopeRow),
+      el('div', { class: 'chu-grid' }, field('Embarazo', cat), field('Sueros compatibles', fluids)),
+      field('Nota sobre el embarazo', pnote),
+      field('Presentaciones (una por línea)', pres),
+      el('div', { class: 'chu-f' }, `Indicaciones (${regs.length})`, regBox),
+      field('Observaciones (una por línea)', obs),
+      field('Contraindicaciones (una por línea)', contra),
+      field('Compatibilidad en Y (una por línea)', compat),
+      el('p', { class: 'muted small' }, `Fuente: ${CHULETARIO_SOURCE.text}`),
+      el('label', { class: 'check chu-rev' }, reviewed, el('span', {}, 'Marcar la ficha como ', el('b', {}, '✓ Revisada'))),
+      modeBox
+    ],
+    actions: [{ label: 'Cancelar' }, { label: 'Guardar', primary: true, value: true, onClick: () => { if (!name.value.trim()) { toast('Falta el nombre del fármaco', 'error'); name.focus(); return false; } return true; } }]
+  });
+  if (!go) return null;
+  const lines = (x) => x.value.split('\n').map((v) => v.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const csv = (x) => x.value.split(/[,;]+/).map((v) => v.replace(/[®™]/g, '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const data = {
+    name: name.value.replace(/\s+/g, ' ').trim(),
+    brands: csv(brands), presentations: lines(pres), fluids: csv(fluids),
+    regimens: regs.filter((r) => r.indication.trim() || r.text.trim()).map((r) => ({
+      id: regId(), indication: r.indication.trim(), type: r.type || '', text: r.text.trim(),
+      pres: '', route: '', dose: '', freq: '', duration: '', max: '', line: '', lineAuto: true
+    })),
+    pregnancy: { cat: cat.value, note: pnote.value.trim() },
+    observations: lines(obs), contraindications: lines(contra), compat: lines(compat),
+    scopes: SCOPES.map(([k]) => k).filter((k) => scopes.has(k)),
+    source: { ...CHULETARIO_SOURCE }
+  };
+  return saveChuletario(data, { target: existing(), mode: mode.v, reviewed: reviewed.checked, folderId });
+}
+
+function saveChuletario(data, { target, mode, reviewed, folderId }) {
+  const now = Date.now();
+  const rev = { reviewed, reviewedAt: reviewed ? now : null };
+  let id;
+  if (!target) {
+    id = newId('drugs');
+    writeDrug(id, { ...blankDrug({ name: data.name, folderId, now, reviewed }), ...rev, brands: data.brands, presentations: data.presentations, regimens: data.regimens, ...extrasOf(data), importedAt: now });
+    toast(`Ficha «${data.name}» creada ✓`, 'ok');
+  } else {
+    id = target.id;
+    if (curId === id) { saveSoon.flush(); dirtyLight = false; }
+    let light;
+    if (mode === 'replace') {
+      light = { name: data.name || target.name, brands: data.brands, presentations: data.presentations, regimens: data.regimens,
+        fluids: data.fluids, observations: data.observations, contraindications: data.contraindications, compat: data.compat,
+        scopes: data.scopes, pregnancy: data.pregnancy, source: data.source };
+    } else {
+      const keys = new Set((target.regimens || []).map(regKey));
+      light = {
+        brands: mergeList(target.brands, data.brands)[0], presentations: mergeList(target.presentations, data.presentations)[0],
+        regimens: [...(target.regimens || []), ...data.regimens.filter((r) => !keys.has(regKey(r)))],
+        ...completeExtras(target, data).light
+      };
+    }
+    writeDrug(id, { ...light, ...rev, updatedAt: now, importedAt: now });
+    toast(mode === 'replace' ? 'Ficha reemplazada ✓' : 'Ficha completada ✓', 'ok');
+  }
+  if (curId === id) { fillForm(store.drugs.get(id)); reading = true; renderChrome(); }
+  else openDrug(id, { push: true });
+  ctx.renderList(); ctx.renderSidebar();
+  return id;
 }
