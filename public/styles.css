@@ -1541,3 +1541,6 @@ details.dsec[open] > summary { border-bottom: 1px solid var(--border); }
 #drug-wrap .pres-glabel { font-size: 11px; }
 #drug-wrap .dchips.grouped { gap: 8px; }
 #drug-wrap .pres-group + .pres-group { padding-top: 6px; }
+
+/* v1.26.2: doble toque sin zoom en móvil y tablet (el pellizco sigue funcionando) */
+html, body { touch-action: manipulation; }

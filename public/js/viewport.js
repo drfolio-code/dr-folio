@@ -119,12 +119,29 @@ export function screenInfo() {
 
 const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
 
+// Doble toque sin zoom (v1.26.2). El CSS (touch-action: manipulation) basta en casi todos los
+// navegadores; esto es el respaldo para Safari iOS. No toca los campos de texto ni el editor
+// (ahí el doble toque selecciona palabra) ni el visor de PDF (tiene su propio zoom).
+function noDoubleTapZoom() {
+  let last = 0, lx = 0, ly = 0;
+  document.addEventListener('touchend', (e) => {
+    if (e.touches.length || e.changedTouches.length !== 1) { last = 0; return; }
+    const t = e.changedTouches[0], now = Date.now();
+    const near = Math.abs(t.clientX - lx) < 40 && Math.abs(t.clientY - ly) < 40;
+    const tg = e.target;
+    const skip = tg.closest && tg.closest('input, textarea, select, [contenteditable="true"], .pdfv, .pdf-viewer');
+    if (!skip && near && now - last < 350) { e.preventDefault(); last = 0; return; }
+    last = now; lx = t.clientX; ly = t.clientY;
+  }, { passive: false });
+}
+
 export function initViewport() {
   // iPhone/iPad: sin «interactive-widget» (es de Chrome Android; en iOS puede acortar la ventana)
   if (typeof navigator.standalone === 'boolean') {
     const m = document.querySelector('meta[name="viewport"]');
     if (m) m.content = m.content.replace(/,\s*interactive-widget=[^,]*/, '');
   }
+  noDoubleTapZoom();
   update();
   if (vv) { vv.addEventListener('resize', schedule); vv.addEventListener('scroll', schedule); }
   window.addEventListener('resize', schedule);
