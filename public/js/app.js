@@ -28,7 +28,7 @@ import { legacyNotes, migrateNotes, snippetsToMigrate, migrateSnippets } from '.
 import { icon, iconOr } from './icons.js';
 import {
   initDrugs, newDrug, openDrug, closeDrug, currentDrug, flushDrug, onDrugsChange, refreshDrugBacklinks, drugCard, drugItemMenu,
-  drugsForView, moveDrugTo, addManyDrugs, importDrugs, emptyDrugTrash, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading
+  drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, emptyDrugTrash, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading
 } from './drugs.js';
 import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies } from './drugbody.js';
 import {
@@ -154,10 +154,13 @@ const TREES = {
     // Botones extra del explorador y del menú ⋯: crear muchas de golpe e importar
     extraActions: (folderId) => [
       el('button', { class: 'btn', type: 'button', onclick: () => addManyDrugs(folderId) }, icon('list-plus'), ' Añadir varios'),
-      el('button', { class: 'btn', type: 'button', onclick: () => importDrugs(folderId) }, icon('file-up'), ' Importar')],
+      el('button', { class: 'btn', type: 'button', onclick: () => importDrugs(folderId) }, icon('file-up'), ' Importar'),
+      // Plantilla de carpetas: solo en la raíz y mientras haya pocas carpetas (luego queda en ⋯)
+      !folderId && store.drugFolders.size < 10 ? el('button', { class: 'btn', type: 'button', onclick: () => importTemplate() }, icon('folder-plus'), ' Plantilla de carpetas') : null],
     menuExtra: (folderId) => [
       { icon: 'list-plus', label: folderId ? 'Añadir varios aquí…' : 'Añadir varios…', onClick: () => addManyDrugs(folderId) },
-      { icon: 'file-up', label: folderId ? 'Importar fichas aquí (JSON)…' : 'Importar fichas (JSON)…', onClick: () => importDrugs(folderId) }],
+      { icon: 'file-up', label: folderId ? 'Importar fichas aquí (JSON)…' : 'Importar fichas (JSON)…', onClick: () => importDrugs(folderId) },
+      { icon: 'folder-plus', label: 'Plantilla de carpetas (AP, urgencias, montaña)…', onClick: () => importTemplate() }],
     txt: {
       Many: 'Fármacos', newBtn: '＋ Fármaco', newOne: 'Nuevo fármaco', newHere: 'Nuevo fármaco aquí', folderHint: 'Grupo (p. ej. Analgésicos)',
       loose: 'Sin carpeta', itemsHere: 'Fármacos', rootDest: '«Vademécum» (sin carpeta)',

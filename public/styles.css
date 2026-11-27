@@ -1157,6 +1157,7 @@ textarea.ed-title { display: block; resize: none; overflow: hidden; line-height:
 }
 /* Vademécum: 4 botones (＋ Fármaco, ＋ Carpeta, Añadir varios, Importar) → 2 × 2 */
 .fx-actions.n4 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fx-actions.n4 > .btn:nth-child(5) { grid-column: 1 / -1; }
 .fx-actions .btn .i { vertical-align: -2px; }
 /* Vademécum en móvil horizontal: aviso compacto y pautas en 2 columnas */
 @media (max-height: 520px) and (orientation: landscape) {

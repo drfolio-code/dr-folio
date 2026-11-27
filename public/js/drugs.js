@@ -309,15 +309,39 @@ export function importDrugs(folderId = null) {
     const f = input.files[0];
     input.remove();
     if (!f) return;
+    runImport(await f.text(), f.name, folderId);
+  });
+  document.body.append(input);
+  input.click();
+}
+
+// Plantilla de carpetas (v1.20.0): grupos terapéuticos para Atención Primaria, Urgencias y Rescate en montaña,
+// con un fármaco de ejemplo en cada subcarpeta. Usa la misma importación: no repite ni cambia lo que ya tengas.
+export const TEMPLATE_URL = './plantillas/vademecum-ap-urgencias-montana.json';
+export async function importTemplate() {
+  let text;
+  try {
+    const r = await fetch(TEMPLATE_URL, { cache: 'no-cache' });
+    if (!r.ok) throw new Error(String(r.status));
+    text = await r.text();
+  } catch { toast('No se pudo descargar la plantilla (¿sin conexión?)', 'error', 5000); return; }
+  runImport(text, 'Plantilla Dr.Folio · Atención Primaria · Urgencias · Montaña', null, { template: true });
+}
+
+async function runImport(text, fileName, folderId, { template = false } = {}) {
+  {
     let items;
-    try { items = parseDrugImport(await f.text(), regId); } catch (e) { toast(e.message, 'error', 6000); return; }
+    try { items = parseDrugImport(text, regId); } catch (e) { toast(e.message, 'error', 6000); return; }
     const plan = planImport(items);
+    const paths = new Set(items.filter((it) => it.folder.length).map((it) => it.folder.join(' › ')));
+    const tops = new Set(items.filter((it) => it.folder.length).map((it) => it.folder[0]));
     const li = (t) => el('li', {}, t);
     const list = (arr, fmt) => (arr.length ? el('ul', { class: 'imp-list' }, arr.slice(0, 12).map((x) => li(fmt(x))), arr.length > 12 ? li(`… y ${arr.length - 12} más`) : null) : null);
     const ok = await modal({
-      title: 'Importar fichas',
+      title: template ? 'Plantilla de carpetas' : 'Importar fichas',
       body: [
-        el('p', { class: 'muted small' }, f.name),
+        el('p', { class: 'muted small' }, fileName),
+        template ? el('p', {}, `${tops.size} grupos con ${paths.size} subcarpetas (las que ya tengas se aprovechan) y un fármaco de ejemplo en cada una, para ir completando poco a poco.`) : null,
         el('table', { class: 'bk-table' }, el('tbody', {},
           el('tr', {}, el('td', {}, 'Fichas nuevas'), el('td', {}, String(plan.create.length))),
           el('tr', {}, el('td', {}, 'Ya existen: se completan'), el('td', {}, String(plan.merge.length))),
@@ -353,9 +377,7 @@ export function importDrugs(folderId = null) {
     toast(`Importado: ${plan.create.length} nueva(s), ${plan.merge.length} completada(s)${created.length ? `, ${created.length} carpeta(s)` : ''}`, 'ok', 4500);
     if (curId && plan.merge.some((m) => m.d.id === curId)) fillForm(store.drugs.get(curId));
     ctx.renderList(); ctx.renderSidebar();
-  });
-  document.body.append(input);
-  input.click();
+  }
 }
 
 // ====================== Ficha ======================
