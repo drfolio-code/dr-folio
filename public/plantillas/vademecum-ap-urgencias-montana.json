@@ -1,7 +1,7 @@
 {
  "format": "drfolio-vademecum",
  "version": 1,
- "about": "Plantilla de Dr.Folio (v3) para Atención Primaria, Urgencias y Rescate en montaña: carpetas por grupo terapéutico con los fármacos y nombres comerciales principales. Dosis de adulto orientativas: revísalas antes de usarlas.",
+ "about": "Plantilla de Dr.Folio (v4) para Atención Primaria, Urgencias y Rescate en montaña: carpetas por grupo terapéutico con los fármacos y nombres comerciales principales. Dosis de adulto orientativas: revísalas antes de usarlas. v4: revisada con el Chuletario de Urgencias y fichas técnicas (tipo de vía, ámbito, contraindicaciones).",
  "drugs": [
   {
    "name": "Paracetamol",
@@ -20,22 +20,23 @@
    ],
    "regimens": [
     {
+     "indication": "Dolor / fiebre (vía IV)",
+     "presentation": "1 g/100 ml vial IV",
+     "route": "IV en 15 min",
+     "dose": "1 g",
+     "frequency": "cada 6-8 h (mín. 4 h)",
+     "max": "4 g/día · < 50 kg: 15 mg/kg/dosis",
+     "type": "IV"
+    },
+    {
      "indication": "Dolor leve o fiebre",
      "presentation": "1 g comp",
      "route": "VO",
      "dose": "1 g",
      "frequency": "cada 8 h",
      "duration": "",
-     "max": "4 g/día (3 g/día si hepatopatía, alcoholismo o < 50 kg)"
-    },
-    {
-     "indication": "Dolor moderado (urgencias)",
-     "presentation": "1 g/100 ml vial IV",
-     "route": "IV en 15 min",
-     "dose": "1 g",
-     "frequency": "cada 8 h",
-     "duration": "",
-     "max": "4 g/día"
+     "max": "4 g/día (3 g/día si hepatopatía, alcoholismo o < 50 kg)",
+     "type": "VO"
     },
     {
      "indication": "Cefalea de altura",
@@ -44,8 +45,29 @@
      "dose": "1 g",
      "frequency": "cada 8 h",
      "duration": "",
-     "max": "4 g/día"
+     "max": "4 g/día",
+     "type": "VO"
     }
+   ],
+   "fluids": [
+    "SSF",
+    "SG5 %"
+   ],
+   "observations": [
+    "No confundir Perfalgan (paracetamol) con Pro-Efferalgan (propacetamol: 2 g = 1 g de paracetamol, dosis doble)."
+   ],
+   "contraindications": [
+    "Insuficiencia hepática grave",
+    "Alergia al paracetamol"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -60,23 +82,48 @@
    ],
    "regimens": [
     {
+     "indication": "Dolor moderado-intenso / fiebre",
+     "presentation": "2 g/5 ml amp",
+     "route": "IV lenta diluida en 100 ml SSF (15-20 min) o IM",
+     "dose": "1-2 g",
+     "frequency": "cada 8 h",
+     "max": "6 g/día",
+     "type": "IV"
+    },
+    {
      "indication": "Dolor moderado o fiebre",
      "presentation": "575 mg cáps",
      "route": "VO",
      "dose": "1 cáps",
      "frequency": "cada 8 h",
      "duration": "",
-     "max": "6 cáps/día"
-    },
-    {
-     "indication": "Dolor agudo (urgencias)",
-     "presentation": "2 g/5 ml amp",
-     "route": "IV lenta diluida",
-     "dose": "2 g",
-     "frequency": "cada 8 h",
-     "duration": "",
-     "max": "6 g/día"
+     "max": "6 cáps/día",
+     "type": "VO"
     }
+   ],
+   "fluids": [
+    "SSF",
+    "SG5 %"
+   ],
+   "observations": [
+    "IV rápida: hipotensión; precaución si inestabilidad hemodinámica.",
+    "No vía SC.",
+    "La ampolla puede tomarse VO disuelta en agua o refresco."
+   ],
+   "contraindications": [
+    "Alergia a pirazolonas",
+    "Neutropenia, agranulocitosis, anemia aplásica",
+    "Porfiria aguda",
+    "< 1 año"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -100,7 +147,8 @@
      "dose": "600 mg",
      "frequency": "cada 8 h",
      "duration": "5 días",
-     "max": "2.400 mg/día"
+     "max": "2.400 mg/día",
+     "type": "VO"
     },
     {
      "indication": "Congelaciones (desde el rescate)",
@@ -109,7 +157,8 @@
      "dose": "400 mg",
      "frequency": "cada 12 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Prevención del mal agudo de montaña (alternativa)",
@@ -118,8 +167,23 @@
      "dose": "600 mg",
      "frequency": "cada 8 h",
      "duration": "desde el día del ascenso",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Tomar con comida.",
+    "Evitar con anticoagulantes, IECA/ARA-II + diurético («triple whammy») y en deshidratación."
+   ],
+   "contraindications": [
+    "Úlcera o hemorragia digestiva activa",
+    "Insuficiencia renal, hepática o cardiaca grave",
+    "3.er trimestre de embarazo",
+    "Asma o urticaria por AINE"
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -136,23 +200,46 @@
    ],
    "regimens": [
     {
+     "indication": "Dolor agudo moderado-intenso",
+     "presentation": "50 mg/2 ml amp",
+     "route": "IV en 10 min o IM profunda",
+     "dose": "50 mg",
+     "frequency": "cada 8 h",
+     "duration": "máx. 2 días",
+     "max": "150 mg/día (ficha técnica) · el Chuletario indica 75 mg/día",
+     "type": "IV"
+    },
+    {
      "indication": "Dolor agudo leve-moderado",
      "presentation": "25 mg comp",
      "route": "VO",
      "dose": "1 comp",
      "frequency": "cada 8 h",
      "duration": "5 días",
-     "max": "75 mg/día"
-    },
-    {
-     "indication": "Cólico renal o dolor agudo (urgencias)",
-     "presentation": "50 mg/2 ml amp",
-     "route": "IV lenta o IM",
-     "dose": "50 mg",
-     "frequency": "cada 8-12 h",
-     "duration": "2 días",
-     "max": "150 mg/día"
+     "max": "75 mg/día",
+     "type": "VO"
     }
+   ],
+   "fluids": [],
+   "observations": [
+    "IM: lenta y profunda.",
+    "IV en 10 min; si hace falta en bolo, lento de 15-20 s.",
+    "Parenteral máx. 2 días: pasar a VO en cuanto se pueda."
+   ],
+   "contraindications": [
+    "Úlcera o hemorragia digestiva activa",
+    "Insuficiencia renal, hepática o cardiaca grave",
+    "3.er trimestre de embarazo",
+    "Asma por AINE"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -168,14 +255,49 @@
    ],
    "regimens": [
     {
+     "indication": "Dolor moderado-intenso (vía parenteral)",
+     "presentation": "100 mg/2 ml amp",
+     "route": "IV lenta (diluir en 10 ml SSF, 2-3 min) o IM",
+     "dose": "50-100 mg",
+     "frequency": "cada 6-8 h",
+     "max": "400 mg/día",
+     "type": "IV"
+    },
+    {
      "indication": "Dolor moderado-intenso",
      "presentation": "50 mg cáps",
      "route": "VO",
      "dose": "50-100 mg",
      "frequency": "cada 6-8 h",
      "duration": "",
-     "max": "400 mg/día"
+     "max": "400 mg/día",
+     "type": "VO"
     }
+   ],
+   "fluids": [
+    "SSF"
+   ],
+   "observations": [
+    "Potencia similar a meperidina, 1/10 de la morfina.",
+    "Riesgo de síndrome serotoninérgico con ISRS/IRSN.",
+    "Asociar antiemético los primeros días."
+   ],
+   "contraindications": [
+    "Embarazo y lactancia",
+    "< 1 año",
+    "IMAO",
+    "Intoxicación por alcohol, hipnóticos, analgésicos o psicofármacos",
+    "Epilepsia no controlada",
+    "IMAO (y 14 días)",
+    "Intoxicación aguda por alcohol o depresores"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -183,23 +305,76 @@
    "brands": [
     "Cloruro mórfico Braun",
     "Oramorph",
-    "Sevredol"
+    "Sevredol",
+    "Cloruro mórfico"
    ],
    "folder": "Analgesia y anestesia › Opioides",
    "presentations": [
-    "10 mg/1 ml amp",
-    "10 mg comp"
+    "10 mg comp",
+    "10 mg/1 ml amp (1 %)",
+    "20 mg/1 ml amp (2 %)",
+    "40 mg/2 ml amp (2 %)"
    ],
    "regimens": [
     {
-     "indication": "Dolor intenso (urgencias)",
-     "presentation": "10 mg/1 ml amp",
-     "route": "IV lenta (diluir 1 amp en 9 ml SF)",
-     "dose": "2-3 mg",
-     "frequency": "cada 5 min hasta control",
-     "duration": "",
-     "max": "titular según respuesta; vigilar FR y sedación"
+     "indication": "Dolor intenso (titulación)",
+     "presentation": "10 mg/1 ml amp (1 %)",
+     "route": "IV lenta diluida",
+     "dose": "0,05-0,2 mg/kg (adulto: 2-3 mg)",
+     "frequency": "cada 10-20 min hasta control",
+     "type": "IV"
+    },
+    {
+     "indication": "Dolor intenso",
+     "presentation": "10 mg/1 ml amp (1 %)",
+     "route": "SC",
+     "dose": "5-10 mg",
+     "frequency": "cada 4 h",
+     "type": "SC"
+    },
+    {
+     "indication": "Dolor (perfusión)",
+     "presentation": "10 mg/1 ml amp (1 %)",
+     "route": "Perfusión IV",
+     "dose": "0,01-0,05 mg/kg/h",
+     "type": "Perfusión"
+    },
+    {
+     "indication": "Edema agudo de pulmón",
+     "presentation": "10 mg/1 ml amp (1 %)",
+     "route": "IV lenta",
+     "dose": "0,05-0,1 mg/kg",
+     "frequency": "repetible cada 5 min",
+     "type": "IV"
     }
+   ],
+   "fluids": [
+    "SSF",
+    "SG5 %"
+   ],
+   "observations": [
+    "Antídoto: naloxona.",
+    "Reducir dosis en insuficiencia hepática/renal, hipotiroidismo y ancianos.",
+    "Puede desencadenar convulsiones en epilépticos.",
+    "Retrasa la absorción de antiagregantes orales.",
+    "Pautar laxante si es más de unos días."
+   ],
+   "contraindications": [
+    "Depresión respiratoria, estatus asmático",
+    "Shock",
+    "IAM inferoposterior, bloqueo AV, bradicardia, hipotensión",
+    "Hipercapnia peligrosa (EPOC, HTIC)",
+    "Abdomen agudo sin diagnóstico, cólico biliar",
+    "IMAO en los 15 días previos"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -222,6 +397,15 @@
      "duration": "",
      "max": "4,5 mg/kg (≤ 300 mg) sin adrenalina"
     }
+   ],
+   "observations": [
+    "Toxicidad sistémica: parestesias peribucales, acúfenos, convulsiones, arritmias. Tratamiento: emulsión lipídica 20 %.",
+    "Con adrenalina: máx 7 mg/kg; no en zonas acras (relativo)."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -231,26 +415,45 @@
    ],
    "folder": "Analgesia y anestesia › Sedoanalgesia",
    "presentations": [
-    "50 mg/ml vial 10 ml"
+    "500 mg/10 ml amp (50 mg/ml)"
    ],
    "regimens": [
     {
-     "indication": "Analgesia (dosis subdisociativa)",
-     "presentation": "50 mg/ml vial 10 ml",
+     "indication": "Analgesia",
+     "presentation": "500 mg/10 ml amp",
      "route": "IV lenta",
-     "dose": "0,1-0,3 mg/kg",
-     "frequency": "cada 10-15 min si precisa",
-     "duration": "",
-     "max": ""
+     "dose": "0,2-1 mg/kg",
+     "type": "IV"
     },
     {
-     "indication": "Inducción o sedación para procedimientos",
-     "presentation": "50 mg/ml vial 10 ml",
-     "route": "IV",
+     "indication": "Analgesia/sedación sin vía",
+     "presentation": "500 mg/10 ml amp",
+     "route": "IM",
+     "dose": "2,5-5 mg/kg",
+     "type": "IM"
+    },
+    {
+     "indication": "Sedoanalgesia (perfusión)",
+     "presentation": "500 mg/10 ml amp",
+     "route": "Perfusión IV",
+     "dose": "5-20 µg/kg/min",
+     "type": "Perfusión"
+    },
+    {
+     "indication": "Inducción (SRI)",
+     "presentation": "500 mg/10 ml amp",
+     "route": "IV en 60 s",
      "dose": "1-2 mg/kg",
-     "frequency": "",
-     "duration": "",
-     "max": "IM: 4-5 mg/kg"
+     "max": "2 mg/kg IV",
+     "type": "IV"
+    },
+    {
+     "indication": "Inducción IM",
+     "presentation": "500 mg/10 ml amp",
+     "route": "IM",
+     "dose": "2,5-5 mg/kg",
+     "max": "10 mg/kg/dosis",
+     "type": "IM"
     },
     {
      "indication": "Analgesia sin vía (fuera de ficha)",
@@ -259,39 +462,122 @@
      "dose": "0,5-1 mg/kg",
      "frequency": "",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Intranasal"
     }
+   ],
+   "fluids": [
+    "SSF",
+    "SG5 %"
+   ],
+   "observations": [
+    "Efecto IV en 1 min, dura 5-10 min.",
+    "Asociar benzodiacepina, propofol o haloperidol para evitar reacciones de emergencia.",
+    "No vía SC.",
+    "Mantiene estabilidad hemodinámica y reflejos de vía aérea: muy útil en trauma y rescate.",
+    "No empeora crisis: útil en estatus refractario."
+   ],
+   "contraindications": [
+    "HTA grave",
+    "Cardiopatía isquémica, insuficiencia cardiaca, shock cardiogénico",
+    "Glaucoma, lesión del globo ocular",
+    "Psicosis / antecedentes psiquiátricos",
+    "ACV previo",
+    "Eclampsia/preeclampsia (precaución)",
+    "Tratamiento con simpaticomiméticos"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
    "name": "Midazolam",
    "brands": [
-    "Dormicum"
+    "Dormicum",
+    "Midazolam",
+    "Buccolam"
    ],
    "folder": "Analgesia y anestesia › Sedoanalgesia",
    "presentations": [
     "5 mg/5 ml amp",
-    "15 mg/3 ml amp"
+    "15 mg/3 ml amp",
+    "50 mg/10 ml amp"
    ],
    "regimens": [
     {
      "indication": "Sedación para procedimientos",
      "presentation": "5 mg/5 ml amp",
      "route": "IV lenta",
-     "dose": "1-2 mg",
-     "frequency": "cada 2-3 min hasta efecto",
-     "duration": "",
-     "max": "ancianos: dosis menores"
+     "dose": "0,05-0,1 mg/kg (adulto 1-2 mg cada 2-3 min hasta efecto)",
+     "type": "IV"
+    },
+    {
+     "indication": "Sedación",
+     "presentation": "15 mg/3 ml amp",
+     "route": "IM",
+     "dose": "0,1-0,2 mg/kg",
+     "type": "IM"
+    },
+    {
+     "indication": "Sedación / crisis sin vía",
+     "presentation": "15 mg/3 ml amp",
+     "route": "Intranasal (atomizador)",
+     "dose": "0,2-0,3 mg/kg (máx 10 mg)",
+     "type": "Intranasal"
     },
     {
      "indication": "Crisis convulsiva (sin vía)",
      "presentation": "15 mg/3 ml amp",
      "route": "IM",
-     "dose": "10 mg (> 40 kg)",
-     "frequency": "dosis única",
-     "duration": "",
-     "max": ""
+     "dose": "10 mg (> 40 kg); 5 mg (13-40 kg)",
+     "duration": "dosis única",
+     "type": "IM"
+    },
+    {
+     "indication": "Crisis convulsiva (con vía)",
+     "presentation": "5 mg/5 ml amp",
+     "route": "IV lenta",
+     "dose": "0,1-0,2 mg/kg",
+     "type": "IV"
+    },
+    {
+     "indication": "Sedación continua",
+     "presentation": "50 mg/10 ml amp",
+     "route": "Perfusión IV",
+     "dose": "0,05-0,4 mg/kg/h",
+     "type": "Perfusión"
     }
+   ],
+   "fluids": [
+    "SSF",
+    "SG5 %"
+   ],
+   "observations": [
+    "Alcohol, opioides y otros depresores potencian su efecto.",
+    "Gran variabilidad individual.",
+    "Ancianos, debilitados o hepatopatía: reducir dosis ≈ 25 %.",
+    "No se recomienda la vía SC.",
+    "Flumazenilo revierte la sedación, no los efectos hemodinámicos."
+   ],
+   "contraindications": [
+    "Insuficiencia respiratoria grave sin soporte ventilatorio",
+    "Miastenia gravis",
+    "Shock / inestabilidad hemodinámica (relativa)",
+    "Alergia a benzodiacepinas"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -312,8 +598,20 @@
      "dose": "5 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "40 mg/día"
+     "max": "40 mg/día",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Control de K y creatinina a las 1-2 semanas de iniciar o subir dosis."
+   ],
+   "contraindications": [
+    "Embarazo",
+    "Antecedente de angioedema",
+    "Estenosis bilateral de arteria renal"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -334,8 +632,20 @@
      "dose": "5 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "10 mg/día"
+     "max": "10 mg/día",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Edemas maleolares frecuentes (dosis dependientes)."
+   ],
+   "contraindications": [
+    "Shock cardiogénico",
+    "Estenosis aórtica grave",
+    "Hipotensión grave"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -356,7 +666,8 @@
      "dose": "40 mg",
      "frequency": "cada 24 h por la mañana",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Edema agudo de pulmón",
@@ -365,8 +676,20 @@
      "dose": "40 mg (o 1 mg/kg)",
      "frequency": "repetir según diuresis",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Anuria",
+    "Hipopotasemia o hiponatremia grave",
+    "Hipovolemia / deshidratación",
+    "Encefalopatía hepática"
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -388,8 +711,12 @@
      "dose": "12,5-25 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -411,8 +738,19 @@
      "dose": "2,5 mg",
      "frequency": "cada 24 h",
      "duration": "crónico (subir según FC)",
-     "max": "10 mg/día"
+     "max": "10 mg/día",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Bradicardia < 50 lpm o bloqueo AV 2.º-3.er grado",
+    "Asma grave",
+    "IC descompensada",
+    "Shock cardiogénico"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -433,7 +771,8 @@
      "dose": "300 mg (5 mg/kg)",
      "frequency": "en 20-60 min",
      "duration": "después 900 mg en 24 h",
-     "max": "1,2 g en 24 h"
+     "max": "1,2 g en 24 h",
+     "type": "IV"
     },
     {
      "indication": "Parada: FV/TV sin pulso tras 3.ª descarga",
@@ -442,8 +781,21 @@
      "dose": "300 mg",
      "frequency": "150 mg tras la 5.ª descarga",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Flebitis por vía periférica: diluir en SG5 %.",
+    "Interacción con acenocumarol y digoxina (subir controles)."
+   ],
+   "contraindications": [
+    "Bradicardia sinusal o bloqueo AV sin marcapasos",
+    "Disfunción tiroidea",
+    "QT largo"
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -472,7 +824,8 @@
      "dose": "1 pulsación",
      "frequency": "cada 5 min",
      "duration": "",
-     "max": "3 dosis; no si iPDE5 en 24-48 h"
+     "max": "3 dosis; no si iPDE5 en 24-48 h",
+     "type": "SL"
     },
     {
      "indication": "Angina estable",
@@ -481,8 +834,22 @@
      "dose": "1 parche",
      "frequency": "12-14 h al día (retirar por la noche)",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Transdérmico"
     }
+   ],
+   "observations": [
+    "Cefalea frecuente.",
+    "Dejar 8-12 h sin parche al día para evitar tolerancia."
+   ],
+   "contraindications": [
+    "PAS < 90 mmHg",
+    "Infarto de ventrículo derecho",
+    "Inhibidores de la PDE-5 en 24-48 h",
+    "Estenosis aórtica grave"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -505,7 +872,8 @@
      "dose": "100 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Sospecha de síndrome coronario agudo",
@@ -514,8 +882,19 @@
      "dose": "150-300 mg",
      "frequency": "dosis de carga",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Alergia a AAS/AINE",
+    "Hemorragia activa",
+    "Úlcera péptica activa",
+    "< 16 años (Reye)"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -537,7 +916,8 @@
      "dose": "75 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Carga en SCA (según protocolo)",
@@ -546,8 +926,19 @@
      "dose": "300-600 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Evitar omeprazol/esomeprazol (mejor pantoprazol)."
+   ],
+   "contraindications": [
+    "Hemorragia activa",
+    "Insuficiencia hepática grave"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -572,7 +963,8 @@
      "dose": "40 mg",
      "frequency": "cada 24 h",
      "duration": "mientras dure el riesgo",
-     "max": "20 mg si FG < 30"
+     "max": "20 mg si FG < 30",
+     "type": "SC"
     },
     {
      "indication": "Tratamiento de TVP/TEP",
@@ -581,8 +973,20 @@
      "dose": "1 mg/kg",
      "frequency": "cada 12 h",
      "duration": "",
-     "max": "ajustar si FG < 30"
+     "max": "ajustar si FG < 30",
+     "type": "SC"
     }
+   ],
+   "observations": [
+    "FG < 30: 1 mg/kg cada 24 h (tratamiento) o 20 mg (profilaxis)."
+   ],
+   "contraindications": [
+    "Hemorragia activa",
+    "Trombocitopenia por heparina",
+    "Endocarditis bacteriana aguda"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -603,8 +1007,18 @@
      "dose": "5 mg",
      "frequency": "cada 12 h",
      "duration": "crónico",
-     "max": "2,5 mg/12 h si 2 de: ≥ 80 años, ≤ 60 kg, Cr ≥ 1,5"
+     "max": "2,5 mg/12 h si 2 de: ≥ 80 años, ≤ 60 kg, Cr ≥ 1,5",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Hemorragia activa",
+    "Prótesis valvular mecánica / estenosis mitral moderada-grave",
+    "Hepatopatía con coagulopatía"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -628,8 +1042,12 @@
      "dose": "10-80 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "80 mg/día"
+     "max": "80 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -652,7 +1070,8 @@
      "dose": "2-4 inhalaciones",
      "frequency": "a demanda (cada 20 min la 1.ª hora en crisis)",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Inhalado"
     },
     {
      "indication": "Crisis asmática o EPOC moderada-grave",
@@ -661,8 +1080,19 @@
      "dose": "2,5-5 mg",
      "frequency": "cada 20 min x3, luego cada 4-6 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Nebulizado"
     }
+   ],
+   "observations": [
+    "Taquicardia, temblor e hipopotasemia a dosis altas.",
+    "Cámara espaciadora siempre con el aerosol."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -683,8 +1113,18 @@
      "dose": "500 mcg",
      "frequency": "cada 20 min x3, luego cada 6-8 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Nebulizado"
     }
+   ],
+   "observations": [
+    "Cuidado con glaucoma de ángulo cerrado (que no llegue al ojo).",
+    "Retención urinaria en HBP."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -707,8 +1147,12 @@
      "dose": "1-2 inhalaciones",
      "frequency": "cada 12 h",
      "duration": "crónico",
-     "max": "asma MART: hasta 12 inh/día"
+     "max": "asma MART: hasta 12 inh/día",
+     "type": "Inhalado"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -730,8 +1174,12 @@
      "dose": "2 pulsaciones",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "Inhalado"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -754,8 +1202,13 @@
      "dose": "40-50 mg",
      "frequency": "cada 24 h por la mañana",
      "duration": "5 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -782,7 +1235,8 @@
      "dose": "1-2 mg/kg (habitual 40-80 mg)",
      "frequency": "dosis única, repetir según evolución",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     },
     {
      "indication": "Eccema o dermatitis · aceponato",
@@ -791,8 +1245,18 @@
      "dose": "capa fina",
      "frequency": "cada 24 h",
      "duration": "máx 2-4 semanas en adultos",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "observations": [
+    "Hiperglucemia: vigilar en diabéticos."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -814,8 +1278,12 @@
      "dose": "15-30 mg",
      "frequency": "cada 6-8 h",
      "duration": "máx 7 días",
-     "max": "120 mg/día"
+     "max": "120 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -828,9 +1296,32 @@
    "presentations": [
     "875/125 mg comp",
     "500/125 mg comp",
-    "1 g/200 mg vial IV"
+    "1 g/200 mg vial IV",
+    "2 g/200 mg vial IV"
    ],
    "regimens": [
+    {
+     "indication": "Infección moderada-grave (vía IV)",
+     "presentation": "1 g/200 mg vial IV",
+     "route": "IV lenta 2-5 min",
+     "dose": "1 g/200 mg",
+     "frequency": "cada 8 h",
+     "type": "IV"
+    },
+    {
+     "indication": "Mordedura humana o animal",
+     "presentation": "1 g/200 mg vial IV",
+     "route": "IV en 100 ml SSF (30-40 min)",
+     "dose": "1 g/200 mg",
+     "type": "IV"
+    },
+    {
+     "indication": "Fractura abierta grado III",
+     "presentation": "2 g/200 mg vial IV",
+     "route": "IV en 100 ml SSF (30-40 min)",
+     "dose": "2 g/200 mg",
+     "type": "IV"
+    },
     {
      "indication": "Sinusitis, otitis, neumonía o mordedura",
      "presentation": "875/125 mg comp",
@@ -838,8 +1329,27 @@
      "dose": "875/125 mg",
      "frequency": "cada 8 h",
      "duration": "5-7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "fluids": [
+    "SSF"
+   ],
+   "observations": [
+    "Reconstituir el vial con 20 ml de agua para inyección."
+   ],
+   "contraindications": [
+    "Alergia a betalactámicos",
+    "Ictericia o hepatopatía previa por amoxicilina-clavulánico"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -861,7 +1371,8 @@
      "dose": "500 mg",
      "frequency": "cada 8-12 h",
      "duration": "10 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Neumonía adquirida en la comunidad",
@@ -870,8 +1381,16 @@
      "dose": "1 g",
      "frequency": "cada 8 h",
      "duration": "5-7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Alergia a penicilinas"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -893,8 +1412,16 @@
      "dose": "500 mg",
      "frequency": "cada 24 h",
      "duration": "3 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Prolonga el QT."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -916,8 +1443,18 @@
      "dose": "1-2 g",
      "frequency": "cada 24 h (meningitis 2 g/12 h)",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Alergia grave a betalactámicos",
+    "Neonatos con hiperbilirrubinemia o con calcio IV"
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -938,8 +1475,20 @@
      "dose": "500 mg",
      "frequency": "cada 24 h (o 12 h si grave)",
      "duration": "5-7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Riesgo de tendinitis/rotura, aneurisma aórtico y QT largo: solo si no hay alternativa."
+   ],
+   "contraindications": [
+    "Epilepsia",
+    "Tendinopatía previa por quinolonas",
+    "Embarazo, lactancia y < 18 años"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -959,8 +1508,16 @@
      "dose": "3 g",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Tomar en ayunas, preferiblemente por la noche tras orinar."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -980,8 +1537,19 @@
      "dose": "50-100 mg",
      "frequency": "cada 6-8 h",
      "duration": "5-7 días",
-     "max": "evitar si FG < 45"
+     "max": "evitar si FG < 45",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Toxicidad pulmonar y hepática en tratamientos largos."
+   ],
+   "contraindications": [
+    "FG < 45",
+    "Embarazo a término"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1002,7 +1570,8 @@
      "dose": "1 g",
      "frequency": "cada 8 h",
      "duration": "7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Herpes labial",
@@ -1011,8 +1580,12 @@
      "dose": "2 g",
      "frequency": "cada 12 h",
      "duration": "1 día",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1033,8 +1606,12 @@
      "dose": "150 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1055,8 +1632,12 @@
      "dose": "100 mg",
      "frequency": "dosis única",
      "duration": "repetir a las 2 semanas",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1072,23 +1653,44 @@
    ],
    "regimens": [
     {
+     "indication": "Profilaxis de úlcera de estrés (paciente grave)",
+     "presentation": "40 mg vial IV",
+     "route": "IV en 100 ml SSF/SG5% (20-30 min)",
+     "dose": "40 mg",
+     "frequency": "cada 24 h",
+     "type": "IV"
+    },
+    {
+     "indication": "Hemorragia digestiva alta",
+     "presentation": "40 mg vial IV",
+     "route": "IV en 100 ml SSF/SG5% (5-15 min)",
+     "dose": "80 mg en bolo, después 8 mg/h en perfusión",
+     "duration": "72 h",
+     "type": "IV"
+    },
+    {
      "indication": "Protección gástrica / ERGE",
      "presentation": "20 mg cáps",
      "route": "VO en ayunas",
      "dose": "20 mg",
      "frequency": "cada 24 h",
      "duration": "mientras dure el riesgo",
-     "max": ""
-    },
-    {
-     "indication": "Hemorragia digestiva alta",
-     "presentation": "40 mg vial IV",
-     "route": "IV",
-     "dose": "80 mg en bolo",
-     "frequency": "después 40 mg cada 12 h",
-     "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "fluids": [
+    "SSF"
+   ],
+   "observations": [],
+   "contraindications": [],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -1111,8 +1713,22 @@
      "dose": "4 mg",
      "frequency": "cada 8 h",
      "duration": "",
-     "max": "16 mg dosis IV única; vigilar QT"
+     "max": "16 mg dosis IV única; vigilar QT",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Estreñimiento y cefalea.",
+    "Dosis IV única máx 16 mg."
+   ],
+   "contraindications": [
+    "QT largo congénito",
+    "Uso con apomorfina"
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -1133,8 +1749,23 @@
      "dose": "10 mg",
      "frequency": "cada 8 h",
      "duration": "máx 5 días",
-     "max": "30 mg/día"
+     "max": "30 mg/día",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Distonía aguda (sobre todo jóvenes): tratar con biperideno.",
+    "IV lenta en ≥ 3 min."
+   ],
+   "contraindications": [
+    "Obstrucción, perforación o hemorragia digestiva",
+    "Parkinson",
+    "Feocromocitoma",
+    "Antecedente de discinesia tardía",
+    "< 1 año"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1155,8 +1786,13 @@
      "dose": "4 mg inicial, luego 2 mg tras cada deposición",
      "frequency": "",
      "duration": "máx 2 días",
-     "max": "16 mg/día"
+     "max": "16 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -1178,8 +1814,13 @@
      "dose": "1 sobre en 1 l de agua",
      "frequency": "a pequeños sorbos tras cada deposición",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -1201,8 +1842,12 @@
      "dose": "1-3 sobres",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1223,7 +1868,8 @@
      "dose": "10-20 mg",
      "frequency": "cada 6-8 h",
      "duration": "",
-     "max": "60 mg/día"
+     "max": "60 mg/día",
+     "type": "VO"
     },
     {
      "indication": "Cólico (urgencias)",
@@ -1232,8 +1878,21 @@
      "dose": "20 mg",
      "frequency": "dosis única, repetible",
      "duration": "",
-     "max": "100 mg/día"
+     "max": "100 mg/día",
+     "type": "IV"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Glaucoma de ángulo cerrado",
+    "Retención urinaria / HBP obstructiva",
+    "Taquiarritmia",
+    "Miastenia gravis",
+    "Íleo paralítico"
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -1254,8 +1913,18 @@
      "dose": "425-850 mg",
      "frequency": "cada 12-24 h; subir cada 1-2 semanas",
      "duration": "crónico",
-     "max": "3 g/día; reducir si FG < 45, suspender si < 30"
+     "max": "3 g/día; reducir si FG < 45, suspender si < 30",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "FG < 30",
+    "Acidosis, sepsis, deshidratación o hipoxia",
+    "Contrastes yodados: suspender el día de la prueba si FG < 45"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1276,8 +1945,12 @@
      "dose": "10 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1299,8 +1972,12 @@
      "dose": "10 UI (o 0,1-0,2 UI/kg)",
      "frequency": "cada 24 h a la misma hora",
      "duration": "ajustar 2 UI cada 3 días según glucemia basal",
-     "max": ""
+     "max": "",
+     "type": "SC"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1322,7 +1999,8 @@
      "dose": "1 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IM"
     },
     {
      "indication": "Intoxicación por betabloqueantes",
@@ -1331,8 +2009,22 @@
      "dose": "3-10 mg (50-150 mcg/kg)",
      "frequency": "después perfusión",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Poco eficaz en ayuno prolongado, alcohol o hepatopatía (sin glucógeno).",
+    "Náuseas y vómitos: lateralizar."
+   ],
+   "contraindications": [
+    "Feocromocitoma",
+    "Insulinoma"
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -1356,7 +2048,8 @@
      "dose": "10-20 g (20-40 ml)",
      "frequency": "repetir según glucemia",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     },
     {
      "indication": "Vía de mantenimiento / hipoglucemia tras bolo · 5%",
@@ -1365,8 +2058,19 @@
      "dose": "500 ml",
      "frequency": "cada 6-8 h según situación",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Al 50 % es irritante: vía gruesa y lavar con SSF.",
+    "En alcohólicos o desnutridos, tiamina antes o a la vez."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -1389,8 +2093,12 @@
      "dose": "25-50 mcg (1,6 mcg/kg en jóvenes)",
      "frequency": "cada 24 h",
      "duration": "crónico; control TSH a las 6-8 semanas",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1402,10 +2110,19 @@
    "folder": "Neurología y psiquiatría › Anticonvulsivantes",
    "presentations": [
     "5 mg comp",
-    "10 mg/2 ml amp",
-    "5 mg y 10 mg microenema rectal"
+    "5 mg y 10 mg microenema rectal",
+    "10 mg/2 ml amp"
    ],
    "regimens": [
+    {
+     "indication": "Crisis convulsiva (con vía)",
+     "presentation": "10 mg/2 ml amp",
+     "route": "IV lenta (≤ 2 mg/min)",
+     "dose": "5-10 mg",
+     "frequency": "repetir a los 5-10 min si persiste",
+     "max": "20-40 mg",
+     "type": "IV"
+    },
     {
      "indication": "Crisis convulsiva (sin vía)",
      "presentation": "5 mg y 10 mg microenema rectal",
@@ -1413,16 +2130,8 @@
      "dose": "10 mg",
      "frequency": "repetir a los 10 min si persiste",
      "duration": "",
-     "max": ""
-    },
-    {
-     "indication": "Crisis convulsiva (con vía)",
-     "presentation": "10 mg/2 ml amp",
-     "route": "IV lenta",
-     "dose": "5-10 mg",
-     "frequency": "repetir a los 5-10 min si persiste",
-     "duration": "",
-     "max": "20 mg"
+     "max": "",
+     "type": "Rectal"
     },
     {
      "indication": "Ansiedad",
@@ -1431,8 +2140,32 @@
      "dose": "5 mg",
      "frequency": "cada 8-12 h",
      "duration": "uso corto",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "fluids": [
+    "SSF"
+   ],
+   "observations": [
+    "Precipita con muchos sueros: mejor sin diluir, por vía gruesa.",
+    "No IM (absorción errática).",
+    "Depresión respiratoria, sobre todo con opioides o alcohol."
+   ],
+   "contraindications": [
+    "Insuficiencia respiratoria grave",
+    "Miastenia gravis",
+    "Apnea del sueño",
+    "Insuficiencia hepática grave"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -1453,8 +2186,17 @@
      "dose": "60 mg/kg",
      "frequency": "dosis única",
      "duration": "",
-     "max": "4.500 mg"
+     "max": "4.500 mg",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Ajustar en insuficiencia renal.",
+    "Irritabilidad y cambios de humor."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -1476,8 +2218,18 @@
      "dose": "50-100 mg",
      "frequency": "repetir a las 2 h si reaparece",
      "duration": "",
-     "max": "300 mg/día"
+     "max": "300 mg/día",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Cardiopatía isquémica, ictus o enfermedad vascular periférica",
+    "HTA no controlada",
+    "IMAO"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1498,8 +2250,12 @@
      "dose": "50-100 mg",
      "frequency": "cada 4-6 h (30 min antes del viaje)",
      "duration": "",
-     "max": "400 mg/día"
+     "max": "400 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1520,8 +2276,18 @@
      "dose": "100 mg",
      "frequency": "dosis única",
      "duration": "después VO 50 mg cada 8 h, pocos días",
-     "max": ""
+     "max": "",
+     "type": "IM"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Feocromocitoma",
+    "Prolactinoma",
+    "Parkinson"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1543,8 +2309,12 @@
      "dose": "1 mg",
      "frequency": "hasta cada 8 h",
      "duration": "uso corto",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1565,8 +2335,12 @@
      "dose": "50 mg",
      "frequency": "cada 24 h",
      "duration": "≥ 6 meses tras remisión",
-     "max": "200 mg/día"
+     "max": "200 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1587,8 +2361,21 @@
      "dose": "2,5-5 mg",
      "frequency": "repetir cada 30-60 min si precisa",
      "duration": "",
-     "max": "20 mg/día; vigilar QT y extrapiramidalismo"
+     "max": "20 mg/día; vigilar QT y extrapiramidalismo",
+     "type": "IM"
     }
+   ],
+   "observations": [
+    "Extrapiramidalismo: biperideno.",
+    "En ancianos, dosis bajas (0,5-1 mg)."
+   ],
+   "contraindications": [
+    "QT largo",
+    "Parkinson / demencia con cuerpos de Lewy",
+    "Coma o depresión del SNC"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1610,8 +2397,16 @@
      "dose": "5-10 mg",
      "frequency": "repetir a las 2 h si precisa",
      "duration": "",
-     "max": "20 mg/día"
+     "max": "20 mg/día",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "No dar olanzapina IM junto a benzodiacepinas parenterales (depresión cardiorrespiratoria)."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1632,7 +2427,8 @@
      "dose": "5 mg",
      "frequency": "cada 6-8 h",
      "duration": "",
-     "max": "20 mg/día"
+     "max": "20 mg/día",
+     "type": "IV"
     },
     {
      "indication": "Urticaria leve",
@@ -1641,8 +2437,21 @@
      "dose": "2 mg",
      "frequency": "cada 6-8 h",
      "duration": "",
-     "max": "12 mg/día"
+     "max": "12 mg/día",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Sedación: no conducir."
+   ],
+   "contraindications": [
+    "Glaucoma de ángulo cerrado",
+    "Retención urinaria"
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -1663,8 +2472,12 @@
      "dose": "10 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1679,23 +2492,74 @@
    ],
    "regimens": [
     {
-     "indication": "Hemorragia grave por trauma (< 3 h)",
+     "indication": "Shock hemorrágico postraumático (< 3 h)",
      "presentation": "500 mg/5 ml amp",
-     "route": "IV en 10 min",
+     "route": "IV en 100 ml SG5% en 10 min",
      "dose": "1 g",
-     "frequency": "dosis de carga",
-     "duration": "después 1 g en 8 h",
-     "max": ""
+     "frequency": "y después 1 g en 8 h (125 mg/h)",
+     "type": "IV"
     },
     {
-     "indication": "Epistaxis (tópico)",
+     "indication": "TCE leve-moderado / hemorragia intracraneal",
      "presentation": "500 mg/5 ml amp",
-     "route": "Tópico en gasa intranasal",
-     "dose": "500 mg",
-     "frequency": "",
-     "duration": "",
-     "max": ""
+     "route": "IV",
+     "dose": "1 g en 10 min + 1 g en 8 h",
+     "type": "IV"
+    },
+    {
+     "indication": "Epistaxis",
+     "presentation": "500 mg/5 ml amp",
+     "route": "Tópica (gasa empapada) o nebulizada",
+     "dose": "500 mg (1 amp)",
+     "type": "Nebulizado"
+    },
+    {
+     "indication": "Hemorragia posparto",
+     "presentation": "500 mg/5 ml amp",
+     "route": "IV en 100 ml SG5% en 10 min",
+     "dose": "1 g",
+     "type": "IV"
+    },
+    {
+     "indication": "Hemoptisis no masiva",
+     "presentation": "500 mg/5 ml amp",
+     "route": "Nebulizada en 5-10 ml SSF",
+     "dose": "500-1000 mg",
+     "type": "Nebulizado"
+    },
+    {
+     "indication": "Trauma pediátrico (< 3 h)",
+     "presentation": "500 mg/5 ml amp",
+     "route": "IV",
+     "dose": "15 mg/kg en 10 min + 2 mg/kg/h 8 h",
+     "type": "IV"
     }
+   ],
+   "fluids": [
+    "SSF",
+    "SG5 %"
+   ],
+   "observations": [
+    "Amplio margen terapéutico.",
+    "No IM.",
+    "Sin beneficio demostrado en TCE grave ni en hemorragia digestiva.",
+    "Rescate: administrar cuanto antes (< 3 h); pasado ese tiempo puede ser perjudicial."
+   ],
+   "contraindications": [
+    "Trombosis arterial o venosa previa",
+    "Fibrinolisis por coagulopatía de consumo",
+    "Insuficiencia renal grave",
+    "Antecedente de convulsiones",
+    "Hipersensibilidad"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -1715,7 +2579,8 @@
      "dose": "10 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     },
     {
      "indication": "INR alto sin sangrado",
@@ -1724,8 +2589,13 @@
      "dose": "1-2 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -1747,8 +2617,12 @@
      "dose": "1 comp",
      "frequency": "cada 24 h",
      "duration": "3 meses tras normalizar Hb",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1769,8 +2643,19 @@
      "dose": "1 mg y 0,5 mg 1 h después",
      "frequency": "luego 0,5 mg cada 8-12 h",
      "duration": "hasta resolución",
-     "max": "1,5 mg el primer día; reducir si ERC"
+     "max": "1,5 mg el primer día; reducir si ERC",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Diarrea: primer signo de toxicidad."
+   ],
+   "contraindications": [
+    "Insuficiencia renal o hepática grave",
+    "Inhibidores potentes del CYP3A4 o de la gp-P (claritromicina, ciclosporina)"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1791,8 +2676,12 @@
      "dose": "100 mg",
      "frequency": "cada 24 h; subir hasta urato < 6",
      "duration": "crónico",
-     "max": "ajustar a FG"
+     "max": "ajustar a FG",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1812,8 +2701,12 @@
      "dose": "70 mg",
      "frequency": "1 vez a la semana",
      "duration": "5 años y reevaluar",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1834,8 +2727,12 @@
      "dose": "0,4 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1856,8 +2753,12 @@
      "dose": "capa fina",
      "frequency": "cada 8 h",
      "duration": "5-10 días",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1881,7 +2782,8 @@
      "dose": "capa fina",
      "frequency": "cada 8-12 h",
      "duration": "2-4 semanas",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     },
     {
      "indication": "Candidiasis vaginal",
@@ -1892,6 +2794,9 @@
      "duration": "",
      "max": ""
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1911,8 +2816,13 @@
      "dose": "capa de 2-3 mm",
      "frequency": "cada 12-24 h con la cura",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -1935,6 +2845,9 @@
      "duration": "7 días",
      "max": ""
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1956,6 +2869,9 @@
      "duration": "",
      "max": "no prescribir para casa"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -1980,7 +2896,8 @@
      "dose": "500 mg",
      "frequency": "cada 12 h",
      "duration": "7 días (prostatitis 4 semanas)",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Otitis externa · ótico",
@@ -1991,6 +2908,17 @@
      "duration": "7 días",
      "max": ""
     }
+   ],
+   "observations": [
+    "Riesgo de tendinitis y QT largo.",
+    "Separar 2 h de calcio, hierro y antiácidos."
+   ],
+   "contraindications": [
+    "Tendinopatía previa por quinolonas",
+    "Embarazo, lactancia y < 18 años (sistémico)"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2011,14 +2939,19 @@
      "dose": "1,5 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
    "name": "Naloxona",
    "brands": [
-    "Naloxona Kern"
+    "Naloxona Kern",
+    "Naloxona"
    ],
    "folder": "Antídotos y toxicología › Opioides y benzodiacepinas",
    "presentations": [
@@ -2028,12 +2961,40 @@
     {
      "indication": "Intoxicación por opioides con depresión respiratoria",
      "presentation": "0,4 mg/1 ml amp",
-     "route": "IV, IM, SC o intranasal",
-     "dose": "0,4 mg (0,1 mg si dependencia)",
-     "frequency": "repetir cada 2-3 min",
-     "duration": "",
-     "max": "10 mg; vida media corta: vigilar"
+     "route": "IV, IM, SC o IN",
+     "dose": "0,4 mg (0,04-0,1 mg si dependencia; niños 0,01 mg/kg)",
+     "frequency": "cada 2-3 min hasta respuesta",
+     "max": "10 mg",
+     "type": "IV"
+    },
+    {
+     "indication": "Opioides de vida larga (metadona, buprenorfina) o recaída",
+     "presentation": "0,4 mg/1 ml amp",
+     "route": "Perfusión IV",
+     "dose": "2/3 de la dosis que revirtió por hora (5-15 µg/kg/h)",
+     "type": "Perfusión"
     }
+   ],
+   "fluids": [
+    "SSF",
+    "SG5 %"
+   ],
+   "observations": [
+    "En consumidores crónicos o dosis altas puede precipitar abstinencia aguda: titular en bolos pequeños.",
+    "La reversión rápida puede dar agitación, HTA y taquicardia.",
+    "Vida media más corta que la de muchos opioides: vigilar ≥ 2 h y repetir o perfundir.",
+    "Vía endotraqueal posible diluida 1:1 con SSF."
+   ],
+   "contraindications": [
+    "Alergia a naloxona"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -2054,8 +3015,20 @@
      "dose": "0,2 mg",
      "frequency": "después 0,1 mg cada 60 s",
      "duration": "",
-     "max": "1 mg"
+     "max": "1 mg",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Vida media corta: puede reaparecer la sedación."
+   ],
+   "contraindications": [
+    "Intoxicación mixta (tricíclicos u otros proconvulsivantes)",
+    "Epilépticos tratados con benzodiacepinas",
+    "Dependencia de benzodiacepinas (riesgo de convulsiones)"
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -2075,8 +3048,18 @@
      "dose": "1 g/kg (50 g)",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Vía aérea no protegida",
+    "Cáusticos, hidrocarburos, alcoholes, hierro o litio (no adsorbe)",
+    "Obstrucción o perforación intestinal"
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -2096,8 +3079,16 @@
      "dose": "150 mg/kg en 1 h, 50 mg/kg en 4 h, 100 mg/kg en 16 h",
      "frequency": "",
      "duration": "21 h",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Reacción anafilactoide con la 1.ª bolsa: parar, antihistamínico y reanudar más lento."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -2106,32 +3097,53 @@
     "Adrenalina Braun",
     "Altellus",
     "Jext",
-    "Emerade"
+    "Emerade",
+    "Adrenalina B. Braun"
    ],
    "folder": "Soporte vital y urgencias › Parada y anafilaxia",
    "presentations": [
-    "1 mg/1 ml amp (1:1.000)",
     "0,3 mg autoinyector",
-    "0,15 mg autoinyector"
+    "0,15 mg autoinyector",
+    "1 mg/1 ml amp (1:1.000)"
    ],
    "regimens": [
     {
      "indication": "Anafilaxia",
      "presentation": "1 mg/1 ml amp (1:1.000)",
-     "route": "IM cara anterolateral del muslo",
-     "dose": "0,5 mg (0,01 mg/kg)",
-     "frequency": "repetir a los 5 min si no mejora",
-     "duration": "",
-     "max": ""
+     "route": "IM en cara anterolateral del muslo",
+     "dose": "0,3-0,5 mg (0,01 mg/kg)",
+     "frequency": "repetir cada 5-15 min si no mejora",
+     "type": "IM"
     },
     {
-     "indication": "Parada cardiorrespiratoria",
+     "indication": "Parada cardiaca",
      "presentation": "1 mg/1 ml amp (1:1.000)",
-     "route": "IV o IO",
+     "route": "IV/IO",
      "dose": "1 mg",
-     "frequency": "cada 3-5 min (desfibrilable: tras la 3.ª descarga)",
-     "duration": "",
-     "max": ""
+     "frequency": "cada 3-5 min",
+     "type": "IV"
+    },
+    {
+     "indication": "Bradicardia sintomática",
+     "presentation": "1 mg/1 ml amp (1:1.000)",
+     "route": "Perfusión IV",
+     "dose": "2-10 µg/min",
+     "type": "Perfusión"
+    },
+    {
+     "indication": "Hipotensión sin taquicardia (push-dose)",
+     "presentation": "1 mg/1 ml amp (1:1.000)",
+     "route": "IV (1 amp en 99 ml SSF → 10 µg/ml)",
+     "dose": "5-20 µg (0,5-2 ml)",
+     "frequency": "cada 4-5 min",
+     "type": "IV"
+    },
+    {
+     "indication": "Shock",
+     "presentation": "1 mg/1 ml amp (1:1.000)",
+     "route": "Perfusión IV",
+     "dose": "0,05-0,5 µg/kg/min",
+     "type": "Perfusión"
     },
     {
      "indication": "Anafilaxia (prescripción para casa o botiquín de rescate)",
@@ -2140,14 +3152,31 @@
      "dose": "0,3 mg (≥ 30 kg)",
      "frequency": "repetir a los 5-15 min si no mejora",
      "duration": "",
-     "max": "llevar siempre 2"
+     "max": "llevar siempre 2",
+     "type": "IM"
     }
+   ],
+   "fluids": [
+    "SSF"
+   ],
+   "observations": [
+    "El Chuletario admite SC en anafilaxia; la vía de elección es IM."
+   ],
+   "contraindications": [],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
    "name": "Atropina",
    "brands": [
-    "Atropina Braun"
+    "Atropina Braun",
+    "Atropina B. Braun"
    ],
    "folder": "Soporte vital y urgencias › Bradicardia",
    "presentations": [
@@ -2155,23 +3184,34 @@
    ],
    "regimens": [
     {
-     "indication": "Bradicardia sintomática",
+     "indication": "Bradiarritmia sintomática",
      "presentation": "1 mg/1 ml amp",
-     "route": "IV en bolo",
-     "dose": "0,5 mg",
-     "frequency": "cada 3-5 min",
-     "duration": "",
-     "max": "3 mg"
+     "route": "IV",
+     "dose": "0,6-1 mg",
+     "frequency": "cada 3-5 min hasta normalizar FC",
+     "max": "3 mg",
+     "type": "IV"
     },
     {
-     "indication": "Intoxicación por organofosforados",
+     "indication": "Intoxicación por organofosforados (crisis colinérgica)",
      "presentation": "1 mg/1 ml amp",
      "route": "IV",
      "dose": "1-2 mg",
-     "frequency": "duplicar cada 5 min hasta secar secreciones",
-     "duration": "",
-     "max": ""
+     "frequency": "cada 20-30 min hasta atropinización (midriasis, taquicardia, secreciones secas)",
+     "type": "IV"
     }
+   ],
+   "fluids": [
+    "SSF"
+   ],
+   "observations": [],
+   "contraindications": [],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -2191,8 +3231,16 @@
      "dose": "0,05-0,1 mcg/kg/min",
      "frequency": "ajustar a PAM ≥ 65",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Perfusión"
     }
+   ],
+   "observations": [
+    "Vía central si es posible; por periférica, vena gruesa y vigilar extravasación."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -2212,8 +3260,16 @@
      "dose": "1-1,2 mg/kg",
      "frequency": "dosis única",
      "duration": "",
-     "max": "reversión: sugammadex 16 mg/kg"
+     "max": "reversión: sugammadex 16 mg/kg",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Antídoto: sugammadex 16 mg/kg (inmediato) o 2-4 mg/kg (recuperación)."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -2234,8 +3290,17 @@
      "dose": "0,3 mg/kg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Supresión suprarrenal transitoria (evitar dosis repetidas).",
+    "Mioclonías."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -2260,7 +3325,8 @@
      "dose": "250-500 ml en bolo",
      "frequency": "reevaluar tras cada bolo",
      "duration": "",
-     "max": "trauma: hipotensión permisiva (PAS 80-90)"
+     "max": "trauma: hipotensión permisiva (PAS 80-90)",
+     "type": "IV"
     },
     {
      "indication": "Hiponatremia grave sintomática",
@@ -2269,8 +3335,13 @@
      "dose": "150 ml (o 2 ml/kg)",
      "frequency": "en 20 min; repetir hasta 2-3 veces",
      "duration": "",
-     "max": "no subir Na > 10 mEq/l en 24 h"
+     "max": "no subir Na > 10 mEq/l en 24 h",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -2290,7 +3361,8 @@
      "dose": "125 mg",
      "frequency": "cada 12 h",
      "duration": "desde el día antes del ascenso hasta 2-3 días en la altura máxima",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Tratamiento del mal agudo de montaña",
@@ -2299,8 +3371,21 @@
      "dose": "250 mg",
      "frequency": "cada 12 h",
      "duration": "hasta mejoría",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Parestesias y diuresis frecuentes; las bebidas con gas saben raras."
+   ],
+   "contraindications": [
+    "Alergia a sulfamidas (relativa)",
+    "Insuficiencia renal o hepática grave",
+    "Hipopotasemia"
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -2317,13 +3402,20 @@
    ],
    "regimens": [
     {
-     "indication": "Edema cerebral de altura",
+     "indication": "Edema cerebral",
      "presentation": "4 mg/1 ml amp",
-     "route": "IV, IM o VO",
-     "dose": "8 mg",
+     "route": "IV en 15 min",
+     "dose": "10-20 mg",
      "frequency": "después 4 mg cada 6 h",
-     "duration": "descenso inmediato",
-     "max": ""
+     "type": "IV"
+    },
+    {
+     "indication": "Edema cerebral de altura (HACE)",
+     "presentation": "4 mg/1 ml amp",
+     "route": "IV / IM / VO",
+     "dose": "8 mg",
+     "frequency": "y después 4 mg cada 6 h",
+     "type": "IV"
     },
     {
      "indication": "Mal agudo de montaña moderado-grave",
@@ -2332,8 +3424,29 @@
      "dose": "4 mg",
      "frequency": "cada 6 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "fluids": [
+    "SSF",
+    "SG5 %"
+   ],
+   "observations": [
+    "No vía SC.",
+    "Equivalencias: hidrocortisona 20 mg = prednisona 5 mg = metilprednisolona 4 mg = dexametasona 0,75 mg.",
+    "Duración 36-54 h, sin efecto mineralocorticoide.",
+    "La pauta de HACE no es del Chuletario (guías WMS)."
+   ],
+   "contraindications": [],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "AP",
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -2355,8 +3468,17 @@
      "dose": "30 mg",
      "frequency": "cada 12 h",
      "duration": "hasta descenso y mejoría",
-     "max": "no usar formulación de liberación rápida"
+     "max": "no usar formulación de liberación rápida",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Solo formulación retard: la de liberación rápida da hipotensión brusca."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -2376,8 +3498,20 @@
      "dose": "3 ml",
      "frequency": "puede repetirse 1 vez",
      "duration": "",
-     "max": "6 ml/día; 15 ml/semana"
+     "max": "6 ml/día; 15 ml/semana",
+     "type": "Inhalado"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Insuficiencia renal",
+    "Alteración del nivel de conciencia",
+    "Antecedente de hipertermia maligna",
+    "Inestabilidad hemodinámica o respiratoria"
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -2389,20 +3523,40 @@
    ],
    "folder": "Montaña y rescate › Analgesia en rescate",
    "presentations": [
-    "0,15 mg/3 ml amp (50 mcg/ml)",
     "12 mcg/h parche",
     "25 mcg/h parche",
-    "50 mcg/h parche"
+    "50 mcg/h parche",
+    "150 µg/3 ml amp (50 µg/ml)"
    ],
    "regimens": [
     {
-     "indication": "Dolor intenso (con vía)",
-     "presentation": "0,15 mg/3 ml amp (50 mcg/ml)",
+     "indication": "Analgesia",
+     "presentation": "150 µg/3 ml amp",
      "route": "IV lenta",
-     "dose": "1 mcg/kg (50-100 mcg)",
-     "frequency": "repetir 0,5 mcg/kg cada 5-10 min",
-     "duration": "",
-     "max": "vigilar FR y SatO2"
+     "dose": "1-3 µg/kg",
+     "type": "IV"
+    },
+    {
+     "indication": "Analgesia (perfusión)",
+     "presentation": "150 µg/3 ml amp",
+     "route": "Perfusión IV",
+     "dose": "1-4 µg/kg/h",
+     "type": "Perfusión"
+    },
+    {
+     "indication": "Inducción anestésica / sedación",
+     "presentation": "150 µg/3 ml amp",
+     "route": "IV en 30 s",
+     "dose": "50-100 µg",
+     "frequency": "repetible a los 2-3 min",
+     "type": "IV"
+    },
+    {
+     "indication": "Sedación (perfusión)",
+     "presentation": "150 µg/3 ml amp",
+     "route": "Perfusión IV",
+     "dose": "0,5-2 µg/kg/h",
+     "type": "Perfusión"
     },
     {
      "indication": "Dolor intenso sin vía (uso fuera de ficha)",
@@ -2411,7 +3565,8 @@
      "dose": "1,5 mcg/kg",
      "frequency": "repetir a los 10 min si precisa",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Intranasal"
     },
     {
      "indication": "Dolor crónico (paciente ya tratado con opioides)",
@@ -2420,8 +3575,31 @@
      "dose": "12-25 mcg/h",
      "frequency": "cambiar cada 72 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Transdérmico"
     }
+   ],
+   "fluids": [
+    "SSF"
+   ],
+   "observations": [
+    "Antídoto: naloxona.",
+    "IN (fuera del Chuletario): 1,5 µg/kg con MAD, útil en rescate sin vía.",
+    "Rigidez torácica con bolos rápidos y altos."
+   ],
+   "contraindications": [
+    "IMAO o < 14 días tras suspenderlos",
+    "TCE e HIC (relativa)",
+    "Coma",
+    "Hipersensibilidad a opiáceos"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -2439,8 +3617,13 @@
      "dose": "0,5-2 ng/kg/min",
      "frequency": "6 h al día",
      "duration": "hasta 5-8 días",
-     "max": "solo en centro hospitalario"
+     "max": "solo en centro hospitalario",
+     "type": "Perfusión"
     }
+   ],
+   "scopes": [
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -2462,8 +3645,18 @@
      "dose": "550 mg",
      "frequency": "cada 12 h",
      "duration": "5-7 días",
-     "max": "1.100 mg/día"
+     "max": "1.100 mg/día",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Úlcera o hemorragia digestiva activa",
+    "Insuficiencia renal o cardiaca grave",
+    "3.er trimestre de embarazo"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2489,7 +3682,8 @@
      "dose": "50 mg",
      "frequency": "cada 8 h",
      "duration": "",
-     "max": "150 mg/día"
+     "max": "150 mg/día",
+     "type": "VO"
     },
     {
      "indication": "Cólico renal",
@@ -2498,7 +3692,8 @@
      "dose": "75 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": "150 mg/día"
+     "max": "150 mg/día",
+     "type": "IM"
     },
     {
      "indication": "Dolor musculoesquelético localizado · tópico",
@@ -2507,8 +3702,19 @@
      "dose": "aplicación",
      "frequency": "cada 6-8 h",
      "duration": "máx 14 días",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Úlcera o hemorragia digestiva activa",
+    "Cardiopatía isquémica, enfermedad arterial periférica o cerebrovascular",
+    "Insuficiencia cardiaca NYHA II-IV",
+    "3.er trimestre de embarazo"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2524,14 +3730,43 @@
    ],
    "regimens": [
     {
-     "indication": "Dolor agudo moderado-intenso",
+     "indication": "Dolor moderado-intenso (carga)",
      "presentation": "30 mg/1 ml amp",
-     "route": "IV lenta o IM",
-     "dose": "10-30 mg",
-     "frequency": "cada 6-8 h",
-     "duration": "máx 2 días",
-     "max": "90 mg/día (60 mg/día si > 65 años)"
+     "route": "IV lenta / IM",
+     "dose": "30-60 mg",
+     "type": "IV"
+    },
+    {
+     "indication": "Dolor moderado-intenso (mantenimiento)",
+     "presentation": "30 mg/1 ml amp",
+     "route": "IV lenta / IM",
+     "dose": "15-30 mg",
+     "frequency": "cada 4-6 h",
+     "max": "90 mg/día (60 mg/día en ancianos)",
+     "type": "IV"
     }
+   ],
+   "fluids": [],
+   "observations": [
+    "Muy gastrolesivo.",
+    "No recomendado en < 16 años."
+   ],
+   "contraindications": [
+    "Alergia a ketorolaco, salicilatos u otros AINE",
+    "Úlcera péptica activa",
+    "Insuficiencia renal avanzada",
+    "< 16 años",
+    "Alteraciones de la coagulación",
+    "Alteraciones de la coagulación o anticoagulación",
+    "Embarazo, parto y lactancia"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -2553,8 +3788,12 @@
      "dose": "100 mg",
      "frequency": "cada 12 h",
      "duration": "",
-     "max": "200 mg/día"
+     "max": "200 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2575,8 +3814,12 @@
      "dose": "200 mg",
      "frequency": "cada 24 h (o 100 mg cada 12 h)",
      "duration": "",
-     "max": "400 mg/día"
+     "max": "400 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2598,7 +3841,8 @@
      "dose": "60 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Crisis de gota",
@@ -2607,8 +3851,12 @@
      "dose": "120 mg",
      "frequency": "cada 24 h",
      "duration": "máx 8 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2629,8 +3877,12 @@
      "dose": "1-2 comp",
      "frequency": "cada 6-8 h",
      "duration": "",
-     "max": "8 comp/día"
+     "max": "8 comp/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2651,8 +3903,12 @@
      "dose": "1-2 comp",
      "frequency": "cada 6-8 h",
      "duration": "",
-     "max": "8 comp/día"
+     "max": "8 comp/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2674,8 +3930,12 @@
      "dose": "50 mg",
      "frequency": "cada 12 h",
      "duration": "",
-     "max": "500 mg/día"
+     "max": "500 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2697,8 +3957,12 @@
      "dose": "10/5 mg",
      "frequency": "cada 12 h",
      "duration": "",
-     "max": "160/80 mg/día"
+     "max": "160/80 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2718,8 +3982,12 @@
      "dose": "50-100 mg",
      "frequency": "cada 4-6 h",
      "duration": "",
-     "max": "400 mg/día"
+     "max": "400 mg/día",
+     "type": "IM"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2741,8 +4009,12 @@
      "dose": "35 mcg/h",
      "frequency": "cambiar cada 3-4 días",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Transdérmico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2765,6 +4037,14 @@
      "duration": "",
      "max": "≈ 4 mg/kg (≤ 300 mg) sin vasoconstrictor"
     }
+   ],
+   "observations": [
+    "Toxicidad sistémica como la lidocaína: emulsión lipídica 20 %."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -2787,6 +4067,9 @@
      "duration": "",
      "max": "2 mg/kg (≤ 150 mg)"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2806,8 +4089,12 @@
      "dose": "capa gruesa",
      "frequency": "60 min antes",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2828,7 +4115,8 @@
      "dose": "0,5-1 mg/kg",
      "frequency": "después 0,25-0,5 mg/kg si precisa",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     },
     {
      "indication": "Inducción anestésica",
@@ -2837,8 +4125,20 @@
      "dose": "1-2,5 mg/kg",
      "frequency": "",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Hipotensión y apnea dosis-dependientes: reducir en ancianos e inestables.",
+    "Dolor a la inyección (lidocaína previa)."
+   ],
+   "contraindications": [
+    "Alergia al huevo o la soja (relativa)",
+    "Hipotensión / shock"
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -2849,18 +4149,40 @@
    ],
    "folder": "Analgesia y anestesia › Sedoanalgesia",
    "presentations": [
-    "bala de gas medicinal"
+    "Bala N2O 50 % / O2 50 % (5 y 15 l, 170 bar)"
    ],
    "regimens": [
     {
-     "indication": "Analgesia en procedimientos breves",
-     "presentation": "bala de gas medicinal",
-     "route": "Inhalado autoadministrado",
-     "dose": "a demanda con mascarilla",
-     "frequency": "",
-     "duration": "",
-     "max": "no en neumotórax ni TCE"
+     "indication": "Analgesia en procedimientos cortos (reducción, curas, movilización)",
+     "presentation": "Bala N2O 50 % / O2 50 % (5 y 15 l, 170 bar)",
+     "route": "Inhalada con mascarilla y válvula",
+     "dose": "9 l/min (niños > 4 años: 6 l/min)",
+     "duration": "máx. 60 min seguidos",
+     "type": "Inhalado"
     }
+   ],
+   "fluids": [],
+   "observations": [
+    "Necesita colaboración; inducción mínima 3 min respirando normal.",
+    "Suspender si efectos adversos o se pierde el contacto verbal.",
+    "Efecto desaparece en < 1 min.",
+    "Montaña: mezcla inestable < −5 ºC; no usar con la bala a < 0 ºC (guardarla templada y voltearla antes de usar)."
+   ],
+   "contraindications": [
+    "Necesidad de O2 al 100 %",
+    "TCE grave / HTIC",
+    "Neumotórax, bulla enfisematosa",
+    "Embolia gaseosa, accidente de buceo",
+    "Distensión gaseosa abdominal",
+    "Trauma facial que impida la mascarilla"
+   ],
+   "source": {
+    "text": "Chuletario de Urgencias · C. M. Prados Arredondo (CC BY-NC-SA 4.0) · ficha técnica",
+    "url": "https://www.chuletariodeurgencias.es"
+   },
+   "scopes": [
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -2882,8 +4204,12 @@
      "dose": "75 mg",
      "frequency": "cada 12 h; subir según respuesta",
      "duration": "",
-     "max": "600 mg/día"
+     "max": "600 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2905,8 +4231,12 @@
      "dose": "300 mg",
      "frequency": "día 1: 1 vez, día 2: cada 12 h, día 3: cada 8 h",
      "duration": "",
-     "max": "3.600 mg/día"
+     "max": "3.600 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2928,8 +4258,12 @@
      "dose": "10-25 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": "75 mg/día"
+     "max": "75 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2951,8 +4285,12 @@
      "dose": "capa fina",
      "frequency": "cada 6-8 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2974,8 +4312,18 @@
      "dose": "2,5-5 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "10 mg/día"
+     "max": "10 mg/día",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Embarazo",
+    "Antecedente de angioedema",
+    "Estenosis bilateral de arteria renal"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -2996,8 +4344,17 @@
      "dose": "50 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "100 mg/día"
+     "max": "100 mg/día",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Embarazo",
+    "Insuficiencia hepática grave"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3019,8 +4376,12 @@
      "dose": "80-160 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "320 mg/día"
+     "max": "320 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3043,8 +4404,12 @@
      "dose": "8-16 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "32 mg/día"
+     "max": "32 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3067,8 +4432,12 @@
      "dose": "20 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "40 mg/día"
+     "max": "40 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3090,8 +4459,12 @@
      "dose": "10 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "20 mg/día"
+     "max": "20 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3112,8 +4485,12 @@
      "dose": "4 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "8 mg/día"
+     "max": "8 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3134,8 +4511,12 @@
      "dose": "5 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3156,8 +4537,18 @@
      "dose": "25 mg",
      "frequency": "repetir a los 30-60 min si precisa",
      "duration": "",
-     "max": "50 mg"
+     "max": "50 mg",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Embarazo",
+    "Antecedente de angioedema",
+    "Estenosis bilateral de arteria renal"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3178,8 +4569,19 @@
      "dose": "20 mg",
      "frequency": "repetir 20-80 mg cada 10 min",
      "duration": "",
-     "max": "300 mg"
+     "max": "300 mg",
+     "type": "IV"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Asma",
+    "Bradicardia o bloqueo AV",
+    "IC descompensada",
+    "Shock"
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -3199,8 +4601,12 @@
      "dose": "12,5-25 mg",
      "frequency": "repetir a los 5 min si precisa",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -3222,8 +4628,12 @@
      "dose": "5-20 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3244,7 +4654,8 @@
      "dose": "25 mg",
      "frequency": "cada 24 h",
      "duration": "crónico (vigilar K y FG)",
-     "max": "50 mg/día"
+     "max": "50 mg/día",
+     "type": "VO"
     },
     {
      "indication": "Ascitis",
@@ -3253,8 +4664,12 @@
      "dose": "100 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": "400 mg/día"
+     "max": "400 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3274,8 +4689,12 @@
      "dose": "1,5 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3295,8 +4714,12 @@
      "dose": "12,5-25 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3317,8 +4740,18 @@
      "dose": "50 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "100 mg/día"
+     "max": "100 mg/día",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Bradicardia o bloqueo AV 2.º-3.er grado",
+    "Asma",
+    "IC descompensada"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3340,7 +4773,8 @@
      "dose": "50-100 mg",
      "frequency": "cada 12 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "FA rápida o taquicardia (urgencias)",
@@ -3349,8 +4783,20 @@
      "dose": "2,5-5 mg",
      "frequency": "cada 5 min",
      "duration": "",
-     "max": "15 mg"
+     "max": "15 mg",
+     "type": "IV"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Bradicardia o bloqueo AV 2.º-3.er grado",
+    "Asma grave",
+    "IC descompensada",
+    "Hipotensión"
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -3371,8 +4817,12 @@
      "dose": "3,125 mg",
      "frequency": "cada 12 h; subir cada 2 semanas",
      "duration": "crónico",
-     "max": "25 mg/12 h"
+     "max": "25 mg/12 h",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3394,7 +4844,8 @@
      "dose": "60 mg",
      "frequency": "cada 8 h",
      "duration": "",
-     "max": "360 mg/día"
+     "max": "360 mg/día",
+     "type": "VO"
     },
     {
      "indication": "FA rápida (urgencias)",
@@ -3403,8 +4854,20 @@
      "dose": "0,25 mg/kg",
      "frequency": "repetir 0,35 mg/kg a los 15 min",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "IC con FE reducida",
+    "Bloqueo AV 2.º-3.er grado",
+    "FA con preexcitación (WPW)",
+    "Hipotensión"
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -3425,8 +4888,21 @@
      "dose": "5 mg",
      "frequency": "repetir 5 mg a los 10 min",
      "duration": "",
-     "max": "20 mg"
+     "max": "20 mg",
+     "type": "IV"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "IC con FE reducida",
+    "Bloqueo AV 2.º-3.er grado",
+    "FA con preexcitación (WPW)",
+    "Taquicardia de QRS ancho",
+    "Tratamiento con betabloqueante IV"
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -3448,7 +4924,8 @@
      "dose": "0,125-0,25 mg",
      "frequency": "cada 24 h",
      "duration": "crónico (ajustar a FG y edad)",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "FA rápida (urgencias)",
@@ -3457,8 +4934,21 @@
      "dose": "0,25-0,5 mg",
      "frequency": "después 0,25 mg cada 4-6 h",
      "duration": "",
-     "max": "1 mg en 24 h"
+     "max": "1 mg en 24 h",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Toxicidad favorecida por hipopotasemia, insuficiencia renal y edad."
+   ],
+   "contraindications": [
+    "Bloqueo AV 2.º-3.er grado",
+    "FA con preexcitación (WPW)",
+    "Miocardiopatía hipertrófica obstructiva"
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -3478,8 +4968,21 @@
      "dose": "6 mg",
      "frequency": "si no cede: 12 mg y después 18 mg",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Avisar al paciente: sensación de muerte inminente unos segundos.",
+    "Con dipiridamol: reducir dosis; teofilina y cafeína disminuyen su efecto."
+   ],
+   "contraindications": [
+    "Asma grave / broncoespasmo",
+    "Bloqueo AV 2.º-3.er grado o enfermedad del seno sin marcapasos",
+    "QT largo"
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -3499,8 +5002,18 @@
      "dose": "200 mg (< 70 kg) o 300 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": "solo sin cardiopatía estructural"
+     "max": "solo sin cardiopatía estructural",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Cardiopatía estructural (IAM previo, FEVI deprimida, hipertrofia)",
+    "Bloqueo de rama o AV",
+    "Flutter sin frenar (asociar betabloqueante)"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3520,8 +5033,12 @@
      "dose": "50 mg",
      "frequency": "cada 24 h por la mañana",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3542,8 +5059,12 @@
      "dose": "375 mg",
      "frequency": "cada 12 h",
      "duration": "",
-     "max": "750 mg/12 h"
+     "max": "750 mg/12 h",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3564,8 +5085,12 @@
      "dose": "5 mg",
      "frequency": "cada 12 h",
      "duration": "",
-     "max": "7,5 mg/12 h"
+     "max": "7,5 mg/12 h",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3585,8 +5110,21 @@
      "dose": "180 mg de carga",
      "frequency": "después 90 mg cada 12 h",
      "duration": "12 meses",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Disnea frecuente y transitoria.",
+    "AAS de mantenimiento ≤ 100 mg."
+   ],
+   "contraindications": [
+    "Hemorragia activa",
+    "Antecedente de hemorragia intracraneal",
+    "Insuficiencia hepática grave"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3606,8 +5144,12 @@
      "dose": "60 mg de carga",
      "frequency": "después 10 mg cada 24 h",
      "duration": "12 meses",
-     "max": "5 mg si ≥ 75 años o < 60 kg"
+     "max": "5 mg si ≥ 75 años o < 60 kg",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3629,7 +5171,8 @@
      "dose": "20 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "15 mg si FG 15-49"
+     "max": "15 mg si FG 15-49",
+     "type": "VO"
     },
     {
      "indication": "TVP/TEP",
@@ -3638,8 +5181,18 @@
      "dose": "15 mg",
      "frequency": "cada 12 h 21 días, luego 20 mg cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Hemorragia activa",
+    "Prótesis valvular mecánica",
+    "Hepatopatía con coagulopatía"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3660,8 +5213,12 @@
      "dose": "60 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "30 mg si FG 15-50, ≤ 60 kg o inhibidores de P-gp"
+     "max": "30 mg si FG 15-50, ≤ 60 kg o inhibidores de P-gp",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3682,8 +5239,20 @@
      "dose": "150 mg",
      "frequency": "cada 12 h",
      "duration": "crónico",
-     "max": "110 mg/12 h si ≥ 80 años o riesgo de sangrado"
+     "max": "110 mg/12 h si ≥ 80 años o riesgo de sangrado",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "Antídoto: idarucizumab."
+   ],
+   "contraindications": [
+    "FG < 30",
+    "Hemorragia activa",
+    "Prótesis valvular mecánica"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3704,8 +5273,12 @@
      "dose": "según INR",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "INR objetivo habitual 2-3"
+     "max": "INR objetivo habitual 2-3",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3727,7 +5300,8 @@
      "dose": "2.500-3.500 UI",
      "frequency": "cada 24 h",
      "duration": "mientras dure el riesgo",
-     "max": ""
+     "max": "",
+     "type": "SC"
     },
     {
      "indication": "Tratamiento de TVP",
@@ -3736,8 +5310,12 @@
      "dose": "115 UI/kg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "SC"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3758,8 +5336,12 @@
      "dose": "175 UI/kg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "SC"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3780,8 +5362,16 @@
      "dose": "60-80 UI/kg",
      "frequency": "después perfusión según TTPa",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Antídoto: protamina (1 mg por cada 100 UI)."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -3803,8 +5393,12 @@
      "dose": "5-20 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "40 mg/día"
+     "max": "40 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3825,8 +5419,12 @@
      "dose": "20-40 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "40 mg/día"
+     "max": "40 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3846,8 +5444,12 @@
      "dose": "10 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3868,8 +5470,12 @@
      "dose": "145 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3891,8 +5497,12 @@
      "dose": "49/51 mg",
      "frequency": "cada 12 h; subir a las 2-4 semanas",
      "duration": "crónico",
-     "max": "97/103 mg/12 h"
+     "max": "97/103 mg/12 h",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3912,8 +5522,12 @@
      "dose": "10 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3934,7 +5548,8 @@
      "dose": "1 inhalación",
      "frequency": "a demanda",
      "duration": "",
-     "max": "6 inh/día"
+     "max": "6 inh/día",
+     "type": "Inhalado"
     },
     {
      "indication": "Crisis asmática grave sin respuesta",
@@ -3943,8 +5558,12 @@
      "dose": "0,25-0,5 mg",
      "frequency": "repetir a los 20 min",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "SC"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3968,8 +5587,12 @@
      "dose": "1 inhalación",
      "frequency": "cada 12 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "Inhalado"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -3991,8 +5614,12 @@
      "dose": "1-2 inhalaciones",
      "frequency": "cada 12 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "Inhalado"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4014,8 +5641,12 @@
      "dose": "1 inhalación",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "Inhalado"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4035,8 +5666,12 @@
      "dose": "1 inhalación",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "Inhalado"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4056,8 +5691,12 @@
      "dose": "1 cápsula",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "Inhalado"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4077,8 +5716,12 @@
      "dose": "1 inhalación",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "Inhalado"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4099,7 +5742,8 @@
      "dose": "200-400 mcg",
      "frequency": "cada 12 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "Inhalado"
     },
     {
      "indication": "Laringitis (crup)",
@@ -4108,8 +5752,13 @@
      "dose": "2 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Nebulizado"
     }
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -4130,8 +5779,12 @@
      "dose": "10 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4158,7 +5811,8 @@
      "dose": "100-200 mg",
      "frequency": "cada 6 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     },
     {
      "indication": "Crisis suprarrenal",
@@ -4167,7 +5821,8 @@
      "dose": "100 mg",
      "frequency": "después 50 mg cada 6 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     },
     {
      "indication": "Insuficiencia suprarrenal (mantenimiento)",
@@ -4176,7 +5831,8 @@
      "dose": "15-25 mg/día repartidos",
      "frequency": "2-3 tomas",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Dermatitis leve / zonas sensibles",
@@ -4185,8 +5841,17 @@
      "dose": "capa fina",
      "frequency": "cada 12 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "observations": [
+    "De elección en la crisis suprarrenal (efecto mineralcorticoide)."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -4208,8 +5873,12 @@
      "dose": "6-90 mg",
      "frequency": "cada 24 h",
      "duration": "pauta descendente según duración",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4230,8 +5899,12 @@
      "dose": "10-20 mg",
      "frequency": "cada 8 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4251,8 +5924,12 @@
      "dose": "1 comp",
      "frequency": "cada 6-8 h",
      "duration": "pocos días",
-     "max": "120 mg/día"
+     "max": "120 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4273,8 +5950,12 @@
      "dose": "30 mg",
      "frequency": "cada 8 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4296,7 +5977,8 @@
      "dose": "1-4 l/min",
      "frequency": "objetivo SatO2 94-98% (88-92% en EPOC)",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Inhalado"
     },
     {
      "indication": "Hipoxemia grave / intoxicación por CO",
@@ -4305,8 +5987,13 @@
      "dose": "10-15 l/min",
      "frequency": "",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Inhalado"
     }
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -4329,7 +6016,8 @@
      "dose": "2 pulsaciones en cada fosa",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Intranasal"
     },
     {
      "indication": "Eccema / dermatitis",
@@ -4338,8 +6026,12 @@
      "dose": "capa fina",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4359,8 +6051,12 @@
      "dose": "2 pulsaciones en cada fosa",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Intranasal"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4381,8 +6077,12 @@
      "dose": "1-2 pulsaciones en cada fosa",
      "frequency": "cada 12 h",
      "duration": "máx 3 días",
-     "max": ""
+     "max": "",
+     "type": "Intranasal"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4403,8 +6103,12 @@
      "dose": "500 mg",
      "frequency": "cada 12 h",
      "duration": "10 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4425,8 +6129,12 @@
      "dose": "1,2 MUI (sífilis 2,4 MUI)",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IM"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4446,8 +6154,12 @@
      "dose": "500 mg",
      "frequency": "cada 6 h",
      "duration": "7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4469,8 +6181,12 @@
      "dose": "500 mg",
      "frequency": "cada 12 h",
      "duration": "7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4491,8 +6207,12 @@
      "dose": "400 mg",
      "frequency": "cada 24 h",
      "duration": "7-10 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4513,8 +6233,12 @@
      "dose": "1 g",
      "frequency": "cada 12 h",
      "duration": "7-10 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4536,8 +6260,12 @@
      "dose": "400 mg",
      "frequency": "cada 12 h",
      "duration": "5-7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4559,7 +6287,8 @@
      "dose": "500 mg",
      "frequency": "cada 12 h",
      "duration": "7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Erradicación de H. pylori (parte de pauta)",
@@ -4568,8 +6297,17 @@
      "dose": "500 mg",
      "frequency": "cada 12 h",
      "duration": "14 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "QT largo",
+    "Estatinas (simvastatina), colchicina, ergotamínicos"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4590,8 +6328,12 @@
      "dose": "400 mg",
      "frequency": "cada 24 h",
      "duration": "5-7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4613,7 +6355,8 @@
      "dose": "100 mg",
      "frequency": "cada 12 h",
      "duration": "7-14 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Profilaxis tras picadura de garrapata (Lyme, si procede)",
@@ -4622,8 +6365,12 @@
      "dose": "200 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4643,8 +6390,12 @@
      "dose": "1 comp",
      "frequency": "cada 12 h",
      "duration": "3-7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4665,8 +6416,12 @@
      "dose": "300 mg",
      "frequency": "cada 8 h",
      "duration": "7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4693,7 +6448,8 @@
      "dose": "500 mg",
      "frequency": "cada 8-12 h",
      "duration": "7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Rosácea · tópico",
@@ -4702,7 +6458,8 @@
      "dose": "capa fina",
      "frequency": "cada 12 h",
      "duration": "3-4 meses",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     },
     {
      "indication": "Vaginosis bacteriana",
@@ -4713,6 +6470,9 @@
      "duration": "7 días",
      "max": ""
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4733,8 +6493,12 @@
      "dose": "5 mg/kg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": "ajustar a FG"
+     "max": "ajustar a FG",
+     "type": "IM"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4756,7 +6520,8 @@
      "dose": "800 mg",
      "frequency": "5 veces al día",
      "duration": "7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Herpes labial",
@@ -4765,8 +6530,12 @@
      "dose": "aplicación",
      "frequency": "5 veces al día",
      "duration": "5 días",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4787,8 +6556,12 @@
      "dose": "500 mg",
      "frequency": "cada 8 h",
      "duration": "7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4808,7 +6581,8 @@
      "dose": "75 mg",
      "frequency": "cada 12 h",
      "duration": "5 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Profilaxis postexposición",
@@ -4817,8 +6591,12 @@
      "dose": "75 mg",
      "frequency": "cada 24 h",
      "duration": "10 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4839,7 +6617,8 @@
      "dose": "250 mg",
      "frequency": "cada 24 h",
      "duration": "6 semanas (manos) - 12 semanas (pies)",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Tiña cutánea",
@@ -4848,8 +6627,12 @@
      "dose": "capa fina",
      "frequency": "cada 12-24 h",
      "duration": "1-2 semanas",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4869,8 +6652,12 @@
      "dose": "4-6 ml",
      "frequency": "cada 6 h",
      "duration": "7-14 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4892,6 +6679,9 @@
      "duration": "7 días tras desaparecer",
      "max": "interacción con acenocumarol"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4911,8 +6701,12 @@
      "dose": "400 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4933,8 +6727,12 @@
      "dose": "capa fina",
      "frequency": "retirar a las 8-12 h",
      "duration": "repetir a los 7 días",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4954,8 +6752,12 @@
      "dose": "200 mcg/kg",
      "frequency": "dosis única",
      "duration": "repetir a los 7-14 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4976,8 +6778,12 @@
      "dose": "0,5 ml",
      "frequency": "dosis única",
      "duration": "completar pauta si procede",
-     "max": ""
+     "max": "",
+     "type": "IM"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -4997,8 +6803,12 @@
      "dose": "250 UI (500 UI si > 24 h o alto riesgo)",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IM"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5021,7 +6831,8 @@
      "dose": "20-40 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Hemorragia digestiva alta",
@@ -5030,8 +6841,13 @@
      "dose": "80 mg en bolo",
      "frequency": "después 40 mg cada 12 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -5053,8 +6869,12 @@
      "dose": "20-40 mg",
      "frequency": "cada 24 h",
      "duration": "4-8 semanas",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5075,8 +6895,12 @@
      "dose": "1,5 g",
      "frequency": "tras las comidas",
      "duration": "",
-     "max": "6 g/día"
+     "max": "6 g/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5097,8 +6921,17 @@
      "dose": "10 mg",
      "frequency": "cada 8 h",
      "duration": "máx 7 días",
-     "max": "30 mg/día; riesgo de QT"
+     "max": "30 mg/día; riesgo de QT",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "QT largo o fármacos que lo prolongan",
+    "Insuficiencia hepática moderada-grave"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5118,8 +6951,12 @@
      "dose": "2 cáps por la noche",
      "frequency": "subir hasta 4 cáps/día",
      "duration": "",
-     "max": "4 cáps/día"
+     "max": "4 cáps/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5140,8 +6977,12 @@
      "dose": "100 mg",
      "frequency": "cada 8 h",
      "duration": "hasta 7 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5162,7 +7003,8 @@
      "dose": "15-30 ml",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Encefalopatía hepática",
@@ -5171,8 +7013,12 @@
      "dose": "30 ml",
      "frequency": "cada 8 h (2-3 deposiciones blandas)",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5193,8 +7039,12 @@
      "dose": "1 sobre",
      "frequency": "cada 8-24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5215,8 +7065,12 @@
      "dose": "5-10 mg",
      "frequency": "cada 24 h",
      "duration": "uso puntual",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5236,8 +7090,12 @@
      "dose": "1 enema",
      "frequency": "dosis única",
      "duration": "",
-     "max": "evitar en ERC y ancianos frágiles"
+     "max": "evitar en ERC y ancianos frágiles",
+     "type": "Rectal"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5257,8 +7115,12 @@
      "dose": "200 mg",
      "frequency": "cada 12 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5278,8 +7140,12 @@
      "dose": "40 mg",
      "frequency": "cada 8-12 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5300,8 +7166,12 @@
      "dose": "40-80 mg",
      "frequency": "cada 8 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5322,8 +7192,12 @@
      "dose": "aplicación",
      "frequency": "cada 8-12 h",
      "duration": "máx 7 días",
-     "max": ""
+     "max": "",
+     "type": "Rectal"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5346,8 +7220,12 @@
      "dose": "100 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "50 mg si FG 30-45; 25 mg si < 30"
+     "max": "50 mg si FG 30-45; 25 mg si < 30",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5369,8 +7247,12 @@
      "dose": "1 comp",
      "frequency": "cada 12 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5390,8 +7272,12 @@
      "dose": "5 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "sin ajuste renal"
+     "max": "sin ajuste renal",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5412,8 +7298,12 @@
      "dose": "30-120 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": "riesgo de hipoglucemia"
+     "max": "riesgo de hipoglucemia",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5435,8 +7325,12 @@
      "dose": "0,5-4 mg",
      "frequency": "con cada comida principal",
      "duration": "crónico",
-     "max": "16 mg/día"
+     "max": "16 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5459,8 +7353,12 @@
      "dose": "0,25 mg",
      "frequency": "semanal 4 semanas, luego 0,5 mg y subir a 1 mg",
      "duration": "crónico",
-     "max": "2 mg/semana"
+     "max": "2 mg/semana",
+     "type": "SC"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5481,8 +7379,12 @@
      "dose": "1,5 mg",
      "frequency": "1 vez a la semana",
      "duration": "crónico",
-     "max": "4,5 mg/semana"
+     "max": "4,5 mg/semana",
+     "type": "SC"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5502,8 +7404,12 @@
      "dose": "0,6 mg",
      "frequency": "cada 24 h; a la semana 1,2 mg",
      "duration": "crónico",
-     "max": "1,8 mg/día"
+     "max": "1,8 mg/día",
+     "type": "SC"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5524,8 +7430,12 @@
      "dose": "10 UI (o 0,1-0,2 UI/kg)",
      "frequency": "cada 24 h",
      "duration": "ajustar según glucemia basal",
-     "max": ""
+     "max": "",
+     "type": "SC"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5546,8 +7456,12 @@
      "dose": "0,1-0,2 UI/kg",
      "frequency": "cada 12-24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "SC"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5568,8 +7482,12 @@
      "dose": "según pauta",
      "frequency": "con las comidas",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "SC"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5589,8 +7507,12 @@
      "dose": "según pauta",
      "frequency": "con las comidas",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "SC"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5611,8 +7533,17 @@
      "dose": "0,1 UI/kg/h",
      "frequency": "ajustar según glucemia y K",
      "duration": "",
-     "max": "no iniciar si K < 3,5"
+     "max": "no iniciar si K < 3,5",
+     "type": "Perfusión"
     }
+   ],
+   "observations": [
+    "Corregir el potasio antes y durante (no iniciar con K < 3,5).",
+    "Cuando la glucemia < 250: añadir glucosa 5-10 %."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -5632,8 +7563,12 @@
      "dose": "10-30 mg",
      "frequency": "cada 24 h",
      "duration": "según TSH/T4",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5655,7 +7590,8 @@
      "dose": "1-2 cáps",
      "frequency": "cada 8-12 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Hipopotasemia (urgencias)",
@@ -5664,8 +7600,18 @@
      "dose": "10-20 mEq/h",
      "frequency": "",
      "duration": "",
-     "max": "≤ 10 mEq/h por vía periférica"
+     "max": "≤ 10 mEq/h por vía periférica",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Nunca en bolo IV.",
+    "Por vía periférica ≤ 10 mEq/h y ≤ 40 mEq/l; más rápido solo por vía central con monitor."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -5686,8 +7632,17 @@
      "dose": "10-30 ml",
      "frequency": "repetir si persiste el ECG",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Precaución con digoxina.",
+    "No en la misma vía que el bicarbonato."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -5707,8 +7662,17 @@
      "dose": "1-2 mEq/kg",
      "frequency": "en 10-20 min",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "No mezclar con calcio ni catecolaminas en la misma vía.",
+    "Hipernatremia y alcalosis."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -5728,8 +7692,12 @@
      "dose": "1 cáps",
      "frequency": "cada 15-30 días",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5751,8 +7719,12 @@
      "dose": "20-40 mg/kg",
      "frequency": "dosis única",
      "duration": "",
-     "max": "3 g; no en embarazo"
+     "max": "3 g; no en embarazo",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -5773,8 +7745,12 @@
      "dose": "200-400 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -5796,8 +7772,13 @@
      "dose": "1 mg",
      "frequency": "repetir si persiste",
      "duration": "",
-     "max": "4 mg"
+     "max": "4 mg",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -5819,8 +7800,12 @@
      "dose": "10 mg",
      "frequency": "repetir a las 2 h si reaparece",
      "duration": "",
-     "max": "20 mg/día (5 mg con propranolol)"
+     "max": "20 mg/día (5 mg con propranolol)",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5843,8 +7828,12 @@
      "dose": "2,5-5 mg",
      "frequency": "repetir a las 2 h si reaparece",
      "duration": "",
-     "max": "10 mg/día"
+     "max": "10 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5864,8 +7853,12 @@
      "dose": "12,5 mg",
      "frequency": "repetir a las 2 h si reaparece",
      "duration": "",
-     "max": "25 mg/día"
+     "max": "25 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5886,7 +7879,8 @@
      "dose": "20-40 mg",
      "frequency": "cada 12 h",
      "duration": "≥ 3 meses",
-     "max": "160 mg/día"
+     "max": "160 mg/día",
+     "type": "VO"
     },
     {
      "indication": "Temblor esencial / ansiedad somática",
@@ -5895,8 +7889,12 @@
      "dose": "10-40 mg",
      "frequency": "cada 8-12 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5917,8 +7915,12 @@
      "dose": "25 mg",
      "frequency": "por la noche; subir 25 mg cada semana hasta 50 mg cada 12 h",
      "duration": "≥ 3 meses",
-     "max": "100 mg/día"
+     "max": "100 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5940,8 +7942,12 @@
      "dose": "16 mg",
      "frequency": "cada 8 h",
      "duration": "",
-     "max": "48 mg/día"
+     "max": "48 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5963,8 +7969,12 @@
      "dose": "0,25-0,5 mg",
      "frequency": "cada 8 h",
      "duration": "uso corto",
-     "max": "4 mg/día"
+     "max": "4 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -5987,7 +7997,8 @@
      "dose": "5-15 mg",
      "frequency": "cada 8-24 h",
      "duration": "uso corto",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Agitación / abstinencia (urgencias)",
@@ -5996,8 +8007,12 @@
      "dose": "20-50 mg",
      "frequency": "repetir según respuesta",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IM"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6018,8 +8033,12 @@
      "dose": "5-10 mg (5 mg en mayores)",
      "frequency": "cada 24 h",
      "duration": "máx 4 semanas",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6040,8 +8059,12 @@
      "dose": "1 mg",
      "frequency": "cada 24 h",
      "duration": "máx 4 semanas",
-     "max": "2 mg"
+     "max": "2 mg",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6061,7 +8084,8 @@
      "dose": "50-100 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Depresión",
@@ -6070,8 +8094,12 @@
      "dose": "150 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": "300 mg/día"
+     "max": "300 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6091,8 +8119,12 @@
      "dose": "2 mg",
      "frequency": "cada 24 h",
      "duration": "13 semanas",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6115,8 +8147,12 @@
      "dose": "10 mg",
      "frequency": "cada 24 h",
      "duration": "≥ 6 meses tras remisión",
-     "max": "20 mg/día (10 mg si > 65 años)"
+     "max": "20 mg/día (10 mg si > 65 años)",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6137,8 +8173,12 @@
      "dose": "20 mg",
      "frequency": "cada 24 h",
      "duration": "≥ 6 meses tras remisión",
-     "max": "40 mg/día (20 mg si > 65 años)"
+     "max": "40 mg/día (20 mg si > 65 años)",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6160,8 +8200,12 @@
      "dose": "20 mg",
      "frequency": "cada 24 h",
      "duration": "≥ 6 meses tras remisión",
-     "max": "60 mg/día"
+     "max": "60 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6182,8 +8226,12 @@
      "dose": "20 mg",
      "frequency": "cada 24 h",
      "duration": "≥ 6 meses tras remisión",
-     "max": "50 mg/día"
+     "max": "50 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6204,8 +8252,12 @@
      "dose": "75 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": "225 mg/día (AP)"
+     "max": "225 mg/día (AP)",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6227,8 +8279,12 @@
      "dose": "30-60 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": "120 mg/día"
+     "max": "120 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6249,8 +8305,12 @@
      "dose": "15-30 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": "45 mg/día"
+     "max": "45 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6271,8 +8331,12 @@
      "dose": "12,5-25 mg",
      "frequency": "cada 12 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6294,8 +8358,12 @@
      "dose": "0,25-0,5 mg",
      "frequency": "cada 12 h",
      "duration": "máx 6 semanas",
-     "max": "1 mg/12 h"
+     "max": "1 mg/12 h",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6316,8 +8384,18 @@
      "dose": "2,5-5 mg",
      "frequency": "repetir a los 30 min si precisa",
      "duration": "",
-     "max": "20 mg/día"
+     "max": "20 mg/día",
+     "type": "IM"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Glaucoma de ángulo cerrado",
+    "Retención urinaria",
+    "Obstrucción intestinal"
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6338,8 +8416,12 @@
      "dose": "5 mg",
      "frequency": "cada 24 h; a las 4-6 semanas 10 mg",
      "duration": "",
-     "max": "10 mg/día"
+     "max": "10 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6360,8 +8442,12 @@
      "dose": "1 comp",
      "frequency": "cada 8 h; ajustar",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6382,7 +8468,8 @@
      "dose": "100 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IM"
     },
     {
      "indication": "Suplemento",
@@ -6391,8 +8478,16 @@
      "dose": "300 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [
+    "En Wernicke establecido: 200-500 mg IV cada 8 h."
+   ],
+   "contraindications": [],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6412,8 +8507,12 @@
      "dose": "2-3 cáps",
      "frequency": "cada 8 h; reducir en 5-7 días",
      "duration": "máx 10 días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6435,8 +8534,12 @@
      "dose": "10-20 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6457,8 +8560,12 @@
      "dose": "20 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6479,8 +8586,12 @@
      "dose": "5 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6500,8 +8611,12 @@
      "dose": "10 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6522,8 +8637,12 @@
      "dose": "10 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6543,8 +8662,12 @@
      "dose": "25 mg",
      "frequency": "cada 8 h",
      "duration": "",
-     "max": "100 mg/día (50 mg en mayores)"
+     "max": "100 mg/día (50 mg en mayores)",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6566,8 +8689,12 @@
      "dose": "25-50 UI/kg",
      "frequency": "dosis única",
      "duration": "",
-     "max": "junto con vitamina K si AVK"
+     "max": "junto con vitamina K si AVK",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -6587,8 +8714,12 @@
      "dose": "5 g (2 viales)",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -6608,8 +8739,12 @@
      "dose": "1 mg por cada 100 UI de heparina",
      "frequency": "dosis única",
      "duration": "",
-     "max": "50 mg"
+     "max": "50 mg",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -6629,7 +8764,8 @@
      "dose": "5 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     },
     {
      "indication": "Prevención de defectos del tubo neural",
@@ -6638,8 +8774,12 @@
      "dose": "0,4-5 mg",
      "frequency": "cada 24 h",
      "duration": "desde 1 mes antes hasta 12 semanas",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6659,7 +8799,8 @@
      "dose": "1.000 mcg",
      "frequency": "días alternos 2 semanas, luego mensual",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IM"
     },
     {
      "indication": "Déficit de B12 (VO)",
@@ -6668,8 +8809,12 @@
      "dose": "1.000-2.000 mcg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6689,8 +8834,12 @@
      "dose": "500-1.000 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": "20 mg/kg"
+     "max": "20 mg/kg",
+     "type": "Perfusión"
     }
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -6711,8 +8860,12 @@
      "dose": "80 mg",
      "frequency": "cada 24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6732,8 +8885,12 @@
      "dose": "35 mg",
      "frequency": "1 vez a la semana",
      "duration": "5 años y reevaluar",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6753,8 +8910,12 @@
      "dose": "60 mg",
      "frequency": "cada 6 meses",
      "duration": "no suspender sin pauta de salida",
-     "max": ""
+     "max": "",
+     "type": "SC"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6776,8 +8937,12 @@
      "dose": "25.000 UI",
      "frequency": "cada 2-4 semanas",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6800,8 +8965,12 @@
      "dose": "1 comp",
      "frequency": "cada 12-24 h",
      "duration": "crónico",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6821,8 +8990,12 @@
      "dose": "1.000-1.500 mg",
      "frequency": "cada 6-8 h",
      "duration": "pocos días",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6842,8 +9015,12 @@
      "dose": "5-10 mg",
      "frequency": "cada 8 h",
      "duration": "máx 2-3 semanas",
-     "max": "30 mg/día"
+     "max": "30 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6864,8 +9041,12 @@
      "dose": "aplicación",
      "frequency": "cada 8 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6887,6 +9068,9 @@
      "duration": "máx 3-4 al año en la misma articulación",
      "max": ""
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6919,8 +9103,12 @@
      "dose": "capa fina",
      "frequency": "cada 12-24 h",
      "duration": "máx 2-3 semanas",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6941,8 +9129,12 @@
      "dose": "8 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6962,8 +9154,12 @@
      "dose": "1 cáps",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -6983,8 +9179,12 @@
      "dose": "5 mg",
      "frequency": "cada 24 h",
      "duration": "≥ 6 meses",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7005,8 +9205,12 @@
      "dose": "5 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": "10 mg/día"
+     "max": "10 mg/día",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7027,8 +9231,12 @@
      "dose": "50 mg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7050,7 +9258,8 @@
      "dose": "50 mg",
      "frequency": "a demanda, máx 1 vez/día",
      "duration": "",
-     "max": "100 mg; nunca con nitratos"
+     "max": "100 mg; nunca con nitratos",
+     "type": "VO"
     },
     {
      "indication": "Prevención del edema pulmonar de altura (alternativa)",
@@ -7059,8 +9268,19 @@
      "dose": "50 mg",
      "frequency": "cada 8 h",
      "duration": "durante el ascenso",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Nitratos o donadores de NO",
+    "Hipotensión",
+    "IAM o ictus reciente"
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -7082,7 +9302,8 @@
      "dose": "10-20 mg a demanda (o 5 mg diario)",
      "frequency": "",
      "duration": "",
-     "max": "nunca con nitratos"
+     "max": "nunca con nitratos",
+     "type": "VO"
     },
     {
      "indication": "Prevención del edema pulmonar de altura (susceptibles)",
@@ -7091,8 +9312,19 @@
      "dose": "10 mg",
      "frequency": "cada 12 h",
      "duration": "durante el ascenso",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Nitratos o donadores de NO",
+    "Hipotensión",
+    "IAM o ictus reciente"
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -7114,8 +9346,12 @@
      "dose": "capa fina",
      "frequency": "cada 12-24 h",
      "duration": "máx 2 semanas",
-     "max": "50 g/semana"
+     "max": "50 g/semana",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7136,8 +9372,12 @@
      "dose": "capa fina",
      "frequency": "cada 8 h",
      "duration": "7 días",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7159,8 +9399,12 @@
      "dose": "aplicar 5 min y aclarar",
      "frequency": "2 veces por semana",
      "duration": "2-4 semanas",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7182,8 +9426,12 @@
      "dose": "capa fina",
      "frequency": "cada 12-24 h",
      "duration": "4 semanas",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7204,8 +9452,12 @@
      "dose": "capa fina",
      "frequency": "días alternos el 1.er mes",
      "duration": "6 meses",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7225,8 +9477,13 @@
      "dose": "aplicación",
      "frequency": "",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -7247,8 +9504,13 @@
      "dose": "aplicación",
      "frequency": "cada 12-24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -7269,8 +9531,12 @@
      "dose": "capa fina",
      "frequency": "cada 24 h",
      "duration": "≥ 8 semanas",
-     "max": ""
+     "max": "",
+     "type": "Tópico"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7293,6 +9559,9 @@
      "duration": "7 días",
      "max": ""
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7314,6 +9583,9 @@
      "duration": "7-10 días",
      "max": ""
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7335,6 +9607,10 @@
      "duration": "1-2 días",
      "max": ""
     }
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -7356,6 +9632,9 @@
      "duration": "",
      "max": ""
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7380,6 +9659,10 @@
      "duration": "",
      "max": ""
     }
+   ],
+   "scopes": [
+    "AP",
+    "Montaña"
    ]
   },
   {
@@ -7401,6 +9684,9 @@
      "duration": "5-7 días",
      "max": ""
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7422,6 +9708,9 @@
      "duration": "7 días",
      "max": ""
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7443,6 +9732,9 @@
      "duration": "3-4 días antes del lavado",
      "max": ""
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7466,6 +9758,9 @@
      "duration": "",
      "max": "8 comp/día"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7485,8 +9780,12 @@
      "dose": "30 mg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7509,8 +9808,12 @@
      "dose": "1 comp",
      "frequency": "cada 24 h 21 días + 7 de descanso",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7531,8 +9834,12 @@
      "dose": "1 comp",
      "frequency": "cada 24 h sin descanso",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7553,8 +9860,12 @@
      "dose": "200 mcg",
      "frequency": "cada 24 h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "VO"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7574,7 +9885,8 @@
      "dose": "4 g en 15-20 min",
      "frequency": "después 1 g/h",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     },
     {
      "indication": "Torsade de pointes",
@@ -7583,7 +9895,8 @@
      "dose": "2 g en 10 min",
      "frequency": "",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     },
     {
      "indication": "Crisis asmática grave",
@@ -7592,8 +9905,21 @@
      "dose": "2 g en 20 min",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "observations": [
+    "Vigilar reflejos rotulianos, FR y diuresis. Antídoto: gluconato cálcico 10 %."
+   ],
+   "contraindications": [
+    "Bloqueo AV",
+    "Miastenia gravis",
+    "Insuficiencia renal grave (ajustar)"
+   ],
+   "scopes": [
+    "AP",
+    "Urgencias"
    ]
   },
   {
@@ -7613,8 +9939,12 @@
      "dose": "10 UI",
      "frequency": "tras la salida del bebé",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IM"
     }
+   ],
+   "scopes": [
+    "AP"
    ]
   },
   {
@@ -7634,8 +9964,12 @@
      "dose": "5 g (70 mg/kg)",
      "frequency": "repetir 5 g si persiste",
      "duration": "",
-     "max": "10 g"
+     "max": "10 g",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -7655,8 +9989,12 @@
      "dose": "2,5-10 mcg/kg/min",
      "frequency": "ajustar según respuesta",
      "duration": "",
-     "max": "20 mcg/kg/min"
+     "max": "20 mcg/kg/min",
+     "type": "Perfusión"
     }
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -7676,8 +10014,12 @@
      "dose": "5-10 mg",
      "frequency": "repetir cada 5 min si precisa",
      "duration": "",
-     "max": "50 mg"
+     "max": "50 mg",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -7697,8 +10039,19 @@
      "dose": "1-1,5 mg/kg",
      "frequency": "dosis única",
      "duration": "",
-     "max": "no si hiperpotasemia, quemados > 48 h, inmovilización"
+     "max": "no si hiperpotasemia, quemados > 48 h, inmovilización",
+     "type": "IV"
     }
+   ],
+   "observations": [],
+   "contraindications": [
+    "Hiperpotasemia",
+    "Quemados o traumatismo grave > 48 h",
+    "Enfermedad neuromuscular o inmovilización prolongada",
+    "Antecedente de hipertermia maligna"
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -7718,8 +10071,12 @@
      "dose": "16 mg/kg",
      "frequency": "dosis única",
      "duration": "",
-     "max": ""
+     "max": "",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "Urgencias"
    ]
   },
   {
@@ -7740,8 +10097,13 @@
      "dose": "500 ml en bolo",
      "frequency": "reevaluar tras cada bolo",
      "duration": "",
-     "max": "quemados: 2-4 ml/kg/% SCQ en 24 h (mitad en las 8 primeras)"
+     "max": "quemados: 2-4 ml/kg/% SCQ en 24 h (mitad en las 8 primeras)",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "Urgencias",
+    "Montaña"
    ]
   },
   {
@@ -7762,10 +10124,15 @@
      "dose": "según producto (ViperaTAb: 2 viales; Viperfav: 4 ml)",
      "frequency": "repetir según evolución",
      "duration": "",
-     "max": "pedir al hospital de referencia"
+     "max": "pedir al hospital de referencia",
+     "type": "IV"
     }
+   ],
+   "scopes": [
+    "Urgencias",
+    "Montaña"
    ]
   }
  ],
- "templateVersion": 3
+ "templateVersion": 4
 }

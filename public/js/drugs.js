@@ -357,7 +357,7 @@ export function importDrugs(folderId = null) {
 // con un fármaco de ejemplo en cada subcarpeta. Usa la misma importación: no repite ni cambia lo que ya tengas.
 export const TEMPLATE_URL = './plantillas/vademecum-ap-urgencias-montana.json';
 // Versión de la plantilla: al subirla, vuelve a aparecer el aviso «Cargar» en el Vademécum (settings/vademecum, común a todos los dispositivos)
-export const TEMPLATE_VERSION = 2;
+export const TEMPLATE_VERSION = 4; // v4 (v1.25.0): revisada con el Chuletario y fichas técnicas
 export const templateState = () => store.settings?.get('vademecum') || {};
 export const templatePending = () => !!store.loaded.settings && (templateState().templateVersion || 0) < TEMPLATE_VERSION
   && (templateState().dismissed || 0) < TEMPLATE_VERSION;
@@ -377,6 +377,12 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
     let items;
     try { items = parseDrugImport(text, regId); } catch (e) { toast(e.message, 'error', 6000); return; }
     const plan = planImport(items);
+    // v1.25.0: al cargar una versión nueva de la plantilla, las fichas que no has tocado (sin revisar ni editar desde que
+    // se importaron) se ponen al día enteras; las que has revisado o editado solo se completan.
+    const untouched = (d) => d.reviewed === false && (d.updatedAt || 0) <= (d.importedAt || 0) + 5000;
+    const autoRepl = template ? plan.matched.filter((m) => untouched(m.d)) : [];
+    const autoIds = new Set(autoRepl.map((m) => m.d.id));
+    const mergeOnly = plan.merge.filter((m) => !autoIds.has(m.d.id));
     const paths = new Set(items.filter((it) => it.folder.length).map((it) => it.folder.join(' › ')));
     const tops = new Set(items.filter((it) => it.folder.length).map((it) => it.folder[0]));
     const li = (t) => el('li', {}, t);
@@ -394,10 +400,11 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
       title: template ? 'Plantilla de carpetas' : 'Importar fichas',
       body: [
         el('p', { class: 'muted small' }, fileName),
-        template ? el('p', {}, `${tops.size} grupos, ${paths.size} subcarpetas (las que ya tengas se aprovechan) y ${items.length} fármacos con sus nombres comerciales principales. No se borra ni cambia nada de lo que ya tengas.`) : null,
+        template ? el('p', {}, `${tops.size} grupos, ${paths.size} subcarpetas (las que ya tengas se aprovechan) y ${items.length} fármacos con sus nombres comerciales principales. Lo que hayas revisado o editado no se cambia: solo se le añade lo que falte.`) : null,
         el('table', { class: 'bk-table' }, el('tbody', {},
           el('tr', {}, el('td', {}, 'Fichas nuevas'), el('td', {}, String(plan.create.length))),
-          el('tr', {}, el('td', {}, 'Ya existen: se completan'), el('td', {}, String(plan.merge.length))),
+          template ? el('tr', {}, el('td', {}, 'Sin tocar por ti: se actualizan'), el('td', {}, String(autoRepl.length))) : null,
+          el('tr', {}, el('td', {}, template ? 'Revisadas o editadas por ti: solo se completan' : 'Ya existen: se completan'), el('td', {}, String(template ? mergeOnly.length : plan.merge.length))),
           el('tr', {}, el('td', {}, 'Ya existen: sin cambios'), el('td', {}, String(plan.same.length))))),
         modeBox,
         list(plan.create, (x) => x.name),
@@ -406,10 +413,10 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
         el('p', { class: 'bk-warn' }, '⚠ Las fichas nuevas o completadas quedan marcadas «Pendiente de revisar» hasta que pulses «✓ Revisada» en cada una. Comprueba las dosis antes de usarlas.'),
         el('p', { class: 'muted small' }, `Las nuevas van a ${folderId ? `«${DF().get(folderId)?.name || 'carpeta'}»` : 'la raíz del Vademécum'} (o a la carpeta que indique el archivo).`)
       ],
-      actions: [{ label: 'Cancelar' }, { label: 'Importar', primary: true, value: true, onClick: () => (plan.create.length || plan.merge.length || mode === 'replace' ? true : (toast('No hay nada nuevo que importar', 'ok'), false)) }]
+      actions: [{ label: 'Cancelar' }, { label: 'Importar', primary: true, value: true, onClick: () => (plan.create.length || plan.merge.length || autoRepl.length || mode === 'replace' ? true : (toast('No hay nada nuevo que importar', 'ok'), false)) }]
     });
     if (!ok) return;
-    const ops = plan.create.reduce((s, it) => s + 1 + (it.notes.trim() ? 1 : 0), 0) + (mode === 'replace' ? plan.matched.length * 2 : plan.merge.reduce((s, m) => s + 1 + (m.notes ? 1 : 0), 0)) + 20;
+    const ops = plan.create.reduce((s, it) => s + 1 + (it.notes.trim() ? 1 : 0), 0) + (mode === 'replace' ? plan.matched.length * 2 : autoRepl.length * 2 + mergeOnly.reduce((s, m) => s + 1 + (m.notes ? 1 : 0), 0)) + 20;
     if (budget().w < ops) { toast('Hoy ya casi no quedan escrituras del plan gratuito. Importa mañana.', 'error', 6000); return; }
     let batch = writeBatch(db), n = 0;
     const flush = () => { if (n >= 300) { commitBatch(batch); batch = writeBatch(db); n = 0; } };
@@ -422,8 +429,9 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
       writeDrug(id, light, it.notes.trim() ? { html: textToHtml(it.notes), text: it.notes } : null, batch, { commit: false });
       n += 2; flush();
     }
-    if (mode === 'replace') {
-      for (const { d, it } of plan.matched) {
+    const repl = mode === 'replace' ? plan.matched : autoRepl;
+    {
+      for (const { d, it } of repl) {
         const light = {
           brands: mergeList(d.brands, it.brands)[0], presentations: [...it.presentations], presBrands: [...(it.presBrands || [])], regimens: [...it.regimens],
           reviewed: false, importedAt: now, updatedAt: now
@@ -434,13 +442,14 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
         writeDrug(d.id, light, notes ? { html: textToHtml(notes), text: notes } : null, batch, { commit: false });
         n += 2; flush();
       }
-    } else for (const m of plan.merge) {
+    }
+    if (mode !== 'replace') for (const m of mergeOnly) {
       writeDrug(m.d.id, { ...m.light, reviewed: false, importedAt: now, updatedAt: now }, m.notes ? { html: textToHtml(m.notes), text: m.notes } : null, batch, { commit: false });
       n += 2; flush();
     }
     commitBatch(batch);
     addQuota(ops - 20, 0);
-    toast(`Importado: ${plan.create.length} nueva(s), ${mode === 'replace' ? `${plan.matched.length} reemplazada(s)` : `${plan.merge.length} completada(s)`}${created.length ? `, ${created.length} carpeta(s)` : ''}`, 'ok', 4500);
+    toast(`Importado: ${plan.create.length} nueva(s), ${mode === 'replace' ? `${plan.matched.length} reemplazada(s)` : `${autoRepl.length ? `${autoRepl.length} actualizada(s), ` : ''}${mergeOnly.length} completada(s)`}${created.length ? `, ${created.length} carpeta(s)` : ''}`, 'ok', 4500);
     if (template) put('settings', 'vademecum', { templateVersion: TEMPLATE_VERSION, updatedAt: Date.now() });
     if (curId && plan.matched.some((m) => m.d.id === curId)) fillForm(store.drugs.get(curId));
     ctx.renderList(); ctx.renderSidebar();
@@ -486,7 +495,8 @@ export async function mergeDuplicates() {
         body = { html, text: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() };
       } catch { skipped++; continue; } // sin conexión: sus notas no se pueden juntar → se deja para luego
     }
-    writeDrug(g.keep.id, { ...light, updatedAt: now }, body, batch, { commit: false });
+    const fresh = g.items.every((d) => d.reviewed === false && (d.updatedAt || 0) <= (d.importedAt || 0) + 5000);
+    writeDrug(g.keep.id, { ...light, updatedAt: now, ...(fresh ? { importedAt: now } : {}) }, body, batch, { commit: false });
     for (const d of others) {
       const x = { trashed: true, trashedAt: now, mergedInto: g.keep.id, updatedAt: now };
       batch.set(ref('drugs', d.id), x, { merge: true });

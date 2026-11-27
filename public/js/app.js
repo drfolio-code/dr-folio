@@ -28,7 +28,7 @@ import { legacyNotes, migrateNotes, snippetsToMigrate, migrateSnippets } from '.
 import { icon, iconOr } from './icons.js';
 import {
   initDrugs, newDrug, openDrug, closeDrug, currentDrug, flushDrug, onDrugsChange, refreshDrugBacklinks, drugCard, drugItemMenu,
-  drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, templatePending, dismissTemplate, emptyDrugTrash, mergeDuplicates, duplicateCount,
+  drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, templatePending, templateState, dismissTemplate, emptyDrugTrash, mergeDuplicates, duplicateCount,
   pasteChuletario, drugScope, setDrugScope, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading
 } from './drugs.js';
 import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies } from './drugbody.js';
@@ -1766,10 +1766,13 @@ function renderDrugView(box, T) {
     if (v.type === T.root && templatePending()) {
       box.prepend(el('div', { class: 'tpl-banner' },
         el('span', { class: 'tpl-ico' }, icon('folder-plus')),
-        el('div', { class: 'tpl-txt' }, el('b', {}, 'Plantilla del Vademécum'),
-          el('span', {}, 'Carpetas por grupos con los fármacos y nombres comerciales principales de Atención Primaria, Urgencias y Rescate en montaña. No borra nada de lo tuyo.')),
+        ...(templateState().templateVersion
+          ? [el('div', { class: 'tpl-txt' }, el('b', {}, 'Vademécum revisado (plantilla v4)'),
+              el('span', {}, 'Dosis de urgencias del Chuletario de Urgencias y contraindicaciones de ficha técnica, con tipo de vía y ámbito. Las fichas que no has tocado se ponen al día; lo que hayas revisado o editado no se cambia.'))]
+          : [el('div', { class: 'tpl-txt' }, el('b', {}, 'Plantilla del Vademécum'),
+              el('span', {}, 'Carpetas por grupos con los fármacos y nombres comerciales principales de Atención Primaria, Urgencias y Rescate en montaña. No borra nada de lo tuyo.'))]),
         el('div', { class: 'tpl-btns' },
-          el('button', { class: 'btn primary', type: 'button', onclick: () => importTemplate() }, 'Cargar'),
+          el('button', { class: 'btn primary', type: 'button', onclick: () => importTemplate() }, templateState().templateVersion ? 'Actualizar' : 'Cargar'),
           el('button', { class: 'btn', type: 'button', onclick: () => { dismissTemplate(); renderList(); } }, 'Ahora no'))));
     }
     return;
