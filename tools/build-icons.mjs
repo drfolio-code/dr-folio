@@ -10,6 +10,9 @@ const USED = [
   'pin', 'clock', 'trash-2', 'folder', 'folder-open', 'folder-plus', 'folder-input', 'tag', 'star', 'flame', 'book-marked',
   // Vademécum (v1.18.0)
   'arrow-down-a-z', 'triangle-alert', 'file-up', 'list-plus',
+  // Chat personal y barra inferior (v1.19.0)
+  'paperclip', 'send-horizontal', 'pin-off', 'download', 'external-link', 'smartphone', 'monitor', 'file', 'hourglass',
+  'circle-ellipsis', 'sliders-horizontal', 'chevron-up', 'message-square-plus', 'lock',
   // Acciones y menús
   'pencil', 'check', 'copy', 'copy-plus', 'printer', 'book-open', 'undo-2', 'x', 'file-text', 'file-plus', 'palette',
   'arrow-up', 'arrow-down', 'arrow-left', 'square-pen', 'layout-grid', 'list', 'ellipsis', 'save',

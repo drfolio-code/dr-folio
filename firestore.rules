@@ -9,7 +9,7 @@ service cloud.firestore {
         && uid == "KCrZacB1H1ZdrxeBbiPuzd7Cp0N2";
     }
     // Incluye todas las colecciones del usuario: notes, noteBodies (contenido de las notas, v1.10.0), files, snippets,
-    // drugs, drugBodies y drugFolders (Vademécum, v1.18.0)…
+    // drugs, drugBodies y drugFolders (Vademécum, v1.18.0), chat (Chat personal, v1.19.0) y settings…
     match /users/{uid}/{document=**} {
       allow read, write: if isOwner(uid);
     }

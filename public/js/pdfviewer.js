@@ -95,12 +95,14 @@ export async function openPdfViewer({ url, name, onOpenTab, onDownload }) {
   let lastWidth = 0;
   let current = 0;
   const textCache = [];         // textos de cada página (para buscar)
+  // PDF.js 6: destroy() está en loadingTask (el documento ya no lo tiene)
+  const destroyDoc = () => { try { if (doc?.destroy) doc.destroy(); else doc?.loadingTask?.destroy(); } catch { /* nada */ } };
 
   done.then(() => {
     closed = true;
     ro?.disconnect();
     for (const p of pages) p.task?.cancel();
-    doc?.destroy();
+    destroyDoc();
   });
 
   try {
@@ -124,7 +126,7 @@ export async function openPdfViewer({ url, name, onOpenTab, onDownload }) {
       : 'No se ha podido mostrar el PDF. Prueba «Abrir en pestaña» o «Descargar».';
     return;
   }
-  if (closed) { doc.destroy(); return; }
+  if (closed) { destroyDoc(); return; }
   msg.remove();
 
   const n = doc.numPages;

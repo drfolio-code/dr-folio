@@ -12,6 +12,8 @@
 //   snippetFolders/{id} { name, parentId|null, color, order, createdAt, updatedAt }  (árbol propio de los prerredactados)
 //   drugs/{id}    Vademécum (v1.18.0), ficha ligera: ver drugs.js     drugBodies/{id} { html, text, updatedAt } («Mis notas», al abrir)
 //   drugFolders/{id} { name, parentId|null, color, order, createdAt, updatedAt }  (árbol propio del Vademécum)
+//   settings/{id} ajustes comunes a todos los dispositivos (settings/chat { ttlDays })
+//   chat/{id}     Chat personal (v1.19.0): NO se sincroniza entero aquí (solo los últimos 200 y los fijados, ver chat.js)
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from '../vendor/libs.js';
 import { db } from './db.js';
 
@@ -25,13 +27,14 @@ export const store = {
   snippetFolders: new Map(),
   drugs: new Map(),
   drugFolders: new Map(),
+  settings: new Map(),
   pending: {},     // escrituras pendientes de subir por colección
   loaded: {},      // primera carga completada por colección
   fromCache: {},
   stats: { reads: {}, bodyReads: 0 } // documentos recibidos del servidor (≈ lecturas facturadas) desde que se abrió la app
 };
 
-const COLS = ['folders', 'tags', 'notes', 'files', 'snippets', 'snippetFolders', 'drugs', 'drugFolders'];
+const COLS = ['folders', 'tags', 'notes', 'files', 'snippets', 'snippetFolders', 'drugs', 'drugFolders', 'settings'];
 let unsubs = [];
 
 export const col = (name) => collection(db, 'users', store.uid, name);

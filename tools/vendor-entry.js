@@ -9,7 +9,7 @@ export {
 export {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   memoryLocalCache, collection, doc, setDoc, updateDoc, deleteDoc, getDoc,
-  getDocs, getDocsFromCache, onSnapshot, query, where, writeBatch,
+  getDocs, getDocsFromCache, onSnapshot, query, where, orderBy, limit, startAfter, writeBatch,
   serverTimestamp, terminate, clearIndexedDbPersistence, Timestamp,
   runTransaction, deleteField, documentId, connectFirestoreEmulator
 } from 'firebase/firestore';

@@ -9,6 +9,8 @@
 // (datos de notes/{id} + html/text/refs de noteBodies/{id}, sin los campos calculados): el formato no cambia.
 // Vademécum (v1.18.0): `drugs` también COMPLETOS (drugs/{id} + html/text de drugBodies/{id}, sin campos calculados) y
 // `drugFolders`. Las copias anteriores no los traen y se leen igual (listas vacías).
+// Chat personal (v1.19.0): `chat` (todos los mensajes, se leen del servidor al exportar) y `settings` (caducidad).
+// Si una copia no los trae (anterior a v1.19.0), «Reemplazar» no borra el chat ni los ajustes.
 import { writeBatch, doc, collection } from '../vendor/libs.js';
 import { db } from './db.js';
 import { store, ref, allLoaded } from './store.js';
@@ -24,11 +26,12 @@ import { ensureAllDrugBodies, fullDrug, deriveDrugLight, rememberDrugBody, DRUG_
 
 export const BACKUP_FORMAT = 'drfolio-backup';
 export const BACKUP_VERSION = 1;
-const COLS = ['folders', 'tags', 'files', 'notes', 'snippetFolders', 'snippets', 'drugFolders', 'drugs']; // orden de escritura
+const COLS = ['folders', 'tags', 'files', 'notes', 'snippetFolders', 'snippets', 'drugFolders', 'drugs', 'settings', 'chat']; // orden de escritura
+const OPTIONAL = ['settings', 'chat']; // si la copia no los trae, no se borran al reemplazar
 const COL_NAMES = {
   notes: 'Notas', folders: 'Carpetas', tags: 'Etiquetas', snippets: 'Prerredactados',
   snippetFolders: 'Carpetas de prerredactados', drugs: 'Fármacos (Vademécum)', drugFolders: 'Carpetas del Vademécum',
-  files: 'Archivos (imágenes y PDF)'
+  files: 'Archivos (imágenes y PDF)', chat: 'Mensajes del chat', settings: 'Ajustes comunes'
 };
 /** Colecciones que se guardan como dos documentos (ligero + contenido) */
 const BODY_COL = { notes: 'noteBodies', drugs: 'drugBodies' };
@@ -39,7 +42,8 @@ const DAY_WRITES = 20000;                // plan Spark: 20.000 escrituras y 20.0
 const DAY_RESERVE = 1500;                // margen para el uso normal de la app ese día
 const REMIND_DAYS = 7;
 
-let hooks = { beforeRun: () => {}, isPublic: () => false, onChange: () => {} };
+let hooks = { beforeRun: () => {}, isPublic: () => false, onChange: () => {}, allChat: async () => [] };
+let chatLocal = new Map(); // mensajes del chat del servidor (para comparar al restaurar: no están todos en memoria)
 export function initBackup(h) { hooks = { ...hooks, ...h }; }
 
 const PUBLIC_REASON = 'No disponible en «Ordenador público»: así no quedan copias de tus notas en ordenadores ajenos. Hazla desde tu móvil o tu ordenador.';
@@ -131,11 +135,18 @@ export async function buildBackup({ withFiles, onProgress = () => {} }) {
   await ensureAllBodies(); // las notas solo se exportan completas
   await ensureAllDrugBodies(); // y los fármacos, con «Mis notas»
   const data = {};
+  let chatMissing = false;
   for (const c of COLS) {
+    if (c === 'chat') {
+      onProgress(0, 'Leyendo el chat…');
+      try { data.chat = await hooks.allChat(); } catch { data.chat = []; chatMissing = true; }
+      continue;
+    }
     data[c] = c === 'notes' ? [...store.notes.values()].map(fullNote)
       : c === 'drugs' ? [...store.drugs.values()].map(fullDrug) : [...store[c].values()];
   }
-  const counts = Object.fromEntries(COLS.map((c) => [c, data[c].length]));
+  if (chatMissing) delete data.chat; // sin conexión: la copia va sin chat (y al restaurarla no se borra el chat)
+  const counts = Object.fromEntries(COLS.map((c) => [c, (data[c] || []).length]));
   const head = {
     format: BACKUP_FORMAT, formatVersion: BACKUP_VERSION, app: 'Dr.Folio', appVersion: APP_VERSION,
     exportedAt: new Date().toISOString(), exportedAtMs: Date.now(), withFiles: !!withFiles, counts, data
@@ -160,7 +171,7 @@ export async function buildBackup({ withFiles, onProgress = () => {} }) {
   }
   parts.push('}');
   onProgress(1, 'Listo');
-  return { blob: new Blob(parts, { type: 'application/json' }), counts, missing };
+  return { blob: new Blob(parts, { type: 'application/json' }), counts, missing, chatMissing };
 }
 
 /** Copia completa (.json). Devuelve una promesa que se resuelve al cerrar la ventana. */
@@ -172,11 +183,12 @@ export function exportJson(withFiles) {
 }
 async function runExportJson(p, withFiles) {
   try {
-    const { blob, counts, missing } = await buildBackup({ withFiles, onProgress: (f, t, s) => p.set(f, t, s) });
+    const { blob, counts, missing, chatMissing } = await buildBackup({ withFiles, onProgress: (f, t, s) => p.set(f, t, s) });
     const name = `drfolio-copia-${stamp()}${withFiles ? '-completa' : '-sin-archivos'}.json`;
     p.finish(`Copia lista · ${formatBytes(blob.size)}`, [
       summaryTable(counts),
       missing.length ? el('p', { class: 'bk-warn' }, `⚠️ ${missing.length} archivo(s) no se pudieron leer (¿sin conexión?): ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? '…' : ''}`) : null,
+      chatMissing ? el('p', { class: 'bk-warn' }, '⚠️ Sin conexión: la copia no incluye los mensajes del chat.') : null,
       el('p', { class: 'muted small' }, name),
       deliverButtons(blob, name, { onSaved: markBackup })
     ]);
@@ -186,7 +198,7 @@ async function runExportJson(p, withFiles) {
 function summaryTable(counts, extra = {}) {
   const rows = [
     ['notes', 'notebook-text'], ['folders', 'folder'], ['tags', 'tag'], ['snippets', 'clipboard-list'], ['snippetFolders', 'folder'],
-    ['drugs', 'pill'], ['drugFolders', 'folder'], ['files', 'image']
+    ['drugs', 'pill'], ['drugFolders', 'folder'], ['chat', 'message-circle'], ['files', 'image']
   ];
   return el('table', { class: 'bk-table' }, el('tbody', {},
     rows.map(([c, ico]) => el('tr', {}, el('td', {}, icon(ico), ` ${COL_NAMES[c]}`), el('td', {}, (counts[c] || 0).toLocaleString('es-ES'),
@@ -382,6 +394,18 @@ async function exportZip() {
         }
       }
     }
+    // Chat personal: una página con los mensajes y sus archivos en «Chat/Archivos»
+    let chatMsgs = [];
+    try { chatMsgs = (await hooks.allChat()).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)); } catch { chatMsgs = null; }
+    for (const m of chatMsgs || []) {
+      for (const id of m.files || []) {
+        const meta = store.files.get(id);
+        if (!meta || ctx.filePath.has(`chat/${id}`)) continue;
+        const path = `Chat/Archivos/${uniqueIn(used, 'Chat/Archivos', safeName(meta.name, meta.kind === 'image' ? 'imagen' : 'archivo') + extFor(meta))}`;
+        ctx.filePath.set(`chat/${id}`, path);
+        wanted.push({ id, path, size: meta.size || 0 });
+      }
+    }
     // Descarga de los archivos
     const totalBytes = wanted.reduce((s, w) => s + w.size, 0) || 1;
     let got = 0; const missing = [];
@@ -415,18 +439,21 @@ async function exportZip() {
       root.file(ctx.notePath.get(dn.id), noteHtml(dn, ctx));
       if (!d.trashed) drugPaths.push([dn, ctx.notePath.get(dn.id)]);
     }
-    root.file('index.html', indexPage(notes, ctx, snipPaths, drugPaths));
+    if (chatMsgs?.length) root.file('Chat/Chat personal.html', chatPageHtml(chatMsgs, ctx));
+    root.file('index.html', indexPage(notes, ctx, snipPaths, drugPaths, chatMsgs?.length || 0));
     root.file('LEEME.txt', `Exportación legible de Dr.Folio (${new Date().toLocaleString('es-ES')}).\n\n`
       + 'Abre «index.html» con cualquier navegador. Cada nota es un .html con sus imágenes y PDF en la carpeta «(archivos)» de al lado.\n'
       + 'Los prerredactados están en «Prerredactados»: .html con su formato e imágenes y .txt con el texto tal como se copia.\n'
-      + 'Los fármacos están en «Vademécum» (por carpetas): un .html por ficha con presentaciones, pautas y tus notas.\n\n'
+      + 'Los fármacos están en «Vademécum» (por carpetas): un .html por ficha con presentaciones, pautas y tus notas.\n'
+      + 'El chat personal está en «Chat/Chat personal.html», con sus archivos en «Chat/Archivos».\n\n'
       + 'Para RESTAURAR en la app usa la copia .json (Ajustes → Copia de seguridad), no este .zip.\n');
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
       (m) => p.set(0.6 + 0.4 * (m.percent / 100), 'Comprimiendo…', m.currentFile ? m.currentFile.split('/').pop() : ''));
     const zblob = new Blob([blob], { type: 'application/zip' });
     const name = `drfolio-legible-${stamp()}.zip`;
     p.finish(`Exportación lista · ${formatBytes(zblob.size)}`, [
-      el('p', {}, `${plural(notes.length, 'nota', 'notas')}, ${plural(store.snippets.size, 'prerredactado', 'prerredactados')}, ${plural(drugs.length, 'fármaco', 'fármacos')} y ${plural(wanted.length, 'archivo', 'archivos')}.`),
+      el('p', {}, `${plural(notes.length, 'nota', 'notas')}, ${plural(store.snippets.size, 'prerredactado', 'prerredactados')}, ${plural(drugs.length, 'fármaco', 'fármacos')}, ${plural(chatMsgs?.length || 0, 'mensaje del chat', 'mensajes del chat')} y ${plural(wanted.length, 'archivo', 'archivos')}.`),
+      chatMsgs === null ? el('p', { class: 'bk-warn' }, '⚠️ Sin conexión: el .zip no incluye el chat.') : null,
       missing.length ? el('p', { class: 'bk-warn' }, `⚠️ ${missing.length} archivo(s) no se pudieron leer (¿sin conexión?).`) : null,
       el('p', { class: 'muted small' }, 'Se abre sin la app (index.html). Para restaurar usa la copia .json.'),
       deliverButtons(zblob, name)
@@ -440,7 +467,30 @@ function extFor(meta) {
   return m[meta.mime] || '';
 }
 
-function indexPage(notes, ctx, snipPaths, drugPaths = []) {
+/** Página del chat para el .zip: mensajes por día, con enlaces a sus archivos */
+function chatPageHtml(msgs, ctx) {
+  const e = escapeHtml;
+  const dev = { phone: 'Móvil', desktop: 'Ordenador', public: 'Ordenador público' };
+  let day = '';
+  const rows = msgs.map((m) => {
+    const d = new Date(m.createdAt || 0);
+    const dl = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const head = dl !== day ? `<h2>${e(dl)}</h2>` : '';
+    day = dl;
+    const files = (m.files || []).map((id) => {
+      const p = ctx.filePath.get(`chat/${id}`);
+      const meta = store.files.get(id);
+      if (!p) return '<li class="muted">[archivo no disponible]</li>';
+      return meta?.kind === 'image' ? `<li><a href="${e(rel('Chat', p))}"><img src="${e(rel('Chat', p))}" alt="" style="max-width:320px"></a></li>`
+        : `<li><a href="${e(rel('Chat', p))}">📎 ${e(meta?.name || 'archivo')}</a></li>`;
+    }).join('');
+    return `${head}<div class="msg"><div class="meta">${e(d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }))} · ${e(dev[m.device] || 'Ordenador')}${m.pinned ? ' · 📌 Fijado' : ''}${m.editedAt ? ' · editado' : ''}</div>`
+      + (m.text ? `<div class="snip">${e(m.text)}</div>` : '') + (files ? `<ul>${files}</ul>` : '') + '</div>';
+  });
+  return page('Chat personal', `<div class="crumbs"><a href="../index.html">🏠 Índice</a></div><h1 class="title">💬 Chat personal</h1><div class="meta">${msgs.length} mensajes</div>${rows.join('')}`);
+}
+
+function indexPage(notes, ctx, snipPaths, drugPaths = [], chatCount = 0) {
   const link = (path, text) => `<a href="${escapeHtml(rel('', path))}">${escapeHtml(text)}</a>`;
   const live = notes.filter((n) => !n.trashed);
   const tree = (parentId) => {
@@ -457,6 +507,7 @@ function indexPage(notes, ctx, snipPaths, drugPaths = []) {
     + `<h2>🗂 Notas</h2><div class="tree">${tree(null) || '<p class="muted">Sin notas</p>'}</div>`
     + (snipPaths.length ? `<h2>📋 Prerredactados</h2><ul>${snipPaths.map(([s, p]) => `<li>${link(p, s.title || 'Sin título')}</li>`).join('')}</ul>` : '')
     + (drugPaths.length ? `<h2>💊 Vademécum</h2><ul>${drugPaths.map(([d, p]) => `<li>${link(p, d.title)}${d.drugPath.includes('›') ? ` <span class="muted">· ${escapeHtml(d.drugPath.replace(/^💊 Vademécum › /, ''))}</span>` : ''}</li>`).join('')}</ul>` : '')
+    + (chatCount ? `<h2>💬 Chat personal</h2><ul><li>${link('Chat/Chat personal.html', `Chat personal (${chatCount} mensajes)`)}</li></ul>` : '')
     + (trash.length ? `<h2>🗑 Papelera</h2><ul>${trash.map((n) => `<li>${link(ctx.notePath.get(n.id), n.title || 'Sin título')}</li>`).join('')}</ul>` : ''));
 }
 
@@ -480,7 +531,9 @@ export function parseBackup(text) {
   } else throw new Error('El archivo no es una copia de Dr.Folio.');
 
   const data = {}; let skipped = 0;
+  const present = {};
   for (const c of COLS) {
+    present[c] = Array.isArray(src[c]);
     const arr = src[c] == null ? [] : src[c];
     if (!Array.isArray(arr)) throw new Error(`La copia está dañada («${c}» no es una lista).`);
     const seen = new Set();
@@ -502,7 +555,7 @@ export function parseBackup(text) {
   const exportedMs = Number(raw.exportedAtMs) || Date.parse(raw.exportedAt) || 0;
   const counts = Object.fromEntries(COLS.map((c) => [c, data[c].length]));
   const withData = data.files.filter((f) => fileData[f.id]).length;
-  return { data, fileData, meta: { version, appVersion: raw.appVersion || raw.version || '?', exportedMs, counts, withData, skipped } };
+  return { data, fileData, present, meta: { version, appVersion: raw.appVersion || raw.version || '?', exportedMs, counts, withData, skipped } };
 }
 
 /** Limpia un documento leído del archivo (el HTML de las notas se vuelve a sanear) */
@@ -531,6 +584,12 @@ function fixDoc(c, d) {
     x.presentations = strs(x.presentations);
     x.regimens = Array.isArray(x.regimens) ? x.regimens.filter(isObj) : [];
   }
+  if (c === 'chat') {
+    x.text = typeof x.text === 'string' ? x.text : '';
+    x.files = Array.isArray(x.files) ? x.files.filter((f) => typeof f === 'string' && ID_RE.test(f)) : [];
+    x.pinned = x.pinned === true;
+    x.createdAt = Number(x.createdAt) || 0;
+  }
   if (c === 'files') {
     x.size = Number(x.size) || 0;
     x.chunks = Number(x.chunks) || 0;
@@ -557,7 +616,8 @@ export function planRestore(parsed, mode) {
   for (const c of COLS) {
     plan.add[c] = 0; plan.upd[c] = 0; plan.del[c] = 0;
     const local = c === 'notes' ? new Map([...store.notes.values()].map((n) => [n.id, fullNote(n)]))
-      : c === 'drugs' ? new Map([...store.drugs.values()].map((d) => [d.id, fullDrug(d)])) : store[c];
+      : c === 'drugs' ? new Map([...store.drugs.values()].map((d) => [d.id, fullDrug(d)]))
+        : c === 'chat' ? chatLocal : store[c];
     const per = BODY_COL[c] ? 2 : 1; // nota = notes/{id} + noteBodies/{id} · fármaco = drugs/{id} + drugBodies/{id}
     const inBackup = new Set();
     for (const d of data[c]) {
@@ -575,7 +635,7 @@ export function planRestore(parsed, mode) {
       const write = mode === 'merge' ? tsOf(d) > tsOf(l) : !sameDoc(d, l);
       if (write) { plan.writes.push({ c, d }); plan.upd[c]++; plan.writeOps += per; }
     }
-    if (mode === 'replace') {
+    if (mode === 'replace' && (!OPTIONAL.includes(c) || parsed.present?.[c] !== false)) {
       for (const l of local.values()) {
         if (inBackup.has(l.id)) continue;
         const ops = c === 'files' ? (l.chunks || 0) + 1 : per;
@@ -696,6 +756,7 @@ async function startRestore(file) {
     toast('Espera a que se sincronicen tus datos (indicador verde) y vuelve a intentarlo', 'error', 4500); return;
   }
   try { await ensureAllBodies(); } catch (e) { toast(e.message, 'error', 5000); return; } // para comparar con la copia
+  try { chatLocal = new Map((await hooks.allChat()).map((m) => [m.id, m])); } catch (e) { toast(e.message, 'error', 5000); return; }
   let parsed;
   try { parsed = parseBackup(await file.text()); } catch (e) {
     modal({ title: 'No se puede restaurar', body: el('p', {}, e.message), actions: [{ label: 'Cerrar', primary: true }] }); return;

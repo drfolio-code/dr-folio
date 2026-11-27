@@ -18,11 +18,12 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/index.html` | Estructura de la interfaz (login, barra lateral, lista, editor) |
 | `public/styles.css` | Estilos (modo claro/oscuro, responsive: ≥1100 px franja + barra lateral plegable + lista + nota · 640–1099 franja + lista + nota, barra lateral encima · móvil (<640, u horizontal ≤520 px de alto) barra inferior, sin franja ni barra lateral: una columna en vertical, lista+nota en horizontal) |
 | `public/js/app.js` | Lógica principal: navegación (franja, barra inferior, ＋ Crear), barra lateral por sección, Inicio, Buscar, explorador de carpetas, vistas, etiquetas, notas, bibliografía, ajustes |
+| `public/js/chat.js` | Chat personal (v1.19.0): escucha en tiempo real los últimos 200 mensajes y los fijados, «anteriores» al subir, enviar (texto + archivos), menú del mensaje, convertir en nota/prerredactado, caducidad, buscar, `consumeShare` (Compartir de Android) |
 | `public/js/bodies.js` | Contenido de las notas (v1.10.0): `bodyOf`, `loadBody`, `syncBodies`, `writeNote` (nota ligera + contenido en un lote), `deleteNoteDocs`, `fullNote` (nota completa para copias), copia local en IndexedDB `drfolio-bodies` (solo confianza; se borra al cerrar sesión) |
 | `public/js/migrate.js` | Migración de notas antiguas a dos documentos (`migrateNotes`): transacciones por grupos, idempotente, varios dispositivos |
 | `public/js/icons.js` | Iconos SVG propios: `icon(nombre)`, `iconOr(x)`; sprite inyectado al arrancar. En HTML: `<svg class="i"><use href="#i-NOMBRE"/></svg>`. Color = currentColor |
 | `public/vendor/icons.js` | Dibujos de Lucide (ISC), solo los usados. Generado por `tools/build-icons.mjs` (`npm run vendor:icons`): para añadir un icono, añade su nombre a `USED` |
-| `public/js/modules.js` | Módulos (`id, name, short, icon (nombre de icono SVG), desc, route, status: 'active'\|'soon', count, tab`) + accesos fijos `NAV_HOME`/`NAV_SEARCH`. De aquí salen Inicio, la franja (todos) y la barra inferior (`tab: true`). Añadir un módulo = una línea aquí |
+| `public/js/modules.js` | Módulos (`id, name, short, icon (nombre de icono SVG), desc, route, status: 'active'\|'soon', count, tab`) + `TAB_DEFAULT` y accesos fijos `NAV_HOME`/`NAV_SEARCH`/`NAV_MORE`. De aquí salen Inicio, la franja (todos), la hoja «Más» y la sección fija de la barra inferior (`tab: true` = elegible). Añadir un módulo = una línea aquí |
 | `public/js/viewport.js` | Teclado del móvil: `body.kb-open` (iOS: visualViewport; Android: alto menor que antes de escribir) → oculta la barra inferior y **solo entonces** la app usa `--app-h`/`--app-top` (alto visible real). Títulos de varias líneas: `initTitles`/`fitTitle` (textarea que crece; sin saltos de línea) |
 | `public/js/editor.js` | Editor `contenteditable`: barra de formato, pegado limpio (DOMPurify), tablas, listas de tareas, enlaces entre notas, índice, botones «📋 Copiar sección» en lectura (`allText()`). `createEditor({els})` admite varias instancias (notas y prerredactados), `markFields` (resalta `{campo}` en lectura, `span.fld` solo de vista) y `tabs` (Tab = tabulación, párrafo `class="keep-ws"`) |
 | `public/js/util.js` | Ayudas: `el`, `$`, `debounce`, `norm`, fechas, `htmlToText` (búsqueda) y `nodesToPlain` (texto para pegar en informes: tablas con tabuladores, listas «- »/«1. ») |
@@ -39,16 +40,16 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/vendor/libs.js` | Firebase + DOMPurify empaquetados. Regenerar: `cd tools && npm install && npm run vendor` (regenera libs.js, jszip.js, pdfjs/ e icons.js). Exporta también `connect*Emulator` (solo para pruebas locales) |
 | `public/vendor/jszip.js` | JSZip (ESM) para el .zip legible. Se carga con `import()` solo al exportar (no va en libs.js). Sale de `tools/jszip-entry.js` (`npm run vendor:jszip`, incluido en `npm run vendor`) |
 | `public/vendor/pdfjs/` | PDF.js (pdfjs-dist, build **legacy** para Safari iOS) + worker, fuentes, wasm, cmaps. Lo copia `tools/copy-pdfjs.mjs` (incluido en `npm run vendor`) y genera `files.json` |
-| `public/sw.js` | Service worker (app offline, red primero). PDF.js va en una caché aparte `PDFJS_CACHE` (caché primero): **si se actualiza pdfjs-dist, cambiar `PDFJS_CACHE`** |
+| `public/sw.js` | Service worker (app offline, red primero). Recibe el POST de «Compartir» (`./share-target`, Android) y lo deja en la caché `drfolio-share` para `chat.js`. PDF.js va en una caché aparte `PDFJS_CACHE` (caché primero): **si se actualiza pdfjs-dist, cambiar `PDFJS_CACHE`** |
 
 ## Navegación (v1.7.0)
 - **Secciones**: `sectionOf(tipo)` = `home | search | notes | snippets | drugs` (= id del módulo/árbol). `#app[data-section]`, `#app[data-side]` (1 si la sección tiene barra lateral).
-- **Móvil** (<640 o horizontal ≤520 px alto): `#tabbar` = Inicio · módulos con `tab` · ＋ Crear (en medio) · Buscar. Sin ☰. Notas raíz muestra además Papelera y Etiquetas (`.fx-extra`, solo móvil). Ajustes y Cerrar sesión, en la cabecera de Inicio.
-- **Iconos**: SVG de Lucide (`icons.js`), nunca emojis en la navegación, menús (`menu()` acepta nombre de icono en `icon`) ni barras. Notas = `notebook-text`, Prerredactados = `clipboard-list`, Vademécum = `pill`, Chat personal = `message-circle`. Módulos con `tab: true`: Notas, Prerredactados y Vademécum (barra inferior: Inicio · Notas · Prerred. · ＋ · Vademécum · Buscar).
+- **Móvil** (<640 o horizontal ≤520 px alto, v1.19.0): `#tabbar` = **Inicio · [sección fija] · ＋ Crear · Buscar · Más** (5 botones). Sección fija = `drfolio.tabFixed` (por defecto `TAB_DEFAULT` = notes; se cambia en Más → «Personalizar barra» o Ajustes). «Más» (`openMoreSheet`, modal `cls: 'more-sheet'`, hoja desde abajo) = todos los módulos + Ajustes + Personalizar barra; se marca activo si la sección abierta no está en la barra. Aviso rojo `.nav-badge` con los mensajes nuevos del chat (en «Chat» si es la fija; si no, en «Más»; también en la franja e Inicio). Sin ☰. Notas raíz muestra además Papelera y Etiquetas (`.fx-extra`, solo móvil). Ajustes y Cerrar sesión, en la cabecera de Inicio.
+- **Iconos**: SVG de Lucide (`icons.js`), nunca emojis en la navegación, menús (`menu()` acepta nombre de icono en `icon`) ni barras. Notas = `notebook-text`, Prerredactados = `clipboard-list`, Vademécum = `pill`, Chat personal = `message-circle`, Más = `circle-ellipsis`. Todos los módulos activos llevan `tab: true` (elegibles como sección fija).
 - **Listas largas**: `lazyBlock()` pinta 60 tarjetas y el resto al acercarse al final o con «Mostrar más» (recuerda cuántas por vista); `.note-card` con `content-visibility: auto`.
 - **Tablet/PC**: `#rail` = ＋, Inicio, Buscar, todos los módulos («Próximamente» en gris), Panel, Ajustes, Salir, estado de sincronización.
 - **Barra lateral** (`renderSidebar`, según sección): Notas = Todas/Fijadas/Recientes/Papelera + carpetas + etiquetas; Prerredactados = Todos/Favoritos/Más usados/Recientes + carpetas. Inicio y Buscar sin barra. ≥1100 px se pliega con «Panel»/« y se recuerda (`drfolio.side` = `open|closed`); en tablet se abre encima (`#app.drawer`) y se cierra al elegir.
-- Tocar la sección activa vuelve a su raíz (`navTo`). **＋ Crear** (`createMenu`): Nota / Prerredactado / Carpeta, en la carpeta abierta.
+- Tocar la sección activa vuelve a su raíz (`navTo`). **＋ Crear** (`createMenu`): Nota / Prerredactado / Fármaco / Mensaje al chat / Carpeta, en la carpeta abierta.
 - **Buscar** `#/buscar` (`openFind`, `renderFind`): sección de primer nivel (atrás → Inicio). Fuentes en `SEARCH_SOURCES` (`id, name, icon, all, loaded, run(words), card`): para el Vademécum, añadir una entrada. Filtros Todo/por tipo (`S.findFilter`). Desde aquí, notas y prerredactados se abren encima y «atrás» vuelve a Buscar (`snippetCard({onOpen})`).
 - **Ordenador público**: `#pubbar` arriba siempre, con «Cerrar sesión» (`#app.public`).
 
@@ -113,7 +114,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - **Índice** (v1.14.0): numerado como Evernote: 1., 2. y subniveles a., b. (i., ii.), enlaces subrayados; si el título ya empieza por número o letra, no se repite.
 
 ## Rutas y navegación
-- `#/inicio` (por defecto tras el login), `#/buscar`, `#/notas[/n/NOTA]` (explorador raíz), `#/all|pinned|recent|trash[/n/NOTA]`, `#/folder/ID[/n/NOTA]`, `#/tag/ID[/n/NOTA]`, `#nota/ID`.
+- `#/inicio` (por defecto tras el login), `#/buscar`, `#/chat` y `#/chat/fijados` (sección de primer nivel como Buscar: `openChat`, `openChatPins`; `FULL_SECTIONS` = home, search, chat), `#/notas[/n/NOTA]` (explorador raíz), `#/all|pinned|recent|trash[/n/NOTA]`, `#/folder/ID[/n/NOTA]`, `#/tag/ID[/n/NOTA]`, `#nota/ID`.
 - Prerredactados: `#/snippets[/s/ID]` (raíz), `#/sfolder/ID[/s/ID]`, `#/sall|sfav|sused|srecent[/s/ID]` (Todos, Favoritos, Más usados, Recientes).
 - Vademécum: `#/vademecum[/f/ID]` (raíz, vista `drugs`), `#/dfolder/ID[/f/ID]`, `#/daz|dfav|drecent|dreview|dtrash[/f/ID]` (A-Z, Favoritos, Recientes, Por revisar, Papelera), `#farmaco/ID`.
 - `history.state`: `d` = nº de entradas por encima de Inicio (el botón 🏠 hace `history.go(-d)`); `lv` = nivel en el explorador (0 = Notas, 1 = carpeta principal…); `nt` = 1 si la entrada es una nota/prerredactado abierto.
@@ -145,7 +146,8 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
   - Enlaces entre notas: `<a data-note="ID" class="note-link" href="#nota/ID">`
   - Índice insertado: `<div class="note-toc" data-toc="1"></div>` (se guarda vacío; `refreshTocBlocks()` lo rellena con los H1–H3 al mostrar)
   - Secciones plegadas: `data-collapsed="1"` en el título (solo títulos de primer nivel del contenido); `.fold-hidden`/`.foldable` son clases de vista, no se guardan
-- `files/{id}`: `noteId, snippetId?, name, mime, size, kind, chunks, createdAt` + subcolección `chunks/{000..}` `{d: base64}` (700 KB por trozo)
+- `chat/{id}`: `text, files[], pinned, device, devId, createdAt, editedAt` (Chat personal, v1.19.0) · `settings/chat`: `ttlDays, updatedAt`
+- `files/{id}`: `noteId, snippetId?, drugId?, chatId?, name, mime, size, kind, chunks, createdAt` + subcolección `chunks/{000..}` `{d: base64}` (700 KB por trozo)
 - `snippets/{id}`: `title, html (formato, v1.12.0), body (texto plano), bh (huella de body), folderId|null, favorite, order, category (antiguo, no se borra), uses, lastUsedAt, createdAt, updatedAt` (prerredactados)
 - `snippetFolders/{id}`: misma forma que `folders` (`name, parentId|null, color, order, createdAt, updatedAt`), árbol propio de los prerredactados, separado del de notas
 - **Migración categoría → carpeta** (`migrateCategories` en snippets.js, v1.6.0): cuando llegan `snippets` y `snippetFolders` **del servidor** (no de caché), cada prerredactado **sin el campo `folderId`** pasa a la carpeta de su `category` (raíz; `null` si no tenía). El ID de carpeta es fijo según el nombre (`catFolderId`: `cat-<slug>-<hash>`, sin tildes/mayúsculas), así varios dispositivos escriben la misma carpeta y no se duplica; al tener ya `folderId`, no se repite. `category` se conserva para poder volver atrás.
@@ -183,11 +185,26 @@ Ejemplo completo en `ejemplos/vademecum-ejemplo.json`. Se acepta `{ "format": "d
 
 Reglas: fichas nuevas → `reviewed: false` («⚠ Pendiente de revisar» bien visible hasta «✓ Revisada»). Si ya existe: se **añaden** marcas, presentaciones y pautas que falten (pauta igual = misma indicación + vía + dosis + frecuencia), nunca se borra ni cambia lo que hay; si se añadió algo, vuelve a «Pendiente de revisar». Antes de escribir se muestra un resumen (nuevas / se completan / sin cambios). Fármacos repetidos dentro del archivo se juntan.
 
+## Chat personal (v1.19.0, `chat.js`)
+- Bandeja TEMPORAL para pasarse cosas entre dispositivos. Sección `#chat` (como Inicio/Buscar: ancho completo, sin barra lateral). Burbujas por día, enlaces pulsables (sin vistas previas), etiqueta del dispositivo (`device` = phone | desktop | public; `devId` aleatorio por dispositivo, en sessionStorage si es público). Los de este dispositivo a la derecha.
+- Caja de escribir: crece; 📎 (cualquier archivo, mismos límites y compresión que las notas: `compressImage`/`saveFile`), pegar y arrastrar archivos (quedan «preparados» como chips). Ordenador (`pointer: fine`): Intro envía, Mayús+Intro salto de línea.
+- **Lecturas**: `onSnapshot` de `orderBy(createdAt desc) limit(200)` + `where(pinned == true)`. Los anteriores con `startAfter` al subir (sin tiempo real). La búsqueda del chat ofrece «Buscar también en los anteriores» (`loadEverything`). Para esto `vendor-entry.js` exporta además `orderBy`, `limit`, `startAfter` (libs.js regenerado).
+- Sin conexión: escritura en cola de Firestore; mientras `hasPendingWrites` → «pendiente».
+- Menú del mensaje (⋯, mantener pulsado o clic derecho): Copiar (también botón visible), Descargar archivos, Fijar, Convertir en nota nueva (`writeNote`; imágenes en el texto, resto de archivos a la bibliografía), Añadir al final de una nota (`appendToNote` en app.js), Convertir en prerredactado (solo imágenes), Editar, Eliminar. Al convertir, los archivos pasan a `noteId`/`snippetId` y se les quita `chatId` (ya no se borran con el mensaje). Imágenes a pantalla completa (`openViewer({full: true})`, modal `img-full`), PDF con el visor propio.
+- **Caducidad**: `settings/chat.ttlDays` (7/30/90/0 = nunca, por defecto 30, común a todos los dispositivos; Ajustes o ⋯ del chat). `cleanupChat` al abrir (solo confianza, con conexión y datos del servidor, como mucho cada 6 h: `drfolio.chatClean`): consulta `createdAt < corte`, salta los fijados, borra mensaje + archivos con `chatId` = el mensaje que nadie más use (solo si `filesKnown()`), lotes ≤ 450 y `budget()`/`addQuota()` de backup.js. Cada mensaje dice «caduca en N días/h» si quedan < 3 días.
+- Mensajes nuevos: los de otro dispositivo posteriores a `drfolio.chatSeen` (se marca al ver el chat).
+- Buscar: fuente `chat` en `SEARCH_SOURCES` (texto + nombres de archivo de los cargados); abre el chat y resalta el mensaje (atrás → Buscar).
+- Archivos: `allReferencedFiles` incluye los de los mensajes cargados; «Limpiar archivos sin usar» comprueba en el servidor los `chatId` no cargados (`chatFilesInUse`, necesita conexión).
+- Copia de seguridad: `chat` (todos, leídos del servidor con `fetchAllChat`; sin conexión se exporta sin chat y se avisa) y `settings` en el JSON (mismo `formatVersion` 1). Si una copia no los trae, «Reemplazar» no los borra (`OPTIONAL`, `parsed.present`). El .zip incluye `Chat/Chat personal.html` + `Chat/Archivos/`.
+- **Compartir (Android)**: `share_target` en el manifest (POST multipart a `./share-target`) → sw.js guarda en la caché `drfolio-share` y redirige a `./?share=1#/chat` → `consumeShare()` deja texto y archivos preparados (no envía solo). iOS no lo admite.
+- Ordenador público: funciona (memoria, sin caché); no hace la limpieza; `devId`/visto en sessionStorage.
+- Probado con el **emulador de Firebase** + Playwright (56 comprobaciones): dos sesiones (ordenador público 1366×860 → móvil iPhone 13), tiempo real, imagen y PDF, fijar, convertir, editar, sin conexión, caducidad con fechas antiguas, buscar, Compartir, 230 mensajes (200 + anteriores al subir), copia, horizontal 844×390 y ordenador de confianza. De paso: `pdfviewer.js` cerraba con `doc.destroy()`, que en PDF.js 6 ya no existe → `loadingTask.destroy()`.
+
 ## Hoja de ruta
 1. ✅ Notas: carpetas/subcarpetas, etiquetas, editor enriquecido, imágenes, bibliografía con PDF, índice, enlaces entre notas, offline, modo lectura con copiar sección, copia de seguridad y restauración
 2. ✅ Prerredactados (plantillas para copiar, con campos rellenables y texto enriquecido)
 3. ✅ Vademécum personal (fichas, pautas para copiar, enlaces desde notas, importar JSON)
-4. Chat personal (enviarse textos y documentos)
+4. ✅ Chat personal (bandeja temporal entre dispositivos: textos, enlaces, fotos y documentos; caducidad; convertir en nota)
 
 ## Probar
 No hay tests automáticos en el repo. Antes de publicar, al menos `node --check` en cada `public/js/*.js`.

@@ -16,7 +16,7 @@ import {
   onSnippetEditorChange, onSnippetSectionCopy, snippetImageOwner, isSnippetReading
 } from './snippets.js';
 import { snippetFileIds } from './snipbody.js';
-import { MODULES, NAV_HOME, NAV_SEARCH } from './modules.js';
+import { MODULES, NAV_HOME, NAV_SEARCH, NAV_MORE, TAB_DEFAULT } from './modules.js';
 import { initViewport, initTitles, fitTitle, screenInfo } from './viewport.js';
 import { openPdfViewer } from './pdfviewer.js';
 import { initBackup, openBackup, backupReminder, backupPublicReason, exportJson, progress, lastBackupAt } from './backup.js';
@@ -31,6 +31,10 @@ import {
   drugsForView, moveDrugTo, addManyDrugs, importDrugs, emptyDrugTrash, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading
 } from './drugs.js';
 import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies } from './drugbody.js';
+import {
+  startChat, stopChat, chatShown, unreadCount, chatReady, chatSearch, chatCard, chatFileIds, chatFilesInUse, fetchAllChat,
+  settingsChanged, refreshChat, consumeShare, ttlDays, setTtl, TTL_OPTIONS
+} from './chat.js';
 
 // ====================== Estado ======================
 const S = {
@@ -175,7 +179,9 @@ function newDrugHere() {
   newDrug({ folderId: v.type === 'dfolder' ? v.id : null, favorite: v.type === 'dfav' });
 }
 /** Sección de una vista: 'home' | 'search' | id del árbol ('notes' | 'snippets' | 'drugs') — coincide con el id del módulo */
-const sectionOf = (type = S.view.type) => (type === 'search' ? 'search' : treeOf(type)?.id || 'home');
+const sectionOf = (type = S.view.type) => (type === 'search' ? 'search' : type === 'chat' ? 'chat' : treeOf(type)?.id || 'home');
+/** Secciones que ocupan la zona de lista + nota (sin barra lateral ni editor) */
+const FULL_SECTIONS = ['home', 'search', 'chat'];
 /** Nuevo prerredactado en la carpeta abierta (o en Favoritos si estás ahí) */
 function newSnippetHere() {
   const v = S.view;
@@ -364,6 +370,7 @@ function startApp(user) {
   initBackup({
     beforeRun: () => { saveSoon.flush(); flushSnippet(); flushDrug(); },
     isPublic: () => getMode() === 'public',
+    allChat: () => fetchAllChat(),
     onChange: () => { if (S.view.type === 'home') renderHomeSoon(); }
   });
 
@@ -382,6 +389,22 @@ function startApp(user) {
       ? 'Sin permiso para leer tus datos. ¿Están publicadas las reglas de Firestore?'
       : `Error de sincronización: ${err.message}`, 'error', 6000);
   });
+
+  // Chat personal: últimos mensajes y fijados en tiempo real (chat.js)
+  startChat({
+    onChange: () => { renderNavSoon(); if (S.view.type === 'home') renderHomeSoon(); renderFindSoon(); },
+    chatFilter: () => (S.view.type === 'chat' ? S.view.id : null),
+    openPins: () => openChatPins(),
+    bindContext, longPressed,
+    openViewer: (o) => openViewer(o),
+    openNote: (id) => openNote(id, { push: true }),
+    openSnippet: (id) => openSnippetFromSearch(id),
+    pickNote: (title) => pickNoteForLink(title).then((r) => r?.id || null),
+    appendToNote,
+    filesKnown: () => filesKnown(),
+    otherFileRefs: () => allReferencedFiles(null, null, null, { chat: false })
+  });
+  consumeShare().then((got) => { if (got && S.view.type !== 'chat') openChat(); });
 
   if (getMode() === 'public') {
     startInactivityWatch();
@@ -416,6 +439,7 @@ function onData(name, changed) {
     if (S.noteId) renderNoteChrome();
   } else if (name === 'files') {
     if (S.noteId) renderRefs();
+    refreshChat();
   } else if (name === 'snippets') {
     onSnippetsChange(changed);
     renderSidebarSoon();
@@ -432,6 +456,8 @@ function onData(name, changed) {
     onDrugsChange(null);
     renderSidebarSoon();
     if (isDrugView()) renderListSoon();
+  } else if (name === 'settings') {
+    settingsChanged(); // caducidad del chat
   }
 }
 
@@ -659,6 +685,7 @@ const isExplorer = (t) => !!treeOf(t);
 function hashFor(view, noteId) {
   if (view.type === 'home') return '#/inicio';
   if (view.type === 'search') return NAV_SEARCH.route;
+  if (view.type === 'chat') return view.id === 'pins' ? '#/chat/fijados' : '#/chat';
   const T = treeOf(view.type);
   let h = T && view.type === T.root ? T.rootHash : `#/${view.type}${view.id ? `/${view.id}` : ''}`;
   if (noteId) h += `/n/${noteId}`;
@@ -718,6 +745,7 @@ function parseHash(hash) {
     if (parts[2] === 'f') drugId = parts[3];
   }
   else if (parts[0] === 'buscar') view = { type: 'search', id: null };
+  else if (parts[0] === 'chat') view = { type: 'chat', id: parts[1] === 'fijados' ? 'pins' : null };
   else if (['snippets', 'sall', 'sfav', 'sused', 'srecent'].includes(parts[0])) {
     view = { type: parts[0], id: null };
     if (parts[1] === 's') snipId = parts[2];
@@ -814,6 +842,7 @@ function goHome() {
 function setView(view) {
   if (view.type === 'home') { goHome(); return Promise.resolve(); }
   if (view.type === 'search') return openFind();
+  if (view.type === 'chat') return openChat();
   saveSoon.flush();
   closeDrawer();
   if (isExplorer(view.type)) {
@@ -840,36 +869,105 @@ function renderSection() {
   $('#app').dataset.section = sec;
   if (sec === 'home') renderHome();
   if (sec === 'search') { if ($('#find-input').value !== S.find) $('#find-input').value = S.find; renderFind(); }
+  if (sec === 'chat') chatShown();
   renderNav();
   updateWakeLock();
 }
 
 // ====================== Navegación (franja de módulos y barra inferior) ======================
+const navBtn = (cls, item, soon) => el('button', {
+  class: `${cls} ${soon ? 'soon' : ''}`, type: 'button', dataset: { nav: item.id },
+  title: soon ? `${item.name} · Próximamente` : item.name, 'aria-label': soon ? `${item.name} (próximamente)` : item.name,
+  onclick: () => navTo(item)
+}, el('span', { class: 'ico' }, iconOr(item.icon)), el('span', { class: 'lbl' }, item.short || item.name));
+
 /** Construye la franja (tablet/PC) y la barra inferior (móvil) a partir de MODULES */
 function buildNav() {
-  const navBtn = (cls, item, soon) => el('button', {
-    class: `${cls} ${soon ? 'soon' : ''}`, type: 'button', dataset: { nav: item.id },
-    title: soon ? `${item.name} · Próximamente` : item.name, 'aria-label': soon ? `${item.name} (próximamente)` : item.name,
-    onclick: () => navTo(item)
-  }, el('span', { class: 'ico' }, iconOr(item.icon)), el('span', { class: 'lbl' }, item.short || item.name));
   // Franja: Inicio, Buscar y todos los módulos (los «Próximamente» en gris)
   const rail = [NAV_HOME, NAV_SEARCH, ...MODULES].map((m) => navBtn('rail-btn', m, m.status && m.status !== 'active'));
   $('#rail-items').replaceChildren(...rail);
   // Arrastrar una nota o carpeta encima de «Notas»/«Prerredactados» la saca a la raíz
   rail.forEach((b) => { const T = TREES[b.dataset.nav]; if (T) dropTarget(b, null, T); });
-  // Barra inferior: Inicio · módulos con tab · ＋ Crear (en medio) · Buscar
-  const tabs = [NAV_HOME, ...MODULES.filter((m) => m.tab && m.status === 'active'), NAV_SEARCH].map((m) => navBtn('tab', m, false));
-  const create = el('button', { class: 'tab tab-create', type: 'button', 'aria-label': 'Crear', title: 'Crear', onclick: (e) => createMenu(e.currentTarget) },
-    el('span', { class: 'ico' }, icon('plus')), el('span', { class: 'lbl' }, 'Crear'));
-  tabs.splice(Math.ceil(tabs.length / 2), 0, create);
-  $('#tabbar').replaceChildren(...tabs);
+  buildTabbar();
 }
 
-/** Marca la sección activa y los recuentos */
+// ---------- Barra inferior (móvil, v1.19.0): Inicio · [sección fija] · ＋ Crear · Buscar · Más ----------
+const TAB_KEY = 'drfolio.tabFixed';
+const tabChoices = () => MODULES.filter((m) => m.tab && m.status === 'active');
+function tabFixed() {
+  const v = localStorage.getItem(TAB_KEY);
+  return (tabChoices().find((m) => m.id === v) || tabChoices().find((m) => m.id === TAB_DEFAULT) || tabChoices()[0]).id;
+}
+function setTabFixed(id) {
+  localStorage.setItem(TAB_KEY, id);
+  buildTabbar();
+  renderNav();
+}
+function buildTabbar() {
+  const fixed = MODULES.find((m) => m.id === tabFixed());
+  const create = el('button', { class: 'tab tab-create', type: 'button', 'aria-label': 'Crear', title: 'Crear', onclick: (e) => createMenu(e.currentTarget) },
+    el('span', { class: 'ico' }, icon('plus')), el('span', { class: 'lbl' }, 'Crear'));
+  const more = el('button', { class: 'tab tab-more', type: 'button', dataset: { nav: NAV_MORE.id }, title: 'Más secciones', 'aria-label': 'Más secciones', onclick: () => openMoreSheet() },
+    el('span', { class: 'ico' }, icon(NAV_MORE.icon)), el('span', { class: 'lbl' }, NAV_MORE.name));
+  $('#tabbar').replaceChildren(navBtn('tab', NAV_HOME, false), navBtn('tab', fixed, false), create, navBtn('tab', NAV_SEARCH, false), more);
+}
+
+/** «Más»: hoja desde abajo con todas las secciones, Ajustes y «Personalizar barra» */
+function openMoreSheet() {
+  const sec = sectionOf();
+  const unread = unreadCount();
+  let close = () => {};
+  const tile = (ico, label, onClick, { badge = 0, active = false, sub = '' } = {}) => el('button', {
+    class: `more-tile ${active ? 'active' : ''}`, type: 'button', onclick: () => { close(); onClick(); }
+  }, el('span', { class: 'more-ico' }, iconOr(ico), badge ? el('span', { class: 'nav-badge' }, badge > 99 ? '99+' : badge) : null),
+  el('span', { class: 'more-lbl' }, label), sub ? el('span', { class: 'more-sub' }, sub) : null);
+  const mods = MODULES.filter((m) => m.status === 'active').map((m) => tile(m.icon, m.name, () => navTo(m), {
+    badge: m.count === 'chat' ? unread : 0, active: sec === m.id, sub: m.id === tabFixed() ? 'en la barra' : ''
+  }));
+  modal({
+    title: 'Más', cls: 'more-sheet', actions: [],
+    body: [el('div', { class: 'more-grid' }, ...mods),
+      el('div', { class: 'more-grid more-grid-2' },
+        tile('settings', 'Ajustes', () => openSettings()),
+        tile('sliders-horizontal', 'Personalizar barra', () => customizeTabbar()))],
+    onOpen: (_b, c) => { close = c; }
+  });
+}
+
+/** Elegir la sección fija de la barra inferior */
+function customizeTabbar() {
+  let close = () => {};
+  const cur = tabFixed();
+  const opts = tabChoices().map((m) => el('button', {
+    class: `bar-opt ${m.id === cur ? 'on' : ''}`, type: 'button', 'aria-pressed': String(m.id === cur),
+    onclick: () => { setTabFixed(m.id); close(); toast(`Barra: Inicio · ${m.short || m.name} · ＋ · Buscar · Más`, 'ok', 3000); }
+  }, el('span', { class: 'bar-ico' }, iconOr(m.icon)), el('span', { class: 'bar-txt' }, m.name, el('small', {}, m.desc)), m.id === cur ? icon('check') : null));
+  modal({
+    title: 'Personalizar barra',
+    body: [el('p', { class: 'muted small' }, 'Elige qué sección va fija en la barra de abajo (entre Inicio y ＋). Las demás están en «Más». Se recuerda en este dispositivo.'),
+      el('div', { class: 'bar-opts' }, ...opts)],
+    actions: [{ label: 'Cerrar' }],
+    onOpen: (_b, c) => { close = c; }
+  });
+}
+
+/** Marca la sección activa, «Más» (si la sección no está en la barra) y los mensajes nuevos del chat */
 function renderNav() {
   const sec = sectionOf();
-  $$('[data-nav]').forEach((b) => b.classList.toggle('active', b.dataset.nav === sec));
-  $$('[data-nav]').forEach((b) => { if (b.dataset.nav === sec) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  const fixed = tabFixed();
+  $$('[data-nav]').forEach((b) => {
+    const on = b.dataset.nav === sec || (b.dataset.nav === NAV_MORE.id && MODULES.some((m) => m.id === sec) && sec !== fixed);
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  const n = unreadCount();
+  $$('[data-nav]').forEach((b) => {
+    const show = n > 0 && (b.dataset.nav === 'chat' || (b.dataset.nav === NAV_MORE.id && fixed !== 'chat'));
+    let badge = b.querySelector('.nav-badge');
+    if (!show) { if (badge) badge.replaceWith(); return; }
+    if (!badge) { badge = el('span', { class: 'nav-badge' }); b.querySelector('.ico').append(badge); }
+    badge.textContent = n > 99 ? '99+' : String(n);
+  });
 }
 const renderNavSoon = debounce(() => renderNav(), 80);
 
@@ -878,7 +976,27 @@ function navTo(item) {
   if (item.status && item.status !== 'active') { toast(`${item.name}: próximamente`); return; }
   if (item.id === 'home') { goHome(); return; }
   if (item.id === 'search') { openFind(); return; }
+  if (item.id === 'chat') { openChat(); return; }
   setView(parseHash(item.route).view);
+}
+
+// ---------- Chat personal (#/chat, #/chat/fijados) ----------
+/** Abre el chat. Sección de primer nivel: «atrás» vuelve a Inicio (o a Buscar, si se abrió desde allí). */
+async function openChat({ focusId = null, compose = false } = {}) {
+  saveSoon.flush(); flushSnippet(); flushDrug();
+  closeDrawer();
+  if (S.view.type !== 'chat' || S.view.id || S.noteId || currentSnippet() || currentDrug()) {
+    if (S.view.type !== 'search' || S.noteId || currentSnippet() || currentDrug()) await backTo(-1);
+    history.pushState({ d: (history.state?.d || 0) + 1, lv: 0, nt: 0 }, '', '#/chat');
+    applyHash();
+  }
+  chatShown({ focusId, compose });
+}
+/** Acceso «Fijados» del chat: una entrada más en el historial (atrás vuelve al chat) */
+function openChatPins() {
+  if (S.view.type !== 'chat' || S.view.id === 'pins') return;
+  history.pushState({ d: (history.state?.d || 0) + 1, lv: 1, nt: 0 }, '', '#/chat/fijados');
+  applyHash();
 }
 
 /** Barra lateral: plegar/desplegar (ordenador, se recuerda) o abrir/cerrar encima (tablet) */
@@ -896,7 +1014,7 @@ async function askLogout() {
 }
 
 // ---------- ＋ Crear ----------
-/** Menú «Crear»: nota, prerredactado o carpeta, en la carpeta abierta en ese momento */
+/** Menú «Crear»: nota, prerredactado, fármaco, mensaje al chat o carpeta, en la carpeta abierta en ese momento */
 function createMenu(anchor) {
   const v = S.view;
   const sec = sectionOf();
@@ -915,6 +1033,7 @@ function createMenu(anchor) {
     { icon: 'notebook-text', label: `Nota${inF(nf)}`, onClick: () => newNote() },
     { icon: 'clipboard-list', label: `Prerredactado${inF(sf)}`, onClick: () => (sec === 'snippets' ? newSnippetHere() : setView({ type: 'snippets', id: null }).then(() => newSnippet())) },
     { icon: 'pill', label: `Fármaco${inF(df)}`, onClick: () => (sec === 'drugs' ? newDrugHere() : setView({ type: 'drugs', id: null }).then(() => newDrug())) },
+    { icon: 'message-circle', label: 'Mensaje al chat', onClick: () => openChat({ compose: true }) },
     '-',
     ...(sec === 'notes' ? [folderItem(TREES.notes, nf)] : sec === 'snippets' ? [folderItem(TREES.snippets, sf)] : sec === 'drugs' ? [folderItem(TREES.drugs, df)]
       : [folderItem(TREES.notes, null), folderItem(TREES.snippets, null), folderItem(TREES.drugs, null)])
@@ -943,6 +1062,13 @@ const SEARCH_SOURCES = [
     loaded: () => store.loaded.drugs,
     run: (words) => rankDrugs(liveDrugs().filter((d) => drugMatches(d, words)), words),
     card: (d, q) => drugCard(d, { search: q, showPath: true, onLongPress: longPressed, onOpen: openDrugInVademecum })
+  },
+  {
+    // Chat personal (v1.19.0): texto y nombres de archivo de los mensajes cargados (últimos 200 + fijados)
+    id: 'chat', name: 'Chat', icon: 'message-circle', all: 'Ver todos los mensajes', none: 'No hay mensajes que coincidan.',
+    loaded: () => chatReady(),
+    run: (words) => chatSearch(words),
+    card: (m) => chatCard(m, { onOpen: (id) => openChat({ focusId: id }) })
   }
 ];
 
@@ -998,7 +1124,7 @@ function renderFind() {
   const box = $('#find-results');
   if (!words.length) {
     box.replaceChildren(el('div', { class: 'find-hint' }, el('p', { class: 'big' }, icon('search')),
-      el('p', {}, 'Busca a la vez en tus notas, prerredactados y fármacos (también por nombre comercial).'),
+      el('p', {}, 'Busca a la vez en tus notas, prerredactados, fármacos (también por nombre comercial) y el chat.'),
       el('p', { class: 'small' }, 'Sin tildes ni mayúsculas: «tension» encuentra «Tensión». Varias palabras = deben aparecer todas.')));
     return;
   }
@@ -1885,7 +2011,7 @@ function renderHome() {
   const saludo = h < 6 ? 'Buenas noches' : h < 14 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
   const fecha = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
   $('#home-hello').textContent = `${saludo} · ${fecha}`;
-  const counts = { notes: liveNotes().length, snippets: store.snippets.size, drugs: liveDrugs().length };
+  const counts = { notes: liveNotes().length, snippets: store.snippets.size, drugs: liveDrugs().length, chat: unreadCount() };
   $('#home-modules').replaceChildren(...MODULES.map((m) => {
     const soon = m.status !== 'active';
     const n = m.count ? counts[m.count] : null;
@@ -1900,7 +2026,7 @@ function renderHome() {
         el('span', { class: 'mod-name' }, m.name),
         el('span', { class: 'mod-desc' }, m.desc)),
       soon ? el('span', { class: 'mod-badge' }, 'Próximamente')
-        : n ? el('span', { class: 'mod-count' }, n) : null);
+        : n ? el('span', { class: `mod-count ${m.count === 'chat' ? 'new' : ''}`, title: m.count === 'chat' ? 'Mensajes nuevos' : null }, m.count === 'chat' ? `${n} nuevo${n > 1 ? 's' : ''}` : n) : null);
   }));
   $('#home-backup').replaceChildren(backupReminder() || '');
   renderHomeNotes();
@@ -2125,7 +2251,7 @@ let wakeBusy = false;
 async function updateWakeLock() {
   // Editando (no en lectura): en el móvil se oculta la barra inferior, como Evernote (queda la barra de formato)
   const app = $('#app');
-  const visible = app.dataset.view === 'editor' && !['home', 'search'].includes(app.dataset.section);
+  const visible = app.dataset.view === 'editor' && !FULL_SECTIONS.includes(app.dataset.section);
   const nOpen = !!S.noteId && !$('#editor-wrap').classList.contains('hidden') && !$('#editor-wrap').classList.contains('readonly');
   const sOpen = !!currentSnippet() && !isSnippetReading() && !$('#snip-wrap').classList.contains('hidden');
   const dOpen = !!currentDrug() && !isDrugReading() && !$('#drug-wrap').classList.contains('hidden');
@@ -2134,7 +2260,7 @@ async function updateWakeLock() {
     (isSnippetReading() && !$('#snip-wrap').classList.contains('hidden')) ||
     (isDrugReading() && !$('#drug-wrap').classList.contains('hidden'));
   const want = 'wakeLock' in navigator && wakeLockWanted() && reading && document.visibilityState === 'visible' &&
-    !['home', 'search'].includes($('#app').dataset.section);
+    !FULL_SECTIONS.includes($('#app').dataset.section);
   if (want && !wakeLock && !wakeBusy) {
     wakeBusy = true;
     try {
@@ -2216,7 +2342,7 @@ function renderBacklinks() {
   }, `↩ ${n.title || 'Sin título'}`)));
 }
 
-function pickNoteForLink() {
+function pickNoteForLink(title = 'Enlazar una nota') {
   const items = liveNotes()
     .filter((n) => n.id !== S.noteId)
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
@@ -2224,7 +2350,7 @@ function pickNoteForLink() {
       id: n.id, label: n.title || 'Sin título',
       sub: n.folderId ? folderPath(n.folderId).map((f) => f.name).join(' › ') : ''
     }));
-  return picker('Enlazar una nota', items, { placeholder: 'Buscar nota…', emptyText: 'No hay otras notas' })
+  return picker(typeof title === 'string' ? title : 'Enlazar una nota', items, { placeholder: 'Buscar nota…', emptyText: 'No hay otras notas' })
     .then((id) => (id ? { id, title: store.notes.get(id)?.title } : null));
 }
 
@@ -2250,6 +2376,17 @@ function noteMenu(anchor) {
     '-',
     { icon: 'trash-2', label: 'Mover a la papelera', danger: true, onClick: () => trashNote(n.id) }
   ]);
+}
+
+/** Añade contenido al final de una nota (desde el chat): {html, text, refs}. El contenido actual se descarga si hace falta. */
+async function appendToNote(id, add) {
+  const n = store.notes.get(id);
+  if (!n || n.trashed) throw new Error('La nota no existe');
+  if (S.noteId === id) saveSoon.flush();
+  const b = await loadBody(id);
+  const html = `${b.html || ''}${add.html || ''}`;
+  const text = `${b.text || ''}${b.text && add.text ? '\n' : ''}${add.text || ''}`.slice(0, 30000);
+  writeNote(id, { updatedAt: Date.now() }, { html, text, refs: [...(b.refs || []), ...(add.refs || [])] });
 }
 
 async function moveNote(id) {
@@ -2303,9 +2440,9 @@ function noteFileIds(n) {
 const refsCountOf = (n) => n.refsCount ?? (n.refs || []).length;
 /** Para borrar archivos hay que saber con seguridad qué usa cada nota, cada prerredactado y cada fármaco */
 const filesKnown = () => !!store.loaded.snippets && !!store.loaded.drugs && [...store.notes.values()].every((n) => isLegacy(n) || Array.isArray(n.files));
-/** Archivos en uso por notas (papelera incluida), prerredactados y fármacos (papelera incluida), salvo el indicado */
-function allReferencedFiles(exceptNoteId, exceptSnippetId = null, exceptDrugId = null) {
-  const ids = new Set();
+/** Archivos en uso por notas (papelera incluida), prerredactados, fármacos (papelera incluida) y mensajes del chat cargados, salvo el indicado */
+function allReferencedFiles(exceptNoteId, exceptSnippetId = null, exceptDrugId = null, { chat = true } = {}) {
+  const ids = chat ? chatFileIds() : new Set();
   for (const n of store.notes.values()) if (n.id !== exceptNoteId) noteFileIds(n).forEach((f) => ids.add(f));
   for (const s of store.snippets.values()) if (s.id !== exceptSnippetId) snippetFileIds(s).forEach((f) => ids.add(f));
   for (const d of store.drugs.values()) if (d.id !== exceptDrugId) (d.files || []).forEach((f) => ids.add(f));
@@ -2500,7 +2637,7 @@ async function addAttachment(f) {
 }
 
 // ---------- Visor ----------
-async function openViewer({ fileId, src, name, kind, mime }) {
+async function openViewer({ fileId, src, name, kind, mime, full = false }) {
   let url = src;
   try {
     if (!url) { toast('Abriendo…'); url = await fileUrl(fileId); }
@@ -2523,6 +2660,7 @@ async function openViewer({ fileId, src, name, kind, mime }) {
   modal({
     title: name || meta?.name || 'Archivo',
     wide: isImg,
+    cls: isImg && full ? 'img-full' : '',
     body,
     actions: [
       { label: '↗ Abrir en pestaña', onClick: openTab },
@@ -2553,6 +2691,12 @@ function openSettings() {
         el('select', { onchange: (e) => { localStorage.setItem('drfolio.noteMode', e.target.value); toast('Guardado', 'ok'); } },
           el('option', { value: 'read', selected: openMode() === 'read' }, '📖 Lectura'),
           el('option', { value: 'edit', selected: openMode() === 'edit' }, '✏️ Edición'))),
+      el('div', { class: 'settings-row' }, el('span', {}, 'Barra inferior del móvil', el('br'), el('span', { class: 'muted small' }, 'Sección fija entre Inicio y ＋ · solo en este dispositivo')),
+        el('select', { onchange: (e) => { setTabFixed(e.target.value); toast('Guardado', 'ok'); } },
+          tabChoices().map((m) => el('option', { value: m.id, selected: m.id === tabFixed() }, m.name)))),
+      el('div', { class: 'settings-row' }, el('span', {}, 'Chat: borrar los mensajes no fijados a los', el('br'), el('span', { class: 'muted small' }, 'En todos tus dispositivos · con sus archivos')),
+        el('select', { onchange: (e) => { setTtl(Number(e.target.value)); localStorage.removeItem('drfolio.chatClean'); toast('Guardado', 'ok'); } },
+          TTL_OPTIONS.map(([d, l]) => el('option', { value: d, selected: d === ttlDays() }, l)))),
       el('div', { class: 'settings-row' }, el('span', {}, 'Pantalla', el('br'), el('span', { class: 'muted small screen-info' }, screenInfo()))),
       el('div', { class: 'settings-row' }, el('span', {}, 'Índice automático en notas con títulos',
         el('br'), el('span', { class: 'muted small' }, 'Si no, añádelo cuando quieras: ⋯ → «Añadir índice»')),
@@ -2566,7 +2710,7 @@ function openSettings() {
           el('option', { value: 'off', selected: !wakeLockWanted() }, 'No'))),
       el('div', {},
         el('div', { class: 'settings-row', style: { borderBottom: 0 } }, el('span', {}, 'Espacio usado'),
-          el('span', {}, `${formatBytes(used)} de 1 GB · ${live} notas · ${store.snippets.size} prerredactados · ${liveDrugs().length} fármacos · ${store.files.size} archivos`)),
+          el('span', {}, `${formatBytes(used)} de 1 GB · ${live} notas · ${store.snippets.size} prerredactados · ${liveDrugs().length} fármacos · ${store.files.size} archivos${[...store.files.values()].some((f) => f.chatId) ? ` (${[...store.files.values()].filter((f) => f.chatId).length} del chat)` : ''}`)),
         el('div', { class: 'meter' }, el('div', { style: { width: `${pct.toFixed(1)}%` } }))),
       el('div', { class: 'settings-row' }, el('span', {}, 'Copia de seguridad',
         publicMode ? [el('br'), el('span', { class: 'muted small' }, backupPublicReason)] : null),
@@ -2585,11 +2729,15 @@ function openSettings() {
 async function cleanOrphans() {
   if (!filesKnown()) { toast('Espera a que termine la actualización de las notas y vuelve a intentarlo', 'error', 4500); return; }
   const used = allReferencedFiles(null);
+  // Archivos del chat: se comprueba en el servidor que su mensaje sigue existiendo (también los no cargados)
+  try { (await chatFilesInUse()).forEach((f) => used.add(f)); } catch {
+    toast('Necesitas conexión para comprobar los archivos del chat', 'error', 4500); return;
+  }
   const old = Date.now() - 10 * 60 * 1000;
   const orphans = [...store.files.values()].filter((f) => !used.has(f.id) && (f.createdAt || 0) < old);
   if (!orphans.length) { toast('No hay archivos sin usar', 'ok'); return; }
   const size = orphans.reduce((s, f) => s + (f.size || 0), 0);
-  if (!await confirm('Limpiar archivos', `Hay ${orphans.length} archivo(s) que ya no usa ninguna nota, prerredactado ni fármaco (${formatBytes(size)}). ¿Borrarlos?`, { okLabel: 'Borrar', danger: true })) return;
+  if (!await confirm('Limpiar archivos', `Hay ${orphans.length} archivo(s) que ya no usa ninguna nota, prerredactado, fármaco ni mensaje del chat (${formatBytes(size)}). ¿Borrarlos?`, { okLabel: 'Borrar', danger: true })) return;
   orphans.forEach((f) => deleteFile(f.id));
   toast('Archivos borrados', 'ok');
 }
@@ -2601,6 +2749,7 @@ async function doLogout(reason) {
   flushSnippet();
   flushDrug();
   stopSync();
+  stopChat();
   revokeAll();
   clearDrugBodies();
   await clearBodies(); // copia local del contenido de las notas
