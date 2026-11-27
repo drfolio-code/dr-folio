@@ -1546,3 +1546,46 @@ details.dsec[open] > summary { border-bottom: 1px solid var(--border); }
 html, body { touch-action: pan-x pan-y; } /* v1.26.3: sin doble toque ni pellizco */
 .viewer-img { overflow: hidden; }
 .viewer-img img { will-change: transform; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+
+/* ===== v1.27.0: Enlaces y bibliografía (fichas y carpetas del Vademécum) ===== */
+.drug-calcs { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 2px; }
+.calc-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--accent);
+  background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 14px; font-weight: 700; text-decoration: none; cursor: pointer; max-width: 100%; }
+.calc-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calc-btn .i { flex: none; font-size: 16px; }
+.calc-btn:active { transform: scale(.97); }
+.drug-res { display: flex; flex-direction: column; gap: 8px; }
+.res-group { display: flex; flex-direction: column; gap: 0; }
+.res-group + .res-group { border-top: 1px dashed var(--border); padding-top: 6px; }
+.res-group .pres-glabel { margin-bottom: 2px; }
+.res-row { display: flex; align-items: center; gap: 4px; }
+.res-main { flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 10px; padding: 7px 6px; margin-left: -6px; border: 0; border-radius: 10px;
+  background: none; color: var(--text); font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.res-main:hover { background: var(--panel-2); }
+.res-main:active { background: var(--accent-soft); }
+.res-ic { flex: none; color: var(--accent); font-size: 18px; line-height: 1; margin-top: 3px; }
+.res-txt { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.res-title { font-size: var(--dtxt, 16px); font-weight: 650; line-height: 1.3; color: var(--accent); overflow-wrap: anywhere; }
+.res-year { color: var(--muted); font-weight: 500; }
+.res-meta { font-size: 13px; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
+.res-from { font-size: 12px; color: var(--muted); font-style: italic; }
+.res-copy { flex: none; width: 40px; height: 40px; color: var(--accent); border-radius: 10px; border: 1px solid var(--border); }
+.res-copy.done { background: var(--ok, #16a34a); color: #fff; border-color: transparent; }
+.reg-res { display: flex; flex: none; gap: 2px; margin-top: -4px; }
+.reg-res-btn { width: 34px; height: 34px; color: var(--accent); border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.reg-res-btn:hover { background: var(--panel-2); }
+@media (prefers-color-scheme: dark) { .res-ic, .res-title, .res-copy, .reg-res-btn, .calc-btn { color: #7dd3e6; } }
+/* Edición */
+.res-edit { display: flex; flex-direction: column; gap: 10px; }
+.res-erow { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--panel); }
+.res-erow-top { display: flex; align-items: center; gap: 4px; }
+.res-erow-top .res-title-in { flex: 1; min-width: 0; font-weight: 650; }
+.res-erow-top .res-ic { margin: 0 4px 0 0; }
+.res-erow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.res-erow select, .res-erow input { width: 100%; min-width: 0; font-size: 15px; }
+.res-reg-f { grid-column: 1 / -1; }
+.res-warn { font-size: 12.5px; color: var(--danger); }
+.res-file { font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.res-add { display: flex; flex-wrap: wrap; gap: 8px; }
+.modal.res-modal { max-width: 640px; width: 100%; }
+.res-modal .res-edit { margin-top: 6px; }

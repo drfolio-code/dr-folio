@@ -20,6 +20,11 @@ import {
 import {
   SCOPES, scopeName, FLUIDS, REG_TYPES, regType, typeSlug, parseChuletario, CHULETARIO_SOURCE
 } from './chuletario.js';
+import {
+  RES_KINDS, kindIcon, cleanUrl, domainOf, guessKind, normResource, mergeResources, fixRegIds, folderResources, byKind, resLine, isPdfRes, resFileIds
+} from './drugres.js';
+import { saveFile } from './files.js';
+import { formatBytes } from './util.js';
 
 const str = (x) => (x == null ? '' : String(x));
 let ctx = null;          // ayudas de app.js
@@ -35,7 +40,8 @@ const LISTS = ['observations', 'contraindications', 'compat'];
 const formOf = (d) => ({
   brands: [...(d.brands || [])], regimens: clone(d.regimens || []), fluids: [...(d.fluids || [])], scopes: [...(d.scopes || [])],
   source: { text: d.source?.text || '', url: d.source?.url || '' },
-  pres: (d.presentations || []).map((p) => ({ p, b: [...presBrandsOf(d, p)] }))
+  pres: (d.presentations || []).map((p) => ({ p, b: [...presBrandsOf(d, p)] })),
+  resources: clone(d.resources || [])
 });
 const isRd = () => $('#drug-wrap').classList.contains('reading');
 const listBox = (k) => document.querySelector(`#drug-wrap textarea.dlist-edit[data-list="${k}"]`);
@@ -194,6 +200,8 @@ function drugAsText(d) {
   for (const [k, t] of [['observations', 'Observaciones'], ['contraindications', 'Contraindicaciones'], ['compat', 'Compatibilidad en Y']]) {
     if (d[k]?.length) out.push('', `${t}:`, ...d[k].map((x) => `- ${x}`));
   }
+  const res = [...(d.resources || []), ...folderResources(d.folderId, DF()).flatMap((g) => g.items)];
+  if (res.length) out.push('', 'Enlaces y bibliografía:', ...res.map((r) => `- ${resLine(r)}`));
   if (d.source?.text || d.source?.url) out.push('', `Fuente: ${[d.source.text, d.source.url].filter(Boolean).join(' · ')}`);
   const notes = curId === d.id && bodyReady ? editor.allText() : (drugBodyOf(d.id)?.text || '');
   if (notes.trim()) out.push('', 'Mis notas:', notes.trim());
@@ -319,6 +327,7 @@ function planImport(items) {
       const keys = new Set(a.regimens.map(regKey));
       a.regimens.push(...it.regimens.filter((r) => !keys.has(regKey(r))));
       if (!a.notes && it.notes) a.notes = it.notes;
+      a.resources = mergeResources(a.resources, it.resources)[0];
       continue;
     }
     seen.set(k, it);
@@ -395,7 +404,7 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
     const modeBox = !template && plan.matched.length ? el('div', { class: 'imp-modes' },
       el('p', { class: 'small' }, `${plan.matched.length} ficha(s) ya existen. ¿Qué hago con ellas?`),
       radio('merge', 'Completar', 'añade lo que falte, sin borrar nada'),
-      radio('replace', 'Reemplazar', 'presentaciones, indicaciones, sueros, observaciones, contraindicaciones y ámbito quedan como en el archivo; se conservan carpeta, favorito, nombres comerciales y «Mis notas»')) : null;
+      radio('replace', 'Reemplazar', 'presentaciones, indicaciones, sueros, observaciones, contraindicaciones y ámbito quedan como en el archivo; se conservan carpeta, favorito, nombres comerciales, enlaces (se unen) y «Mis notas»')) : null;
     const ok = await modal({
       title: template ? 'Plantilla de carpetas' : 'Importar fichas',
       body: [
@@ -409,7 +418,7 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
         modeBox,
         list(plan.create, (x) => x.name),
         plan.merge.length ? el('p', { class: 'small' }, 'Se añade a las fichas que ya tienes (sin borrar ni cambiar nada de lo que hay):') : null,
-        list(plan.merge, (m) => `${m.d.name}: ${[m.added.nb ? `${m.added.nb} nombre(s) comercial(es)` : '', m.added.np ? `${m.added.np} presentación(es)` : '', m.added.nr ? `${m.added.nr} pauta(s)` : '', m.added.notes ? 'notas' : '', m.added.ne ? 'datos de la ficha (embarazo, sueros, observaciones…)' : ''].filter(Boolean).join(', ')}`),
+        list(plan.merge, (m) => `${m.d.name}: ${[m.added.nb ? `${m.added.nb} nombre(s) comercial(es)` : '', m.added.np ? `${m.added.np} presentación(es)` : '', m.added.nr ? `${m.added.nr} pauta(s)` : '', m.added.notes ? 'notas' : '', m.added.ne ? 'datos de la ficha (sueros, observaciones, enlaces…)' : ''].filter(Boolean).join(', ')}`),
         el('p', { class: 'bk-warn' }, '⚠ Las fichas nuevas o completadas quedan marcadas «Pendiente de revisar» hasta que pulses «✓ Revisada» en cada una. Comprueba las dosis antes de usarlas.'),
         el('p', { class: 'muted small' }, `Las nuevas van a ${folderId ? `«${DF().get(folderId)?.name || 'carpeta'}»` : 'la raíz del Vademécum'} (o a la carpeta que indique el archivo).`)
       ],
@@ -438,6 +447,8 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
         };
         for (const f of EXTRA_LISTS) light[f] = [...(it[f] || [])];
         if (it.source?.text || it.source?.url) light.source = { ...it.source };
+        // Enlaces: se unen (sin repetir) y conservan su indicación si la pauta sigue existiendo (v1.27.0)
+        if ((d.resources || []).length || (it.resources || []).length) light.resources = mergeResources(d.resources, it.resources, { regIds: light.regimens })[0];
         const notes = !(d.bodyAt > 0) && it.notes.trim() ? it.notes : '';
         writeDrug(d.id, light, notes ? { html: textToHtml(notes), text: notes } : null, batch, { commit: false });
         n += 2; flush();
@@ -642,10 +653,12 @@ function renderChrome() {
   $('#drug-trash').classList.toggle('hidden', !trashed);
   renderBrands();
   renderScopes();
+  renderCalcs();
   renderFluids();
   renderPres();
   renderRegs();
   renderLists();
+  renderRes();
   renderSource();
   applySections();
   renderBacklinks();
@@ -887,6 +900,7 @@ function regView(name, r) {
         el('span', { class: 'reg-text' }, main || line)),
       meta.length ? el('div', { class: 'reg-meta' }, meta.join(' · ')) : null,
       r.lineAuto === false && str(r.line).trim() ? el('div', { class: 'reg-meta reg-custom' }, icon('copy'), ` ${str(r.line).trim()}`) : null),
+    ...regResLinks(r),
     el('button', {
       class: 'icon-btn reg-copy', type: 'button', title: `Copiar: ${line}`, 'aria-label': `Copiar: ${line}`,
       onclick: (e) => copyLine(lineOf(store.drugs.get(curId)?.name, r), e.currentTarget)
@@ -925,7 +939,9 @@ function regForm(r, i, total) {
       i < total - 1 ? el('button', { class: 'icon-btn', type: 'button', title: 'Bajar', 'aria-label': 'Bajar', onclick: () => mv(1) }, icon('arrow-down')) : null,
       el('button', { class: 'icon-btn', type: 'button', title: 'Quitar esta pauta', 'aria-label': 'Quitar esta pauta', onclick: async () => {
         if (!await confirm('Quitar pauta', `¿Quitar «${r.indication || `Pauta ${i + 1}`}»?`, { okLabel: 'Quitar', danger: true })) return;
-        form.regimens.splice(i, 1); changedLight(); renderRegs();
+        form.regimens.splice(i, 1);
+        form.resources = fixRegIds(form.resources, form.regimens); // sus enlaces se quedan, sin indicación
+        changedLight(); renderRegs(); renderRes();
       } }, icon('trash-2'))),
     el('div', { class: 'reg-grid' }, fields),
     more,
@@ -938,6 +954,7 @@ function addRegimen() {
   form.regimens.push({ id: regId(), indication: '', type: '', text: '', pres: '', route: '', dose: '', freq: '', duration: '', max: '', line: '', lineAuto: true });
   changedLight();
   renderRegs();
+  renderRes(); // la nueva indicación aparece en el selector de los enlaces
   const last = $('#drug-regs').lastElementChild;
   last?.querySelector('input')?.focus();
   last?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -975,9 +992,11 @@ function saveNow() {
       regimens: form.regimens.map((r) => ({ ...r, line: r.lineAuto === false ? String(r.line || '') : '' })),
       fluids: [...form.fluids], scopes: [...form.scopes],
       source: { text: String(form.source.text || '').trim(), url: /^https?:\/\//i.test(form.source.url || '') ? form.source.url : '' },
-      observations: listVals('observations'), contraindications: listVals('contraindications'), compat: listVals('compat')
+      observations: listVals('observations'), contraindications: listVals('contraindications'), compat: listVals('compat'),
+      resources: cleanResList(form.resources, form.regimens)
     });
   }
+  const gone = dirtyLight ? resFileIds(d.resources).filter((f) => !light.resources.some((r) => r.fileId === f)) : [];
   let body = null;
   if (dirtyBody && bodyReady) {
     const html = editor.getContent();
@@ -987,6 +1006,7 @@ function saveNow() {
   }
   dirtyLight = false; dirtyBody = false;
   writeDrug(d.id, light, body);
+  if (gone.length) ctx.dropFiles(gone); // PDF quitados de «Enlaces y bibliografía» que ya no usa nadie
   $('#drug-status').textContent = navigator.onLine ? 'Guardado ✓' : 'Guardado en el dispositivo';
   renderInfo(d);
   ctx.renderList();
@@ -1066,9 +1086,12 @@ async function duplicateDrug(id) {
   try { b = await loadDrugBody(id); } catch { toast('Sin conexión: no se puede duplicar esta ficha ahora', 'error'); return; }
   const nid = newId('drugs');
   const now = Date.now();
+  const regMap = {};
   const light = { ...blankDrug({ name: `${d.name || 'Sin nombre'} (copia)`, folderId: d.folderId, now, reviewed: d.reviewed !== false }),
-    brands: [...(d.brands || [])], presentations: [...(d.presentations || [])], regimens: clone(d.regimens || []).map((r) => ({ ...r, id: regId() })),
+    brands: [...(d.brands || [])], presentations: [...(d.presentations || [])],
+    regimens: clone(d.regimens || []).map((r) => { const nid2 = regId(); regMap[r.id] = nid2; return { ...r, id: nid2 }; }),
     ...clone(extrasOf(d)) };
+  if (light.resources) light.resources = light.resources.map((r) => (r.regId ? { ...r, regId: regMap[r.regId] } : r)).map((r) => { if (!r.regId) delete r.regId; return r; });
   writeDrug(nid, light, b.html ? { html: b.html, text: b.text } : null);
   openDrug(nid, { push: true });
 }
@@ -1133,6 +1156,7 @@ function extrasOf(x) {
   for (const f of EXTRA_LISTS) if (x[f]?.length) out[f] = [...x[f]];
   if (x.presBrands?.length) out.presBrands = x.presBrands.map((e) => ({ p: e.p, b: [...e.b] }));
   if (x.source?.text || x.source?.url) out.source = { text: x.source.text || '', url: x.source.url || '' };
+  if (x.resources?.length) out.resources = x.resources.map((r) => ({ ...r }));
   return out;
 }
 /** «Completar»: une listas sin repetir y rellena embarazo y fuente solo si estaban vacíos. Devuelve { light, n } */
@@ -1149,6 +1173,7 @@ function completeExtras(d, it) {
   }
   if (pb.length !== (d.presBrands || []).length || n) light.presBrands = pb;
   if (!d.source?.text && !d.source?.url && (it.source?.text || it.source?.url)) { light.source = { ...it.source }; n++; }
+  if ((it.resources || []).length) { const [r, k] = mergeResources(d.resources, it.resources); if (k) { light.resources = r; n += k; } }
   return { light, n };
 }
 
@@ -1279,6 +1304,7 @@ function saveChuletario(data, { target, mode, reviewed, folderId }) {
       light = { name: data.name || target.name, brands: data.brands, presentations: data.presentations, regimens: data.regimens,
         fluids: data.fluids, observations: data.observations, contraindications: data.contraindications, compat: data.compat,
         scopes: data.scopes, source: data.source };
+      if ((target.resources || []).length) light.resources = fixRegIds(target.resources, data.regimens);
     } else {
       const keys = new Set((target.regimens || []).map(regKey));
       light = {
@@ -1294,4 +1320,195 @@ function saveChuletario(data, { target, mode, reviewed, folderId }) {
   else openDrug(id, { push: true });
   ctx.renderList(); ctx.renderSidebar();
   return id;
+}
+
+// ====================== Enlaces y bibliografía (v1.27.0) ======================
+// Recursos de la ficha (drugs.resources) y de sus carpetas (drugFolders.resources): calculadoras, artículos y guías,
+// fichas técnicas, otras webs y PDF adjuntos. Datos y reglas: drugres.js.
+/** Para guardar: recursos limpios (http/https, texto plano) y sin indicaciones que ya no existen */
+function cleanResList(list, regimens) {
+  const out = (list || []).map((r) => normResource({ ...r, kind: r.kind || guessKind(r.url) || (r.fileId ? 'biblio' : 'web') }, () => `r${regId()}`, { withReg: !!regimens })).filter(Boolean);
+  return regimens ? fixRegIds(out, regimens) : out;
+}
+/** Recursos de la ficha (lo guardado en lectura; el formulario al editar) y los de sus carpetas */
+const ownRes = (d) => (isRd() ? (d.resources || []) : (form?.resources || []));
+const inheritedRes = (d) => folderResources(d.folderId, DF());
+
+/** Abrir: PDF adjunto → visor propio; enlace → pestaña nueva (sin acceso a esta ventana) */
+function openRes(r) {
+  if (isPdfRes(r)) { ctx.openFile(r.fileId, r.fileName || r.title); return; }
+  if (r.url) window.open(r.url, '_blank', 'noopener,noreferrer');
+}
+/** Elemento que abre el recurso: <a> para los enlaces (el navegador lo abre solo), botón para los PDF */
+function resOpener(r, attrs, ...kids) {
+  return isPdfRes(r) || !r.url
+    ? el('button', { type: 'button', ...attrs, onclick: () => openRes(r) }, ...kids)
+    : el('a', { href: r.url, target: '_blank', rel: 'noopener noreferrer', ...attrs }, ...kids);
+}
+
+/** Botones de las calculadoras, bajo la cabecera (de la ficha y de sus carpetas) */
+function renderCalcs() {
+  const d = store.drugs.get(curId);
+  const box = $('#drug-calcs');
+  const calcs = isRd() ? [...(d.resources || []), ...inheritedRes(d).flatMap((g) => g.items)].filter((r) => r.kind === 'calc') : [];
+  box.classList.toggle('hidden', !calcs.length);
+  box.replaceChildren(...calcs.map((r) => resOpener(r, { class: 'calc-btn', title: [r.title, r.year, r.url ? domainOf(r.url) : 'PDF'].filter(Boolean).join(' · ') },
+    icon('calculator'), el('span', {}, r.title || domainOf(r.url)))));
+}
+
+/** Iconos junto a una pauta con recursos unidos a ella (lectura) */
+function regResLinks(r) {
+  const d = store.drugs.get(curId);
+  const rs = (d?.resources || []).filter((x) => x.regId && x.regId === r.id);
+  return rs.length ? [el('div', { class: 'reg-res' }, ...rs.map((x) => resOpener(x, { class: 'icon-btn reg-res-btn', title: `Abrir: ${x.title}`, 'aria-label': `Abrir: ${x.title}` }, icon(kindIcon(x.kind)))))] : [];
+}
+
+/** Sección «Enlaces y bibliografía» */
+function renderRes() {
+  const d = store.drugs.get(curId);
+  if (!d || !form) return;
+  const rd = isRd();
+  const sec = $('#drug-res-sec');
+  const box = $('#drug-res');
+  const own = ownRes(d);
+  const inh = inheritedRes(d);
+  const nInh = inh.reduce((s, g) => s + g.items.length, 0);
+  if (rd) {
+    sec.classList.toggle('hidden', !own.length && !nInh);
+    const items = [...own.map((r) => ({ r })), ...inh.flatMap((g) => g.items.map((r) => ({ r, from: g.folder })))];
+    box.replaceChildren(...byKind(items).map((g) => el('div', { class: 'res-group' },
+      el('div', { class: 'pres-glabel' }, g.label), ...g.items.map((x) => resRow(x.r, x.from)))));
+    return;
+  }
+  sec.classList.remove('hidden');
+  const state = { list: form.resources, regs: () => form.regimens, owner: { drugId: d.id }, onChange: () => { form.resources = state.list; changedLight(); } };
+  box.replaceChildren(resEditor(state),
+    nInh ? el('p', { class: 'muted small' }, icon('folder'), ` Además ${nInh === 1 ? 'sale 1 enlace' : `salen ${nInh} enlaces`} de ${inh.map((g) => `«${g.folder.name}»`).join(', ')} (se cambian en ⋯ de la carpeta → «Enlaces y bibliografía…»).`) : null);
+}
+function resRow(r, from = null) {
+  const meta = [r.url ? domainOf(r.url) : `PDF${r.fileSize ? ` · ${formatBytes(r.fileSize)}` : ''}`, r.note].filter(Boolean).join(' · ');
+  return el('div', { class: 'res-row' },
+    resOpener(r, { class: 'res-main', title: r.url || r.fileName || '' },
+      el('span', { class: 'res-ic' }, icon(isPdfRes(r) && r.kind !== 'calc' ? 'file-text' : kindIcon(r.kind))),
+      el('span', { class: 'res-txt' },
+        el('span', { class: 'res-title' }, r.title || domainOf(r.url) || 'Sin título', r.year ? el('span', { class: 'res-year' }, ` · ${r.year}`) : null),
+        meta ? el('span', { class: 'res-meta' }, meta) : null,
+        from ? el('span', { class: 'res-from' }, `De la carpeta ${from.name}`) : null)),
+    r.url ? el('button', { class: 'icon-btn res-copy', type: 'button', title: 'Copiar enlace', 'aria-label': `Copiar el enlace de ${r.title}`,
+      onclick: (e) => copyLine(r.url, e.currentTarget) }, icon('copy')) : null);
+}
+
+/**
+ * Editor de una lista de recursos (ficha o carpeta). state = { list, regs: () => pautas | null, owner: {drugId}|{drugFolderId},
+ * onChange, added: [fileId subidos ahora] }. Se vuelve a pintar solo.
+ */
+function resEditor(state) {
+  const box = el('div', { class: 'res-edit' });
+  const fileIn = el('input', { type: 'file', accept: 'application/pdf,.pdf', hidden: true });
+  const changed = () => state.onChange?.();
+  const render = () => box.replaceChildren(
+    ...(state.list.length ? state.list.map(row) : [el('p', { class: 'muted small' }, 'Calculadoras, artículos, guías, fichas técnicas o PDF. Las calculadoras salen también como botones arriba de la ficha.')]),
+    el('div', { class: 'res-add' },
+      el('button', { class: 'btn sm', type: 'button', onclick: add }, '＋ Añadir enlace'),
+      el('button', { class: 'btn sm', type: 'button', onclick: () => fileIn.click() }, '＋ Adjuntar PDF')),
+    fileIn);
+  const add = () => {
+    state.list.push({ id: `r${regId()}`, title: '', url: '', kind: '', note: '', year: '', createdAt: Date.now() });
+    changed(); render();
+    box.querySelectorAll('.res-url')[state.list.length - 1]?.focus();
+  };
+  fileIn.addEventListener('change', async () => {
+    const f = fileIn.files[0];
+    fileIn.value = '';
+    if (!f) return;
+    if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) { toast('Solo se pueden adjuntar PDF', 'error'); return; }
+    try {
+      toast('Subiendo PDF…');
+      const fileId = await saveFile(f, { ...state.owner, name: f.name, kind: 'file' });
+      (state.added ||= []).push(fileId);
+      state.list.push({ id: `r${regId()}`, title: f.name.replace(/\.pdf$/i, ''), url: '', kind: 'biblio', note: '', year: '', fileId, fileName: f.name, fileSize: f.size, createdAt: Date.now() });
+      changed(); render();
+      toast('PDF adjuntado ✓', 'ok');
+    } catch (e) { toast(e.message, 'error', 5000); }
+  });
+  const row = (r, i) => {
+    const kind = el('select', { class: 'res-kind', 'aria-label': 'Tipo' }, el('option', { value: '' }, 'Tipo…'), ...RES_KINDS.map(([k, , , n]) => el('option', { value: k }, n)));
+    kind.value = r.kind || '';
+    kind.addEventListener('change', () => { r.kind = kind.value; changed(); });
+    const title = el('input', { type: 'text', class: 'res-title-in', value: r.title || '', placeholder: 'Título', maxlength: 200, 'aria-label': 'Título' });
+    title.addEventListener('input', () => { r.title = title.value; changed(); });
+    const warn = el('span', { class: 'res-warn hidden' }, 'Enlace no válido (debe empezar por http:// o https://)');
+    let urlBox;
+    if (r.fileId) urlBox = el('div', { class: 'res-file' }, icon('paperclip'), ` ${r.fileName || 'PDF'}${r.fileSize ? ` · ${formatBytes(r.fileSize)}` : ''}`);
+    else {
+      urlBox = el('input', { type: 'url', class: 'res-url', value: r.url || '', placeholder: 'https://…', maxlength: 1000, inputmode: 'url', autocomplete: 'off', 'aria-label': 'Enlace' });
+      // Al pegar o terminar de escribir: el dominio como título si está vacío y «Ficha técnica» si es de CIMA
+      const apply = () => {
+        const u = cleanUrl(urlBox.value);
+        warn.classList.toggle('hidden', !urlBox.value.trim() || !!u);
+        if (!u) return;
+        r.url = u; urlBox.value = u;
+        if (!r.title.trim()) { r.title = domainOf(u); title.value = r.title; }
+        if (!r.kind) { const g = guessKind(u); if (g) { r.kind = g; kind.value = g; } }
+        changed();
+      };
+      urlBox.addEventListener('input', () => { r.url = urlBox.value.trim(); warn.classList.add('hidden'); changed(); });
+      urlBox.addEventListener('paste', () => setTimeout(apply, 0));
+      urlBox.addEventListener('change', apply);
+    }
+    const year = el('input', { type: 'text', class: 'res-year-in', value: r.year || '', placeholder: 'Año / versión', maxlength: 40, 'aria-label': 'Año o versión' });
+    year.addEventListener('input', () => { r.year = year.value; changed(); });
+    const note = el('input', { type: 'text', class: 'res-note-in', value: r.note || '', placeholder: 'Nota corta (opcional)', maxlength: 300, 'aria-label': 'Nota' });
+    note.addEventListener('input', () => { r.note = note.value; changed(); });
+    let reg = null;
+    const regs = state.regs ? state.regs() : null;
+    if (regs) {
+      reg = el('select', { class: 'res-reg', 'aria-label': 'Indicación' }, el('option', { value: '' }, 'Ninguna'),
+        ...regs.map((x, k) => el('option', { value: x.id }, `${k + 1}. ${[x.indication, x.type].filter(Boolean).join(' · ') || 'Sin título'}`.slice(0, 80))));
+      reg.value = regs.some((x) => x.id === r.regId) ? r.regId : '';
+      reg.addEventListener('change', () => { if (reg.value) r.regId = reg.value; else delete r.regId; changed(); });
+    }
+    const mv = (dir) => { const a = state.list; [a[i], a[i + dir]] = [a[i + dir], a[i]]; changed(); render(); };
+    const del = async () => {
+      if (r.fileId && !await confirm('Quitar PDF', `¿Quitar «${r.title || r.fileName}»? El PDF se borrará si nada más lo usa.`, { okLabel: 'Quitar', danger: true })) return;
+      state.list.splice(i, 1); changed(); render();
+    };
+    return el('div', { class: 'res-erow' },
+      el('div', { class: 'res-erow-top' }, el('span', { class: 'res-ic' }, icon(kindIcon(r.kind))), title,
+        i > 0 ? el('button', { class: 'icon-btn', type: 'button', title: 'Subir', 'aria-label': 'Subir', onclick: () => mv(-1) }, icon('arrow-up')) : null,
+        i < state.list.length - 1 ? el('button', { class: 'icon-btn', type: 'button', title: 'Bajar', 'aria-label': 'Bajar', onclick: () => mv(1) }, icon('arrow-down')) : null,
+        el('button', { class: 'icon-btn', type: 'button', title: 'Quitar', 'aria-label': 'Quitar este enlace', onclick: del }, icon('trash-2'))),
+      urlBox, warn,
+      el('div', { class: 'res-erow-grid' },
+        el('label', { class: 'rf' }, 'Tipo', kind),
+        el('label', { class: 'rf' }, 'Año / versión', year),
+        reg ? el('label', { class: 'rf res-reg-f' }, 'Indicación', reg) : null),
+      el('label', { class: 'rf' }, 'Nota', note));
+  };
+  render();
+  return box;
+}
+
+/** ⋯ de una carpeta del Vademécum → «Enlaces y bibliografía…» (salen en todas sus fichas y subcarpetas) */
+export async function editFolderResources(folderId) {
+  const f = DF().get(folderId);
+  if (!f) return;
+  const before = clone(f.resources || []);
+  const state = { list: clone(f.resources || []), regs: null, owner: { drugFolderId: folderId }, added: [] };
+  const ok = await modal({
+    title: `Enlaces y bibliografía · ${f.name}`,
+    cls: 'res-modal',
+    body: [el('p', { class: 'muted small' }, 'Salen en todas las fichas de esta carpeta y de sus subcarpetas, con la marca «De la carpeta …». Las calculadoras, también como botones arriba de cada ficha.'), resEditor(state)],
+    actions: [{ label: 'Cancelar' }, { label: 'Guardar', primary: true, value: true }]
+  });
+  if (!ok) { ctx.dropFiles(state.added); return; } // PDF subidos sin guardar
+  const list = cleanResList(state.list, null);
+  const cur = DF().get(folderId);
+  if (!cur) return;
+  cur.resources = list; // reflejo inmediato
+  patch('drugFolders', folderId, { resources: list, updatedAt: Date.now() });
+  const keep = new Set(resFileIds(list));
+  ctx.dropFiles([...resFileIds(before), ...state.added].filter((x) => !keep.has(x)));
+  toast(list.length ? `Enlaces de «${f.name}» guardados ✓` : `«${f.name}» ya no tiene enlaces`, 'ok');
+  if (curId) renderChrome();
 }

@@ -252,6 +252,8 @@
             </div>
             <!-- Ficha ampliada (v1.22.0): ámbito, embarazo, sueros y secciones plegables (se recuerda si están abiertas) -->
             <div id="drug-scopes" class="drug-scopes"></div>
+            <!-- v1.27.0: calculadoras (de la ficha y de sus carpetas) a un toque -->
+            <div id="drug-calcs" class="drug-calcs hidden"></div>
             <div id="drug-fluids" class="drug-fluids"></div>
             <details class="dsec" data-sec="pres" open>
               <summary><h3>Presentaciones</h3></summary>
@@ -279,6 +281,10 @@
             <details class="dsec" data-sec="compat" open>
               <summary><h3>Compatibilidad en Y</h3></summary>
               <div class="dsec-body"><ul class="dlist" data-list="compat"></ul><textarea class="drug-pres dlist-edit" data-list="compat" rows="3" placeholder="Fármacos compatibles en Y (uno por línea o separados por comas)"></textarea></div>
+            </details>
+            <details class="dsec" data-sec="res" id="drug-res-sec" open>
+              <summary><h3>Enlaces y bibliografía</h3></summary>
+              <div class="dsec-body"><div id="drug-res" class="drug-res"></div></div>
             </details>
             <details class="dsec drug-notes" data-sec="notes" open>
               <summary><h3>Mis notas</h3></summary>

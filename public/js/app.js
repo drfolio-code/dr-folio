@@ -29,8 +29,9 @@ import { icon, iconOr } from './icons.js';
 import {
   initDrugs, newDrug, openDrug, closeDrug, currentDrug, flushDrug, onDrugsChange, refreshDrugBacklinks, drugCard, drugItemMenu,
   drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, templatePending, templateState, dismissTemplate, emptyDrugTrash, mergeDuplicates, duplicateCount,
-  pasteChuletario, drugScope, setDrugScope, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading
+  pasteChuletario, drugScope, setDrugScope, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading, editFolderResources
 } from './drugs.js';
+import { mergeResources, resFileIds } from './drugres.js';
 import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies } from './drugbody.js';
 import { SCOPES } from './chuletario.js';
 import {
@@ -161,6 +162,7 @@ const TREES = {
       // Plantilla de carpetas: en la raíz (también en ⋯ y en el aviso de arriba)
       !folderId ? el('button', { class: 'btn', type: 'button', onclick: () => importTemplate() }, icon('folder-plus'), ' Plantilla de carpetas') : null],
     menuExtra: (folderId) => [
+      folderId ? { icon: 'book-open', label: 'Enlaces y bibliografía…', onClick: () => editFolderResources(folderId) } : null,
       { icon: 'list-plus', label: folderId ? 'Añadir varios aquí…' : 'Añadir varios…', onClick: () => addManyDrugs(folderId) },
       { icon: 'file-up', label: folderId ? 'Importar fichas aquí (JSON)…' : 'Importar fichas (JSON)…', onClick: () => importDrugs(folderId) },
       { icon: 'clipboard-paste', label: 'Pegar del Chuletario…', onClick: () => pasteChuletario({ folderId }) },
@@ -372,7 +374,9 @@ function startApp(user) {
     showList: () => showList(),
     showPane,
     newFolder: (parentId) => newFolder(parentId, TREES.drugs),
-    openNote: (id) => openNote(id, { push: true })
+    openNote: (id) => openNote(id, { push: true }),
+    openFile: (fileId, name) => openViewer({ fileId, name, mime: 'application/pdf' }),
+    dropFiles: (ids) => dropUnusedFiles(ids)
   });
 
   initBackup({
@@ -1485,17 +1489,26 @@ async function deleteFolder(f, T = TREES.notes) {
   const items = [...store[T.itemCol].values()].filter((n) => n.folderId === f.id);
   const kids = childFolders(f.id, T.map());
   const dest = parent ? `«${parent.name}»` : T.txt.rootDest;
+  // Vademécum (v1.27.0): sus enlaces y bibliografía pasan a la carpeta superior; en la raíz se borran (y sus PDF)
+  const res = T.id === 'drugs' ? (f.resources || []) : [];
+  const resMsg = !res.length ? '' : parent ? ` Sus ${plural(res.length, 'enlace', 'enlaces')} pasarán a «${parent.name}».` : ` Sus ${plural(res.length, 'enlace', 'enlaces')} (y sus PDF) se borrarán.`;
   const ok = await confirm('Eliminar carpeta',
-    items.length || kids.length
+    (items.length || kids.length
       ? `«${f.name}» tiene ${plural(items.length, T.one, T.many)} y ${plural(kids.length, 'subcarpeta', 'subcarpetas')}. No se borra nada: pasarán a ${dest}.`
-      : `¿Eliminar la carpeta «${f.name}»?`,
+      : `¿Eliminar la carpeta «${f.name}»?`) + resMsg,
     { okLabel: 'Eliminar carpeta', danger: true });
   if (!ok) return;
+  if (res.length && parent) {
+    const [list] = mergeResources(parent.resources, res);
+    parent.resources = list;
+    patch(T.col, parent.id, { resources: list, updatedAt: Date.now() });
+  }
   const up = f.parentId || null;
   for (const k of kids) { k.parentId = up; patch(T.col, k.id, { parentId: up }); }
   for (const n of items) { n.folderId = up; patch(T.itemCol, n.id, { folderId: up }); }
   T.map().delete(f.id);
   remove(T.col, f.id);
+  if (res.length && !parent) dropUnusedFiles(resFileIds(res));
   if (S.view.type === T.folder && S.view.id === f.id) setView(up ? { type: T.folder, id: up } : { type: T.root, id: null });
   else { renderList(); renderSidebar(); }
 }
@@ -2490,15 +2503,22 @@ function allReferencedFiles(exceptNoteId, exceptSnippetId = null, exceptDrugId =
   const ids = chat ? chatFileIds() : new Set();
   for (const n of store.notes.values()) if (n.id !== exceptNoteId) noteFileIds(n).forEach((f) => ids.add(f));
   for (const s of store.snippets.values()) if (s.id !== exceptSnippetId) snippetFileIds(s).forEach((f) => ids.add(f));
-  for (const d of store.drugs.values()) if (d.id !== exceptDrugId) (d.files || []).forEach((f) => ids.add(f));
+  for (const d of store.drugs.values()) if (d.id !== exceptDrugId) [...(d.files || []), ...resFileIds(d.resources)].forEach((f) => ids.add(f));
+  for (const f of store.drugFolders.values()) resFileIds(f.resources).forEach((x) => ids.add(x)); // PDF de «Enlaces y bibliografía» de las carpetas
   return ids;
+}
+/** Borra los archivos indicados si ya no los usa nada (p. ej. PDF quitados de «Enlaces y bibliografía») */
+function dropUnusedFiles(fileIds) {
+  if (!fileIds?.length || !filesKnown()) return;
+  const used = allReferencedFiles(null);
+  for (const f of new Set(fileIds)) if (!used.has(f)) deleteFile(f);
 }
 
 /** Al eliminar un fármaco: borra las imágenes de «Mis notas» si ninguna otra nota, prerredactado o fármaco las usa */
 function purgeDrugFiles(id) {
   const d = store.drugs.get(id);
   if (!d || !filesKnown()) return;
-  const mine = new Set(d.files || []);
+  const mine = new Set([...(d.files || []), ...resFileIds(d.resources)]);
   for (const f of store.files.values()) if (f.drugId === id) mine.add(f.id);
   const others = allReferencedFiles(null, null, id);
   for (const f of mine) if (!others.has(f) && store.files.has(f)) deleteFile(f);

@@ -67,9 +67,9 @@ export async function compressImage(file) {
 
 /**
  * Guarda un archivo y devuelve su id. Las escrituras quedan en cola si no hay conexión.
- * meta: { noteId, snippetId (imágenes de un prerredactado), drugId, chatId (Chat personal), name, kind: 'image'|'file' }
+ * meta: { noteId, snippetId (imágenes de un prerredactado), drugId, drugFolderId (PDF de una carpeta del Vademécum, v1.27.0), chatId (Chat personal), name, kind: 'image'|'file' }
  */
-export async function saveFile(blob, { noteId, snippetId, drugId, chatId, name, kind }) {
+export async function saveFile(blob, { noteId, snippetId, drugId, drugFolderId, chatId, name, kind }) {
   if (blob.size > LIMITS.maxFileBytes) {
     throw new Error(`El archivo supera ${Math.round(LIMITS.maxFileBytes / 1024 / 1024)} MB`);
   }
@@ -94,6 +94,7 @@ export async function saveFile(blob, { noteId, snippetId, drugId, chatId, name, 
     noteId: noteId || null,
     ...(snippetId ? { snippetId } : {}),
     ...(drugId ? { drugId } : {}),
+    ...(drugFolderId ? { drugFolderId } : {}),
     ...(chatId ? { chatId } : {}),
     name: name || (kind === 'image' ? 'imagen' : 'archivo'),
     mime: blob.type || 'application/octet-stream',

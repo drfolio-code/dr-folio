@@ -23,6 +23,7 @@ import { modal, toast } from './ui.js';
 import { icon } from './icons.js';
 import { htmlOf } from './snipbody.js';
 import { ensureAllDrugBodies, fullDrug, deriveDrugLight, rememberDrugBody, DRUG_DERIVED, lineOf, regSummary, presBrandsOf } from './drugbody.js';
+import { normResources, folderResources, byKind, domainOf } from './drugres.js';
 
 export const BACKUP_FORMAT = 'drfolio-backup';
 export const BACKUP_VERSION = 1;
@@ -309,6 +310,13 @@ function drugPageHtml(d) {
   for (const [k, t] of [['observations', 'Observaciones'], ['contraindications', 'Contraindicaciones'], ['compat', 'Compatibilidad en Y']]) {
     if (d[k]?.length) parts.push(`<h2>${t}</h2><ul>${d[k].map((x) => `<li>${e(x)}</li>`).join('')}</ul>`);
   }
+  // v1.27.0: enlaces y bibliografía (de la ficha y de sus carpetas); los PDF van en «Bibliografía», al final, con su archivo
+  const res = [...(d.resources || []).map((r) => ({ r })), ...folderResources(d.folderId, store.drugFolders).flatMap((g) => g.items.map((r) => ({ r, from: g.folder.name })))];
+  if (res.length) {
+    parts.push(`<h2>Enlaces y bibliografía</h2>${byKind(res).map((g) => `<h3>${e(g.label)}</h3><ul>${g.items.map(({ r, from }) => `<li>${
+      r.url && /^https?:\/\//i.test(r.url) ? `<a href="${e(r.url)}">${e(r.title || r.url)}</a>` : `📎 ${e(r.title || r.fileName || 'PDF')} <span class="muted">(PDF, en «Bibliografía» abajo)</span>`
+    }${r.year ? ` <span class="muted">· ${e(r.year)}</span>` : ''}${r.url ? ` <span class="muted">· ${e(domainOf(r.url))}</span>` : ''}${r.note ? `<br><span class="muted">${e(r.note)}</span>` : ''}${from ? ` <span class="muted">· De la carpeta ${e(from)}</span>` : ''}</li>`).join('')}</ul>`).join('')}`);
+  }
   if (d.source?.text || d.source?.url) parts.push(`<p class="muted">Fuente: ${d.source.url && /^https?:\/\//i.test(d.source.url) ? `<a href="${e(d.source.url)}">${e(d.source.text || d.source.url)}</a>` : e(d.source.text)}</p>`);
   if (String(d.html || '').trim()) parts.push(`<h2>Mis notas</h2>${d.html}`);
   return parts.join('');
@@ -377,7 +385,10 @@ async function exportZip() {
       return out.join(' › ');
     };
     const drugNotes = new Map(drugs.map((d) => [d.id, {
-      id: `d:${d.id}`, drugFolder: d.folderId, title: d.name || 'Sin nombre', html: drugPageHtml(d), refs: [], tags: [],
+      id: `d:${d.id}`, drugFolder: d.folderId, title: d.name || 'Sin nombre', html: drugPageHtml(d), tags: [],
+      // PDF de «Enlaces y bibliografía» (de la ficha y de sus carpetas) → se exportan como los adjuntos de las notas
+      refs: [...(d.resources || []), ...folderResources(d.folderId, store.drugFolders).flatMap((g) => g.items)].filter((r) => r.fileId)
+        .map((r) => ({ cite: r.title, url: r.url || null, fileId: r.fileId, fileName: r.fileName })),
       createdAt: d.createdAt, updatedAt: d.updatedAt, drug: true, trashed: !!d.trashed, reviewed: d.reviewed,
       drugPath: `💊 Vademécum${d.folderId && store.drugFolders.has(d.folderId) ? ` › ${drugNames(d.folderId)}` : ''}`
     }]));
@@ -564,6 +575,7 @@ export function parseBackup(text) {
   return { data, fileData, present, meta: { version, appVersion: raw.appVersion || raw.version || '?', exportedMs, counts, withData, skipped } };
 }
 
+const resId = () => `r${Math.random().toString(36).slice(2, 10)}`;
 /** Limpia un documento leído del archivo (el HTML de las notas se vuelve a sanear) */
 function fixDoc(c, d) {
   const x = { ...d };
@@ -594,7 +606,9 @@ function fixDoc(c, d) {
     if ('mergedInto' in x) x.mergedInto = typeof x.mergedInto === 'string' && ID_RE.test(x.mergedInto) ? x.mergedInto : null; // v1.24.0
     if ('pregnancy' in x) x.pregnancy = isObj(x.pregnancy) ? { cat: String(x.pregnancy.cat || ''), note: String(x.pregnancy.note || '') } : { cat: '', note: '' };
     if ('source' in x) x.source = isObj(x.source) ? { text: String(x.source.text || ''), url: /^https?:\/\//i.test(String(x.source.url || '')) ? String(x.source.url) : '' } : { text: '', url: '' };
+    if ('resources' in x) x.resources = normResources(x.resources, resId); // v1.27.0: solo http/https, texto plano
   }
+  if (c === 'drugFolders' && 'resources' in x) x.resources = normResources(x.resources, resId, { withReg: false });
   if (c === 'chat') {
     x.text = typeof x.text === 'string' ? x.text : '';
     x.files = Array.isArray(x.files) ? x.files.filter((f) => typeof f === 'string' && ID_RE.test(f)) : [];

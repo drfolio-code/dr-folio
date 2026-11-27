@@ -10,7 +10,11 @@
       "regimens": [
         { "indication": "Dolor agudo leve-moderado", "presentation": "25 mg comp", "route": "VO", "dose": "1 comp", "frequency": "cada 8 h", "duration": "5 días", "max": "75 mg/día" }
       ],
-      "notes": "Ejemplo de ficha importada: revisa las dosis antes de usarla."
+      "notes": "Ejemplo de ficha importada: revisa las dosis antes de usarla.",
+      "resources": [
+        { "title": "Ficha técnica Enantyum 25 mg comprimidos", "url": "https://cima.aemps.es/cima/publico/lista.html", "kind": "ft", "year": "2024" },
+        { "title": "Calculadora de aclaramiento de creatinina", "url": "https://www.mdcalc.com/calc/43/creatinine-clearance-cockcroft-gault-equation", "kind": "calc", "note": "Para ajustar la dosis en insuficiencia renal" }
+      ]
     },
     {
       "name": "Metoclopramida",
@@ -29,6 +33,10 @@
       "pautas": [
         { "indicacion": "Protección gástrica", "presentacion": "20 mg cáps", "via": "VO", "dosis": "1 cáps", "frecuencia": "cada 24 h en ayunas", "duracion": "mientras dure el tratamiento" },
         { "indicacion": "Hemorragia digestiva alta", "presentacion": "40 mg vial", "via": "IV", "dosis": "80 mg en bolo", "frecuencia": "y después 40 mg cada 12 h", "linea": "Omeprazol 40 mg vial: 80 mg IV en bolo y después 40 mg IV cada 12 h" }
+      ],
+      "enlaces": [
+        { "titulo": "Guía de práctica clínica de la HDA", "url": "https://www.guiasalud.es", "tipo": "guía", "año": "2023", "nota": "Ejemplo" },
+        "https://cima.aemps.es/cima/publico/lista.html"
       ]
     }
   ]

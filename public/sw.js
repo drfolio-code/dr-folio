@@ -1,6 +1,6 @@
 // Service worker de Dr.Folio: guarda la app para usarla sin conexión.
 // Los datos (notas) los guarda Firestore por su cuenta, no este archivo.
-const VERSION = 'drfolio-v1.26.3';
+const VERSION = 'drfolio-v1.27.0';
 // Visor de PDF (PDF.js): caché aparte que solo cambia al actualizar PDF.js (pesa ~4 MB; no se descarga en cada versión)
 const PDFJS_CACHE = 'drfolio-pdfjs-6.5.438';
 const PDFJS_DIR = '/vendor/pdfjs/';
@@ -9,7 +9,7 @@ const SHARE_CACHE = 'drfolio-share';
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest',
   './js/app.js', './js/config.js', './js/db.js', './js/store.js', './js/files.js',
-  './js/editor.js', './js/snippets.js', './js/modules.js', './js/viewport.js', './js/pdfviewer.js', './js/backup.js', './js/bodies.js', './js/migrate.js', './js/snipbody.js', './js/drugs.js', './js/drugbody.js', './js/chat.js', './js/chuletario.js', './js/icons.js', './js/ui.js', './js/util.js', './vendor/libs.js', './vendor/jszip.js', './vendor/icons.js',
+  './js/editor.js', './js/snippets.js', './js/modules.js', './js/viewport.js', './js/pdfviewer.js', './js/backup.js', './js/bodies.js', './js/migrate.js', './js/snipbody.js', './js/drugs.js', './js/drugbody.js', './js/drugres.js', './js/chat.js', './js/chuletario.js', './js/icons.js', './js/ui.js', './js/util.js', './vendor/libs.js', './vendor/jszip.js', './vendor/icons.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png', './icons/apple-touch-icon.png'
 ];
 

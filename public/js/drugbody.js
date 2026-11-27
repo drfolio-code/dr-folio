@@ -17,6 +17,7 @@ import { db } from './db.js';
 import { store, ref, col, commitBatch } from './store.js';
 import { norm } from './util.js';
 import { regType, scopeKey } from './chuletario.js';
+import { normResources, mergeResources, resSearchText } from './drugres.js';
 
 const str = (x) => (typeof x === 'string' ? x : x == null ? '' : String(x));
 const arr = (x) => (Array.isArray(x) ? x : []);
@@ -50,12 +51,12 @@ export function regSummary(r = {}) {
 
 // ====================== Búsqueda ======================
 const searchCache = new Map(); // id → { k, s }
-/** Texto de búsqueda: principio activo, nombres comerciales, presentaciones e indicaciones (sin tildes ni mayúsculas) */
+/** Texto de búsqueda: principio activo, nombres comerciales, presentaciones, indicaciones y enlaces (título, nota, año; v1.27.0) */
 export function drugSearchText(d) {
-  const k = `${d.updatedAt}|${d.name}|${(d.brands || []).length}`;
+  const k = `${d.updatedAt}|${d.name}|${(d.brands || []).length}|${(d.resources || []).length}`;
   const c = searchCache.get(d.id);
   if (c && c.k === k) return c.s;
-  const s = norm([d.name, ...arr(d.brands), ...arr(d.presentations), ...arr(d.regimens).map((r) => r?.indication)].map(str).join('\n'));
+  const s = norm([d.name, ...arr(d.brands), ...arr(d.presentations), ...arr(d.regimens).map((r) => r?.indication), resSearchText(d.resources)].map(str).join('\n'));
   searchCache.set(d.id, { k, s });
   return s;
 }
@@ -226,7 +227,9 @@ export function parseDrugImport(text, newRegId) {
       ...presFields(pick(it, 'presentations', 'presentaciones')),
       regimens: regs,
       notes: str(pick(it, 'notes', 'notas', 'misNotas', 'mis_notas')).slice(0, 50000),
-      ...extraFields(it)
+      ...extraFields(it),
+      // v1.27.0: enlaces y bibliografía (objetos o URL sueltas; sin indicación: regId no se importa)
+      resources: normResources(pick(it, 'resources', 'enlaces', 'bibliografia', 'bibliografía', 'links'), () => `r${newRegId()}`, { withReg: false })
     });
   }
   if (!out.length) throw new Error('El archivo no tiene ningún fármaco con nombre («name»).');
@@ -343,7 +346,8 @@ export function mergeGroupLight(g, newRegId) {
   const light = {
     name: g.name, brands: [...arr(keep.brands)], presentations: [...arr(keep.presentations)], regimens: [...arr(keep.regimens)],
     presBrands: arr(keep.presBrands).map((e) => ({ p: e.p, b: [...arr(e.b)] })), favorite: g.items.some((d) => d.favorite),
-    reviewed: g.items.every((d) => d.reviewed !== false), source: keep.source || null
+    reviewed: g.items.every((d) => d.reviewed !== false), source: keep.source || null,
+    resources: arr(keep.resources).map((r) => ({ ...r }))
   };
   for (const f of EXTRA_LISTS) light[f] = [...arr(keep[f])];
   const ids = new Set(light.regimens.map((r) => r.id));
@@ -358,16 +362,20 @@ export function mergeGroupLight(g, newRegId) {
       if (cur) cur.b = mergeList(cur.b, e.b)[0]; else light.presBrands.push({ p: e.p, b: [...arr(e.b)] });
     }
     if (!light.source?.text && !light.source?.url && (d.source?.text || d.source?.url)) light.source = { ...d.source };
+    const regMap = {}; // pauta de esta ficha → pauta de la que se queda (para los enlaces unidos a una indicación)
     for (const r0 of arr(d.regimens)) {
       const r = { ...r0 };
       const said = norm([r.indication, r.route, r.pres, r.text].map(str).join(' '));
       if (form && !said.includes(norm(form).slice(0, 7))) r.indication = r.indication ? `${r.indication} · ${form}` : form;
-      if (keys.has(regKey(r))) continue;
+      if (keys.has(regKey(r))) { const same = light.regimens.find((x) => regKey(x) === regKey(r)); if (same && r0.id) regMap[r0.id] = same.id; continue; }
       if (!r.id || ids.has(r.id)) r.id = newRegId();
+      if (r0.id) regMap[r0.id] = r.id;
       ids.add(r.id); keys.add(regKey(r));
       light.regimens.push(r);
     }
+    light.resources = mergeResources(light.resources, d.resources, { regMap })[0];
   }
+  if (!light.resources.length) delete light.resources;
   if (!light.source) delete light.source;
   return { light, others: g.items.slice(1), notesFrom: g.items.filter((d) => d.bodyAt > 0) };
 }
