@@ -17,7 +17,7 @@ import {
 } from './snippets.js';
 import { snippetFileIds } from './snipbody.js';
 import { MODULES, NAV_HOME, NAV_SEARCH, NAV_MORE, TAB_DEFAULT } from './modules.js';
-import { initViewport, initTitles, fitTitle, screenInfo } from './viewport.js';
+import { initViewport, initTitles, fitTitle, screenInfo, zoomable } from './viewport.js';
 import { openPdfViewer } from './pdfviewer.js';
 import { initBackup, openBackup, backupReminder, backupPublicReason, exportJson, progress, lastBackupAt } from './backup.js';
 import {
@@ -2702,6 +2702,7 @@ async function openViewer({ fileId, src, name, kind, mime, full = false }) {
   const body = isImg
     ? el('div', { class: 'viewer-img' }, el('img', { src: url, alt: name || '' }))
     : el('p', {}, 'Este tipo de archivo no se puede previsualizar. Descárgalo para abrirlo.');
+  if (isImg) zoomable(body, body.firstChild);
   modal({
     title: name || meta?.name || 'Archivo',
     wide: isImg,

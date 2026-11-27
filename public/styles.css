@@ -1542,5 +1542,7 @@ details.dsec[open] > summary { border-bottom: 1px solid var(--border); }
 #drug-wrap .dchips.grouped { gap: 8px; }
 #drug-wrap .pres-group + .pres-group { padding-top: 6px; }
 
-/* v1.26.2: doble toque sin zoom en móvil y tablet (el pellizco sigue funcionando) */
-html, body { touch-action: manipulation; }
+/* v1.26.2–3: la app no hace zoom (ni doble toque ni pellizco); PDF e imágenes tienen el suyo */
+html, body { touch-action: pan-x pan-y; } /* v1.26.3: sin doble toque ni pellizco */
+.viewer-img { overflow: hidden; }
+.viewer-img img { will-change: transform; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }

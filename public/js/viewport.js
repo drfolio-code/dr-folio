@@ -135,6 +135,83 @@ function noDoubleTapZoom() {
   }, { passive: false });
 }
 
+// Sin zoom al pellizcar (v1.26.3): la app no se acerca nunca. Android: meta viewport
+// (maximum-scale=1, user-scalable=no) + touch-action. iOS ignora esa meta: se cancelan sus
+// gestos. El visor de PDF y el de imágenes (zoomable()) tienen su propio zoom.
+function noPinchZoom() {
+  const stop = (e) => e.preventDefault();
+  for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, stop, { passive: false });
+  document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+}
+
+// Zoom propio de una imagen (pellizco, arrastrar si está ampliada, doble toque = 2× / 1×)
+export function zoomable(box, img) {
+  let s = 1, x = 0, y = 0, start = null, lastTap = 0;
+  const MAX = 6;
+  const apply = () => { img.style.transform = `translate(${x}px, ${y}px) scale(${s})`; };
+  const clamp = () => {
+    if (s <= 1) { s = 1; x = 0; y = 0; return; }
+    const r = box.getBoundingClientRect();
+    const mx = (img.offsetWidth * s - r.width) / 2, my = (img.offsetHeight * s - r.height) / 2;
+    x = Math.max(-Math.max(0, mx), Math.min(Math.max(0, mx), x));
+    y = Math.max(-Math.max(0, my), Math.min(Math.max(0, my), y));
+  };
+  const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  const mid = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
+  const center = () => { const r = box.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+  // Ampliar manteniendo quieto el punto (px, py) de la pantalla
+  const zoomAt = (ns, px, py) => {
+    const c = center();
+    const k = ns / s;
+    x = (px - c.x) - k * ((px - c.x) - x);
+    y = (py - c.y) - k * ((py - c.y) - y);
+    s = ns;
+  };
+  box.style.touchAction = 'none';
+  img.style.transformOrigin = 'center center';
+  img.style.transition = 'none';
+  box.addEventListener('touchstart', (e) => {
+    const t = e.touches;
+    if (t.length === 2) start = { d: dist(t), s, m: mid(t), x, y };
+    else if (t.length === 1) start = { px: t[0].clientX, py: t[0].clientY, x, y };
+  }, { passive: true });
+  box.addEventListener('touchmove', (e) => {
+    const t = e.touches;
+    if (!start) return;
+    e.preventDefault();
+    if (t.length === 2 && start.d) {
+      const m = mid(t);
+      const ns = Math.min(MAX, Math.max(1, start.s * dist(t) / start.d));
+      s = start.s; x = start.x + (m.x - start.m.x); y = start.y + (m.y - start.m.y);
+      zoomAt(ns, m.x, m.y);
+    } else if (t.length === 1 && start.px != null && s > 1) {
+      x = start.x + t[0].clientX - start.px; y = start.y + t[0].clientY - start.py;
+    }
+    clamp(); apply();
+  }, { passive: false });
+  box.addEventListener('touchend', (e) => {
+    const t = e.touches;
+    if (t.length === 1) start = { px: t[0].clientX, py: t[0].clientY, x, y };
+    else if (!t.length) {
+      start = null;
+      const c = e.changedTouches[0], now = Date.now();
+      if (e.changedTouches.length === 1 && now - lastTap < 300) {
+        img.style.transition = 'transform .2s';
+        if (s > 1) { s = 1; x = 0; y = 0; } else zoomAt(2.5, c.clientX, c.clientY);
+        clamp(); apply(); lastTap = 0;
+        setTimeout(() => { img.style.transition = 'none'; }, 220);
+      } else lastTap = now;
+    }
+  });
+  // Ordenador: Ctrl + rueda (o pellizco del panel táctil)
+  box.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    zoomAt(Math.min(MAX, Math.max(1, s * Math.exp(-e.deltaY / 200))), e.clientX, e.clientY);
+    clamp(); apply();
+  }, { passive: false });
+}
+
 export function initViewport() {
   // iPhone/iPad: sin «interactive-widget» (es de Chrome Android; en iOS puede acortar la ventana)
   if (typeof navigator.standalone === 'boolean') {
@@ -142,6 +219,7 @@ export function initViewport() {
     if (m) m.content = m.content.replace(/,\s*interactive-widget=[^,]*/, '');
   }
   noDoubleTapZoom();
+  noPinchZoom();
   update();
   if (vv) { vv.addEventListener('resize', schedule); vv.addEventListener('scroll', schedule); }
   window.addEventListener('resize', schedule);
