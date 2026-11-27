@@ -786,10 +786,9 @@ function renderPres() {
   };
   if (rd) {
     const groups = presByGroup(d);
-    list.classList.toggle('grouped', groups.length > 1);
-    list.replaceChildren(...(groups.length > 1
-      ? groups.map((g) => el('div', { class: 'pres-group' }, el('div', { class: 'pres-glabel' }, g.group), el('div', { class: 'pres-gitems' }, ...g.items.map(chip))))
-      : (d.presentations || []).map(chip)));
+    list.classList.toggle('grouped', groups.length > 0);
+    // La vía se indica siempre, también si solo hay una (v1.26.1)
+    list.replaceChildren(...groups.map((g) => el('div', { class: 'pres-group' }, el('div', { class: 'pres-glabel' }, g.group), el('div', { class: 'pres-gitems' }, ...g.items.map(chip)))));
   }
   else $('#drug-pres-rows').replaceChildren(...form.pres.map(presRow));
   $('#drug-pres-dl').replaceChildren(...presList().map((p) => el('option', { value: p })));

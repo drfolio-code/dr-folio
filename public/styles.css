@@ -1532,3 +1532,12 @@ details.dsec[open] > summary { border-bottom: 1px solid var(--border); }
 .pres-glabel { font-size: 11.5px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); }
 .pres-gitems { display: flex; flex-wrap: wrap; gap: 8px; }
 .pres-group + .pres-group { border-top: 1px dashed var(--border); padding-top: 8px; }
+/* v1.26.1: mismo tamaño de letra en toda la ficha (presentaciones, indicaciones y listas; sigue A−/A+) */
+#drug-wrap { --dtxt: calc(var(--read-size, 18px) * .88); }
+#drug-wrap .pres-chip { font-size: var(--dtxt); font-weight: 600; padding: 2px 11px; line-height: 1.35; border-width: 1px; }
+#drug-wrap .pres-chip.has-brands { padding: 3px 11px; }
+#drug-wrap .reading-regs .reg-text { font-size: var(--dtxt); }
+#drug-wrap .dlist { font-size: var(--dtxt); line-height: 1.45; }
+#drug-wrap .pres-glabel { font-size: 11px; }
+#drug-wrap .dchips.grouped { gap: 8px; }
+#drug-wrap .pres-group + .pres-group { padding-top: 6px; }
