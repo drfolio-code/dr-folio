@@ -14,12 +14,14 @@ import { textToHtml } from './snipbody.js';
 import { addQuota, budget } from './backup.js';
 import {
   REG_FIELDS, genLine, lineOf, regSummary, drugMatches, byName, liveDrugs, drugKey, drugByName,
-  drugBodyOf, loadDrugBody, writeDrug, deleteDrugDocs, parseDrugImport, mergeList, regKey, hasDetail, EXTRA_LISTS, presBrandsOf
+  drugBodyOf, loadDrugBody, writeDrug, deleteDrugDocs, parseDrugImport, mergeList, regKey, hasDetail, EXTRA_LISTS, presBrandsOf,
+  baseKey, drugByBase, withForm, duplicateGroups, mergeGroupLight, mergePres
 } from './drugbody.js';
 import {
   SCOPES, scopeName, FLUIDS, REG_TYPES, regType, typeSlug, parseChuletario, CHULETARIO_SOURCE
 } from './chuletario.js';
 
+const str = (x) => (x == null ? '' : String(x));
 let ctx = null;          // ayudas de app.js
 let editor = null;       // editor de «Mis notas» (createEditor, el mismo de las notas)
 let curId = null;        // ficha abierta
@@ -302,12 +304,13 @@ function folderFor(names, parentId, batch, created) {
 
 /** Plan de la importación: qué fichas se crean, cuáles se completan y cuáles no cambian (no escribe nada) */
 function planImport(items) {
-  const plan = { create: [], merge: [], same: [] };
+  const plan = { create: [], merge: [], same: [], matched: [] }; // matched = [{d, it}] (para «Reemplazar»)
   const seen = new Map(); // nombre → entrada (fármacos repetidos dentro del mismo archivo: se juntan)
   for (const it of items) {
-    const k = drugKey(it.name);
+    const k = baseKey(it.name) || drugKey(it.name); // mismo principio activo = misma ficha (v1.24.0)
     if (seen.has(k)) {
       const a = seen.get(k);
+      it.regimens = withForm(it.regimens, it.name, a.name);
       a.brands = mergeList(a.brands, it.brands)[0];
       a.presentations = mergeList(a.presentations, it.presentations)[0];
       for (const f of EXTRA_LISTS) a[f] = mergeList(a[f], it[f])[0];
@@ -321,10 +324,13 @@ function planImport(items) {
     seen.set(k, it);
   }
   for (const it of seen.values()) {
-    const d = drugByName(it.name);
+    const d = drugByName(it.name) || drugByBase(it.name);
     if (!d) { plan.create.push(it); continue; }
+    it.regimens = withForm(it.regimens, it.name, d.name);
+    plan.matched.push({ d, it });
     const [brands, nb] = mergeList(d.brands, it.brands);
-    const [presentations, np] = mergeList(d.presentations, it.presentations);
+    const presentations = mergePres(d.presentations, it.presentations);
+    const np = presentations.length - (d.presentations || []).length;
     const keys = new Set((d.regimens || []).map(regKey));
     const newRegs = it.regimens.filter((r) => !keys.has(regKey(r)));
     const notes = !(d.bodyAt > 0) && it.notes.trim() ? it.notes : '';
@@ -375,6 +381,15 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
     const tops = new Set(items.filter((it) => it.folder.length).map((it) => it.folder[0]));
     const li = (t) => el('li', {}, t);
     const list = (arr, fmt) => (arr.length ? el('ul', { class: 'imp-list' }, arr.slice(0, 12).map((x) => li(fmt(x))), arr.length > 12 ? li(`… y ${arr.length - 12} más`) : null) : null);
+    // v1.24.0: con fichas que ya existen, elegir Completar (añade sin borrar) o Reemplazar (las deja como en el archivo)
+    let mode = 'merge';
+    const radio = (v, label, sub) => el('label', { class: 'imp-mode' },
+      el('input', { type: 'radio', name: 'imp-mode', value: v, checked: v === 'merge', onchange: () => { mode = v; } }),
+      el('span', { class: 'imp-mode-txt' }, el('b', {}, label), el('span', { class: 'muted small' }, sub)));
+    const modeBox = !template && plan.matched.length ? el('div', { class: 'imp-modes' },
+      el('p', { class: 'small' }, `${plan.matched.length} ficha(s) ya existen. ¿Qué hago con ellas?`),
+      radio('merge', 'Completar', 'añade lo que falte, sin borrar nada'),
+      radio('replace', 'Reemplazar', 'presentaciones, indicaciones, sueros, observaciones, contraindicaciones y ámbito quedan como en el archivo; se conservan carpeta, favorito, nombres comerciales y «Mis notas»')) : null;
     const ok = await modal({
       title: template ? 'Plantilla de carpetas' : 'Importar fichas',
       body: [
@@ -384,16 +399,17 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
           el('tr', {}, el('td', {}, 'Fichas nuevas'), el('td', {}, String(plan.create.length))),
           el('tr', {}, el('td', {}, 'Ya existen: se completan'), el('td', {}, String(plan.merge.length))),
           el('tr', {}, el('td', {}, 'Ya existen: sin cambios'), el('td', {}, String(plan.same.length))))),
+        modeBox,
         list(plan.create, (x) => x.name),
         plan.merge.length ? el('p', { class: 'small' }, 'Se añade a las fichas que ya tienes (sin borrar ni cambiar nada de lo que hay):') : null,
         list(plan.merge, (m) => `${m.d.name}: ${[m.added.nb ? `${m.added.nb} nombre(s) comercial(es)` : '', m.added.np ? `${m.added.np} presentación(es)` : '', m.added.nr ? `${m.added.nr} pauta(s)` : '', m.added.notes ? 'notas' : '', m.added.ne ? 'datos de la ficha (embarazo, sueros, observaciones…)' : ''].filter(Boolean).join(', ')}`),
         el('p', { class: 'bk-warn' }, '⚠ Las fichas nuevas o completadas quedan marcadas «Pendiente de revisar» hasta que pulses «✓ Revisada» en cada una. Comprueba las dosis antes de usarlas.'),
         el('p', { class: 'muted small' }, `Las nuevas van a ${folderId ? `«${DF().get(folderId)?.name || 'carpeta'}»` : 'la raíz del Vademécum'} (o a la carpeta que indique el archivo).`)
       ],
-      actions: [{ label: 'Cancelar' }, { label: 'Importar', primary: true, value: true, onClick: () => (plan.create.length || plan.merge.length ? true : (toast('No hay nada nuevo que importar', 'ok'), false)) }]
+      actions: [{ label: 'Cancelar' }, { label: 'Importar', primary: true, value: true, onClick: () => (plan.create.length || plan.merge.length || mode === 'replace' ? true : (toast('No hay nada nuevo que importar', 'ok'), false)) }]
     });
     if (!ok) return;
-    const ops = plan.create.reduce((s, it) => s + 1 + (it.notes.trim() ? 1 : 0), 0) + plan.merge.reduce((s, m) => s + 1 + (m.notes ? 1 : 0), 0) + 20;
+    const ops = plan.create.reduce((s, it) => s + 1 + (it.notes.trim() ? 1 : 0), 0) + (mode === 'replace' ? plan.matched.length * 2 : plan.merge.reduce((s, m) => s + 1 + (m.notes ? 1 : 0), 0)) + 20;
     if (budget().w < ops) { toast('Hoy ya casi no quedan escrituras del plan gratuito. Importa mañana.', 'error', 6000); return; }
     let batch = writeBatch(db), n = 0;
     const flush = () => { if (n >= 300) { commitBatch(batch); batch = writeBatch(db); n = 0; } };
@@ -406,22 +422,92 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
       writeDrug(id, light, it.notes.trim() ? { html: textToHtml(it.notes), text: it.notes } : null, batch, { commit: false });
       n += 2; flush();
     }
-    for (const m of plan.merge) {
+    if (mode === 'replace') {
+      for (const { d, it } of plan.matched) {
+        const light = {
+          brands: mergeList(d.brands, it.brands)[0], presentations: [...it.presentations], presBrands: [...(it.presBrands || [])], regimens: [...it.regimens],
+          reviewed: false, importedAt: now, updatedAt: now
+        };
+        for (const f of EXTRA_LISTS) light[f] = [...(it[f] || [])];
+        if (it.source?.text || it.source?.url) light.source = { ...it.source };
+        const notes = !(d.bodyAt > 0) && it.notes.trim() ? it.notes : '';
+        writeDrug(d.id, light, notes ? { html: textToHtml(notes), text: notes } : null, batch, { commit: false });
+        n += 2; flush();
+      }
+    } else for (const m of plan.merge) {
       writeDrug(m.d.id, { ...m.light, reviewed: false, importedAt: now, updatedAt: now }, m.notes ? { html: textToHtml(m.notes), text: m.notes } : null, batch, { commit: false });
       n += 2; flush();
     }
     commitBatch(batch);
     addQuota(ops - 20, 0);
-    toast(`Importado: ${plan.create.length} nueva(s), ${plan.merge.length} completada(s)${created.length ? `, ${created.length} carpeta(s)` : ''}`, 'ok', 4500);
+    toast(`Importado: ${plan.create.length} nueva(s), ${mode === 'replace' ? `${plan.matched.length} reemplazada(s)` : `${plan.merge.length} completada(s)`}${created.length ? `, ${created.length} carpeta(s)` : ''}`, 'ok', 4500);
     if (template) put('settings', 'vademecum', { templateVersion: TEMPLATE_VERSION, updatedAt: Date.now() });
-    if (curId && plan.merge.some((m) => m.d.id === curId)) fillForm(store.drugs.get(curId));
+    if (curId && plan.matched.some((m) => m.d.id === curId)) fillForm(store.drugs.get(curId));
     ctx.renderList(); ctx.renderSidebar();
   }
 }
 
+// ====================== Unir fichas del mismo principio activo (v1.24.0) ======================
+export const duplicateCount = () => (store.loaded.drugs ? duplicateGroups().length : 0);
+const escHtml = (t) => str(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+export async function mergeDuplicates() {
+  const groups = duplicateGroups();
+  if (!groups.length) { toast('No hay fichas repetidas: cada principio activo tiene una sola ficha ✓', 'ok'); return; }
+  const checks = groups.map(() => el('input', { type: 'checkbox', checked: true }));
+  const ok = await modal({
+    title: 'Unir fichas repetidas',
+    body: [
+      el('p', {}, `${groups.length} principio(s) activo(s) tienen más de una ficha. Se deja una por principio activo con todo lo de las demás:`),
+      el('ul', { class: 'imp-list dup-list' }, groups.map((g, i) => el('li', {}, el('label', {}, checks[i], ' ', el('b', {}, g.name), el('span', { class: 'muted' }, ` ← ${g.items.map((d) => d.name).join(' + ')}`))))),
+      el('p', { class: 'muted small' }, 'Se juntan nombres comerciales, presentaciones, indicaciones (con la forma: «· transdérmico», «· tópico»…), observaciones, contraindicaciones y «Mis notas». La ficha que se queda conserva su carpeta. Las otras van a la papelera del Vademécum y sus enlaces desde las notas abren la que se queda.')
+    ],
+    actions: [{ label: 'Cancelar' }, { label: 'Unir', primary: true, value: true }]
+  });
+  if (!ok) return;
+  const chosen = groups.filter((g, i) => checks[i].checked);
+  if (!chosen.length) return;
+  if (budget().w < chosen.length * 4 + 20) { toast('Hoy ya casi no quedan escrituras del plan gratuito. Inténtalo mañana.', 'error', 6000); return; }
+  saveSoon.flush();
+  const batch = writeBatch(db);
+  const now = Date.now();
+  let n = 0, skipped = 0;
+  for (const g of chosen) {
+    const { light, others, notesFrom } = mergeGroupLight(g, regId);
+    let body = null;
+    if (notesFrom.some((d) => d !== g.keep)) {
+      try {
+        const parts = [];
+        for (const d of notesFrom) {
+          const b = await loadDrugBody(d.id);
+          if (!b?.html?.trim()) continue;
+          parts.push(d === g.keep ? b.html : `<h3>${escHtml(d.name)}</h3>${b.html}`);
+        }
+        const html = parts.join('');
+        body = { html, text: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() };
+      } catch { skipped++; continue; } // sin conexión: sus notas no se pueden juntar → se deja para luego
+    }
+    writeDrug(g.keep.id, { ...light, updatedAt: now }, body, batch, { commit: false });
+    for (const d of others) {
+      const x = { trashed: true, trashedAt: now, mergedInto: g.keep.id, updatedAt: now };
+      batch.set(ref('drugs', d.id), x, { merge: true });
+      Object.assign(d, x);
+    }
+    n++;
+  }
+  if (!n) { toast('No se pudo unir: hace falta conexión para juntar «Mis notas».', 'error', 5000); return; }
+  await commitBatch(batch);
+  addQuota(chosen.length * 4, 0);
+  toast(`Unidas: ${n} ficha(s) por principio activo${skipped ? ` · ${skipped} pendiente(s) (sin conexión)` : ''}`, 'ok', 4500);
+  if (curId && store.drugs.get(curId)?.mergedInto) openDrug(curId, { fromHash: true });
+  else if (curId) fillForm(store.drugs.get(curId));
+  ctx.renderList(); ctx.renderSidebar();
+}
+
 // ====================== Ficha ======================
 export function openDrug(id, { push = false, focusTitle = false, fromHash = false } = {}) {
-  const d = store.drugs.get(id);
+  let d = store.drugs.get(id);
+  // Ficha unida a otra (mismo principio activo, v1.24.0): los enlaces antiguos abren la que se quedó
+  if (d?.trashed && d.mergedInto && store.drugs.get(d.mergedInto) && !store.drugs.get(d.mergedInto).trashed) { id = d.mergedInto; d = store.drugs.get(id); }
   if (!d) {
     if (!store.loaded.drugs) { setTimeout(() => openDrug(id, { push, focusTitle, fromHash }), 300); return; }
     toast('Ese fármaco ya no existe', 'error');
@@ -731,22 +817,63 @@ function renderRegs() {
     box.replaceChildren(el('p', { class: 'muted small' }, rd ? 'Sin indicaciones. Pulsa «Editar» para añadir la primera.' : 'Añade una indicación con su tipo (Bolo, Perfusión, IM…) y la dosis tal cual; los campos detallados son opcionales.'));
     return;
   }
-  box.replaceChildren(...regs.map((r, i) => (rd ? regView(name, r) : regForm(r, i, regs.length))));
+  box.classList.toggle('reading-regs', rd);
+  box.replaceChildren(...(rd ? groupRegs(regs).map((g) => regGroupView(name, g)) : regs.map((r, i) => regForm(r, i, regs.length))));
 }
 
+/** Lectura (v1.24.0): las indicaciones seguidas con el mismo título se agrupan y cada pauta es UNA fila
+ *  [tipo] dosis … [copiar]. La línea del informe ya no se pinta (repetía nombre + presentación + dosis):
+ *  es lo que copia el botón y se ve al dejar el ratón encima. */
+function groupRegs(regs) {
+  const out = [];
+  for (const r of regs) {
+    const k = norm(r.indication || '').trim();
+    const last = out[out.length - 1];
+    if (last && k && last.k === k) last.items.push(r);
+    else out.push({ k, title: r.indication || '', items: [r] });
+  }
+  return out;
+}
+/** «IV lenta diluida…» → IV · «Intranasal con MAD» → Intranasal · «IM en el muslo» → IM */
+function routeType(route) {
+  const r = str(route).trim();
+  if (!r) return '';
+  if (regType(r)) return regType(r);
+  const w = r.split(/[\s(/,;]+/).filter(Boolean);
+  for (let n = Math.min(3, w.length); n >= 1; n--) { const t = regType(w.slice(0, n).join(' ')); if (t) return t; }
+  return '';
+}
+function regGroupView(name, g) {
+  return el('div', { class: 'regg' },
+    g.title ? el('div', { class: 'regg-title' }, g.title) : null,
+    ...g.items.map((r) => regView(name, r)));
+}
 function regView(name, r) {
   const line = lineOf(name, r);
-  const detail = hasDetail(r);
-  const showLine = detail || r.lineAuto === false || !r.text;
-  return el('div', { class: `reg ${r.type ? `t-${typeSlug(r.type)}` : ''}` },
-    el('div', { class: 'reg-head' }, el('b', {}, r.indication || 'Indicación')),
-    r.type ? el('span', { class: `reg-type t-${typeSlug(r.type)}` }, r.type) : null,
-    (() => { const b = r.pres ? presBrandsOf(store.drugs.get(curId), r.pres) : []; return b.length ? el('div', { class: 'reg-brands' }, icon('tag'), ` ${r.pres}: ${b.join(' · ')}`) : null; })(),
-    r.text ? el('div', { class: 'reg-text' }, r.text) : null,
-    detail ? el('div', { class: 'reg-sum' }, regSummary(r)) : null,
-    el('div', { class: `reg-line ${showLine ? '' : 'only-btn'}` }, showLine ? el('span', { class: 'reg-txt' }, line) : null,
-      el('button', { class: 'btn sm primary reg-copy', type: 'button', title: 'Copiar para el informe', 'aria-label': `Copiar: ${line}`, onclick: (e) => copyLine(lineOf(store.drugs.get(curId)?.name, r), e.currentTarget) },
-        icon('copy'), el('span', { class: 'lbl' }, showLine ? ' Copiar' : ' Copiar línea'))));
+  const type = r.type || '';
+  const route = str(r.route).trim();
+  const main = str(r.text).trim() || [r.dose, r.freq, r.duration].map((x) => str(x).trim()).filter(Boolean).join(' · ') || route;
+  const brands = r.pres ? presBrandsOf(store.drugs.get(curId), r.pres) : [];
+  const chip = type || (route.length <= 14 ? route : routeType(route) || route.split(/[\s(/,]+/)[0]);
+  const nr = norm(route), nc = norm(chip);
+  const routeSaid = !route || main === route || nr === nc || (nr.includes(nc.slice(0, 6)) && route.split(/\s+/).length <= 2);
+  const meta = [
+    routeSaid ? '' : route,
+    !str(r.text).trim() && r.max ? `máx ${str(r.max).replace(/^m[aá]x(\.|imo|ima)?\s*/i, '')}` : '',
+    brands.length ? `${r.pres}: ${brands.join(' · ')}` : ''
+  ].filter(Boolean);
+  const slug = chip ? typeSlug(type || routeType(route)) : '';
+  return el('div', { class: `reg ${slug ? `t-${slug}` : ''}` },
+    el('div', { class: 'reg-body' },
+      el('div', { class: 'reg-main' },
+        chip ? el('span', { class: `reg-type ${slug ? `t-${slug}` : ''}` }, chip) : null,
+        el('span', { class: 'reg-text' }, main || line)),
+      meta.length ? el('div', { class: 'reg-meta' }, meta.join(' · ')) : null,
+      r.lineAuto === false && str(r.line).trim() ? el('div', { class: 'reg-meta reg-custom' }, icon('copy'), ` ${str(r.line).trim()}`) : null),
+    el('button', {
+      class: 'icon-btn reg-copy', type: 'button', title: `Copiar: ${line}`, 'aria-label': `Copiar: ${line}`,
+      onclick: (e) => copyLine(lineOf(store.drugs.get(curId)?.name, r), e.currentTarget)
+    }, icon('copy')));
 }
 
 function regForm(r, i, total) {

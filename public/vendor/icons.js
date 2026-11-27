@@ -105,5 +105,6 @@ export const ICONS = {
   "keyboard-off":"<path d=\"M 20 4 A2 2 0 0 1 22 6\"/><path d=\"M 22 6 L 22 16.41\"/><path d=\"M 7 16 L 16 16\"/><path d=\"M 9.69 4 L 20 4\"/><path d=\"M14 8h.01\"/><path d=\"M18 8h.01\"/><path d=\"m2 2 20 20\"/><path d=\"M20 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2\"/><path d=\"M6 8h.01\"/><path d=\"M8 12h.01\"/>",
   "quote":"<path d=\"M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\"/><path d=\"M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\"/>",
   "heading":"<path d=\"M6 12h12\"/><path d=\"M6 20V4\"/><path d=\"M18 20V4\"/>",
-  "pilcrow":"<path d=\"M13 4v16\"/><path d=\"M17 4v16\"/><path d=\"M19 4H9.5a4.5 4.5 0 0 0 0 9H13\"/>"
+  "pilcrow":"<path d=\"M13 4v16\"/><path d=\"M17 4v16\"/><path d=\"M19 4H9.5a4.5 4.5 0 0 0 0 9H13\"/>",
+  "combine":"<path d=\"M10 18H5a3 3 0 0 1-3-3v-1\"/><path d=\"M14 2a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2\"/><path d=\"M20 2a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2\"/><path d=\"m7 21 3-3-3-3\"/><rect x=\"14\" y=\"14\" width=\"8\" height=\"8\" rx=\"2\"/><rect x=\"2\" y=\"2\" width=\"8\" height=\"8\" rx=\"2\"/>"
 };

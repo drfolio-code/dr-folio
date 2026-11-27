@@ -591,6 +591,7 @@ function fixDoc(c, d) {
     x.regimens = Array.isArray(x.regimens) ? x.regimens.filter(isObj) : [];
     for (const f of ['fluids', 'observations', 'contraindications', 'compat', 'scopes']) if (f in x) x[f] = strs(x[f]); // v1.22.0
     if ('presBrands' in x) x.presBrands = Array.isArray(x.presBrands) ? x.presBrands.filter((v) => isObj(v) && typeof v.p === 'string').map((v) => ({ p: v.p, b: strs(v.b) })) : [];
+    if ('mergedInto' in x) x.mergedInto = typeof x.mergedInto === 'string' && ID_RE.test(x.mergedInto) ? x.mergedInto : null; // v1.24.0
     if ('pregnancy' in x) x.pregnancy = isObj(x.pregnancy) ? { cat: String(x.pregnancy.cat || ''), note: String(x.pregnancy.note || '') } : { cat: '', note: '' };
     if ('source' in x) x.source = isObj(x.source) ? { text: String(x.source.text || ''), url: /^https?:\/\//i.test(String(x.source.url || '')) ? String(x.source.url) : '' } : { text: '', url: '' };
   }

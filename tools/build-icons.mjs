@@ -21,7 +21,9 @@ const USED = [
   // Barra de formato
   'highlighter', 'image', 'link', 'list-checks', 'bold', 'italic', 'underline', 'strikethrough', 'baseline', 'list-ordered',
   'indent-increase', 'indent-decrease', 'table', 'minus', 'remove-formatting', 'redo-2', 'align-left', 'align-center', 'align-right',
-  'subscript', 'superscript', 'calendar-clock', 'braces', 'a-large-small', 'table-of-contents', 'code', 'chevron-down', 'keyboard-off', 'quote', 'heading', 'pilcrow'
+  'subscript', 'superscript', 'calendar-clock', 'braces', 'a-large-small', 'table-of-contents', 'code', 'chevron-down', 'keyboard-off', 'quote', 'heading', 'pilcrow',
+  // Vademécum v1.24.0: unir fichas repetidas
+  'combine'
 ];
 
 const dir = new URL('./node_modules/lucide-static/icons/', import.meta.url);

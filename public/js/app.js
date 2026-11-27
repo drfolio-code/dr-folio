@@ -28,7 +28,7 @@ import { legacyNotes, migrateNotes, snippetsToMigrate, migrateSnippets } from '.
 import { icon, iconOr } from './icons.js';
 import {
   initDrugs, newDrug, openDrug, closeDrug, currentDrug, flushDrug, onDrugsChange, refreshDrugBacklinks, drugCard, drugItemMenu,
-  drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, templatePending, dismissTemplate, emptyDrugTrash,
+  drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, templatePending, dismissTemplate, emptyDrugTrash, mergeDuplicates, duplicateCount,
   pasteChuletario, drugScope, setDrugScope, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading
 } from './drugs.js';
 import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies } from './drugbody.js';
@@ -164,7 +164,8 @@ const TREES = {
       { icon: 'list-plus', label: folderId ? 'Añadir varios aquí…' : 'Añadir varios…', onClick: () => addManyDrugs(folderId) },
       { icon: 'file-up', label: folderId ? 'Importar fichas aquí (JSON)…' : 'Importar fichas (JSON)…', onClick: () => importDrugs(folderId) },
       { icon: 'clipboard-paste', label: 'Pegar del Chuletario…', onClick: () => pasteChuletario({ folderId }) },
-      { icon: 'folder-plus', label: 'Plantilla de carpetas (AP, urgencias, montaña)…', onClick: () => importTemplate() }],
+      { icon: 'folder-plus', label: 'Plantilla de carpetas (AP, urgencias, montaña)…', onClick: () => importTemplate() },
+      { icon: 'combine', label: 'Unir fichas repetidas (mismo principio activo)…', onClick: () => mergeDuplicates() }],
     txt: {
       Many: 'Fármacos', newBtn: '＋ Fármaco', newOne: 'Nuevo fármaco', newHere: 'Nuevo fármaco aquí', folderHint: 'Grupo (p. ej. Analgésicos)',
       loose: 'Sin carpeta', itemsHere: 'Fármacos', rootDest: '«Vademécum» (sin carpeta)',
@@ -1752,6 +1753,15 @@ function renderDrugView(box, T) {
   if (v.type === T.root || v.type === T.folder) {
     renderExplorer(box, T);
     box.prepend(scopeBar());
+    // v1.24.0: si hay principios activos con más de una ficha, aviso para unirlas
+    const dups = v.type === T.root ? duplicateCount() : 0;
+    if (dups) {
+      box.prepend(el('div', { class: 'tpl-banner dup-banner' },
+        el('span', { class: 'tpl-ico' }, icon('combine')),
+        el('div', { class: 'tpl-txt' }, el('b', {}, `${dups} fármaco${dups > 1 ? 's' : ''} repetido${dups > 1 ? 's' : ''}`),
+          el('span', {}, 'Mismo principio activo en varias fichas (p. ej. «Fentanilo» y «Fentanilo transdérmico»). Únelas en una sola.')),
+        el('div', { class: 'tpl-btns' }, el('button', { class: 'btn primary', type: 'button', onclick: () => mergeDuplicates() }, 'Revisar y unir'))));
+    }
     // Aviso bien visible arriba mientras no se haya cargado (o descartado) la versión actual de la plantilla
     if (v.type === T.root && templatePending()) {
       box.prepend(el('div', { class: 'tpl-banner' },

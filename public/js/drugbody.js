@@ -286,3 +286,104 @@ function presFields(raw) {
   }
   return { presentations: presentations.slice(0, 60), presBrands: presBrands.slice(0, 60) };
 }
+
+// ====================== Mismo principio activo (v1.24.0) ======================
+// «Fentanilo» y «Fentanilo transdérmico», «Glucosa 5%» y «Glucosa hipertónica»… son el mismo principio activo:
+// una sola ficha, con la forma en la presentación y en la indicación. Las combinaciones («A/B») son otro fármaco.
+const FORM_WORDS = new Set(['transdermico', 'transdermica', 'autoinyector', 'autoinyectable', 'topico', 'topica', 'vaginal', 'otico', 'otica',
+  'oftalmico', 'oftalmica', 'colirio', 'nasal', 'rectal', 'depot', 'valerato', 'aceponato', 'retard', 'oral', 'inyectable', 'iv', 'im',
+  'crema', 'gel', 'pomada', 'spray', 'inhalado', 'inhalada', 'nebulizado', 'nebulizada', 'hipertonica', 'hipertonico', 'isotonica',
+  'sublingual', 'parche', 'parches', 'intranasal', 'bucal', 'jarabe', 'gotas', 'solucion', 'ampollas', 'comprimidos', 'capsulas', 'supositorios']);
+const tokens = (name) => str(name).replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+const isForm = (t) => FORM_WORDS.has(norm(t)) || /^\d+(?:[.,]\d+)?\s*%$/.test(t);
+/** Nº de palabras del principio activo (lo que queda al quitar del final la forma, la vía o el %) */
+function baseLen(name) {
+  const t = tokens(name);
+  let n = t.length;
+  while (n > 1 && isForm(t[n - 1])) n--;
+  return n;
+}
+/** Clave del principio activo: «Fentanilo transdérmico» → «fentanilo» · «Cloruro sódico 0,9%» → «cloruro sodico» */
+export const baseKey = (name) => drugKey(tokens(name).slice(0, baseLen(name)).join(' '));
+/** Nombre del principio activo con sus mayúsculas: «Glucosa hipertónica» → «Glucosa» */
+export const baseName = (name) => tokens(name).slice(0, baseLen(name)).join(' ');
+/** La forma que sobra: «Fentanilo transdérmico» → «transdérmico» */
+export const formOf = (name) => tokens(name).slice(baseLen(name)).join(' ');
+
+/** Grupos de fichas (no en la papelera) con el mismo principio activo: [{ key, name, items: [fichas] }] */
+export function duplicateGroups(drugs = liveDrugs()) {
+  const m = new Map();
+  for (const d of drugs) {
+    const k = baseKey(d.name);
+    if (!k) continue;
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(d);
+  }
+  return [...m.entries()].filter(([, v]) => v.length > 1).map(([key, items]) => {
+    const exact = items.find((d) => drugKey(d.name) === key);
+    // La que se queda: la que se llama justo como el principio activo; si no, la que tiene más pautas
+    const keep = exact || [...items].sort((a, b) => (b.regimens || []).length - (a.regimens || []).length)[0];
+    return { key, name: exact ? exact.name : baseName(keep.name), keep, items: [keep, ...items.filter((d) => d !== keep)] };
+  });
+}
+/** Presentaciones iguales aunque se escriban distinto (mcg = µg, ml = mL, espacios) */
+const presKey = (p) => norm(str(p)).replace(/mcg/g, 'µg').replace(/\s+/g, '').replace(/\.$/, '');
+export function mergePres(cur, add) {
+  const seen = new Set(arr(cur).map(presKey));
+  const out = [...arr(cur)];
+  for (const p of arr(add)) { const k = presKey(p); if (k && !seen.has(k)) { seen.add(k); out.push(p); } }
+  return out;
+}
+/**
+ * Ficha resultante de unir un grupo (no escribe nada). Las pautas de las otras fichas llevan su forma en la
+ * indicación si no la dicen ya («Dolor crónico · transdérmico»). Devuelve { light, others, notesFrom }.
+ */
+export function mergeGroupLight(g, newRegId) {
+  const keep = g.keep;
+  const light = {
+    name: g.name, brands: [...arr(keep.brands)], presentations: [...arr(keep.presentations)], regimens: [...arr(keep.regimens)],
+    presBrands: arr(keep.presBrands).map((e) => ({ p: e.p, b: [...arr(e.b)] })), favorite: g.items.some((d) => d.favorite),
+    reviewed: g.items.every((d) => d.reviewed !== false), source: keep.source || null
+  };
+  for (const f of EXTRA_LISTS) light[f] = [...arr(keep[f])];
+  const ids = new Set(light.regimens.map((r) => r.id));
+  const keys = new Set(light.regimens.map(regKey));
+  for (const d of g.items.slice(1)) {
+    const form = formOf(d.name);
+    light.brands = mergeList(light.brands, d.brands)[0];
+    light.presentations = mergePres(light.presentations, d.presentations);
+    for (const f of EXTRA_LISTS) light[f] = mergeList(light[f], d[f])[0];
+    for (const e of arr(d.presBrands)) {
+      const cur = light.presBrands.find((x) => presKey(x.p) === presKey(e.p));
+      if (cur) cur.b = mergeList(cur.b, e.b)[0]; else light.presBrands.push({ p: e.p, b: [...arr(e.b)] });
+    }
+    if (!light.source?.text && !light.source?.url && (d.source?.text || d.source?.url)) light.source = { ...d.source };
+    for (const r0 of arr(d.regimens)) {
+      const r = { ...r0 };
+      const said = norm([r.indication, r.route, r.pres, r.text].map(str).join(' '));
+      if (form && !said.includes(norm(form).slice(0, 7))) r.indication = r.indication ? `${r.indication} · ${form}` : form;
+      if (keys.has(regKey(r))) continue;
+      if (!r.id || ids.has(r.id)) r.id = newRegId();
+      ids.add(r.id); keys.add(regKey(r));
+      light.regimens.push(r);
+    }
+  }
+  if (!light.source) delete light.source;
+  return { light, others: g.items.slice(1), notesFrom: g.items.filter((d) => d.bodyAt > 0) };
+}
+/** Ficha que ya existe con ese principio activo (la de nombre exacto primero) */
+export function drugByBase(name) {
+  const k = baseKey(name);
+  if (!k) return null;
+  const all = liveDrugs().filter((d) => baseKey(d.name) === k);
+  return all.find((d) => drugKey(d.name) === drugKey(name)) || all.find((d) => drugKey(d.name) === k) || all[0] || null;
+}
+/** Pautas que vienen de «Fentanilo transdérmico» al unirse a «Fentanilo»: la forma va en la indicación */
+export function withForm(regs, fromName, toName) {
+  const form = formOf(fromName);
+  if (!form || drugKey(fromName) === drugKey(toName)) return regs;
+  return arr(regs).map((r) => {
+    const said = norm([r.indication, r.route, r.pres, r.text].map(str).join(' '));
+    return said.includes(norm(form).slice(0, 7)) ? r : { ...r, indication: r.indication ? `${r.indication} · ${form}` : form };
+  });
+}

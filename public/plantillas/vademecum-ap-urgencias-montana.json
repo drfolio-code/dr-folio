@@ -1,7 +1,7 @@
 {
  "format": "drfolio-vademecum",
  "version": 1,
- "about": "Plantilla de Dr.Folio (v2) para Atención Primaria, Urgencias y Rescate en montaña: carpetas por grupo terapéutico con los fármacos y nombres comerciales principales. Dosis de adulto orientativas: revísalas antes de usarlas.",
+ "about": "Plantilla de Dr.Folio (v3) para Atención Primaria, Urgencias y Rescate en montaña: carpetas por grupo terapéutico con los fármacos y nombres comerciales principales. Dosis de adulto orientativas: revísalas antes de usarlas.",
  "drugs": [
   {
    "name": "Paracetamol",
@@ -451,13 +451,18 @@
    "brands": [
     "Vernies",
     "Solinitrina",
-    "Trinispray"
+    "Trinispray",
+    "Nitroplast",
+    "Trinipatch"
    ],
    "folder": "Cardiovascular › Antianginosos",
    "presentations": [
     "0,4 mg/pulsación spray SL",
     "0,4 mg comp SL",
-    "5 mg/5 ml amp"
+    "5 mg/5 ml amp",
+    "5 mg/24 h parche",
+    "10 mg/24 h parche",
+    "15 mg/24 h parche"
    ],
    "regimens": [
     {
@@ -468,6 +473,15 @@
      "frequency": "cada 5 min",
      "duration": "",
      "max": "3 dosis; no si iPDE5 en 24-48 h"
+    },
+    {
+     "indication": "Angina estable",
+     "presentation": "10 mg/24 h parche",
+     "route": "Transdérmica",
+     "dose": "1 parche",
+     "frequency": "12-14 h al día (retirar por la noche)",
+     "duration": "",
+     "max": ""
     }
    ]
   },
@@ -748,13 +762,17 @@
    "name": "Metilprednisolona",
    "brands": [
     "Urbason",
-    "Solu-Moderin"
+    "Solu-Moderin",
+    "Adventan",
+    "Lexxema"
    ],
    "folder": "Respiratorio › Corticoides sistémicos",
    "presentations": [
     "40 mg vial",
     "125 mg vial",
-    "4 mg comp"
+    "4 mg comp",
+    "0,1% crema",
+    "0,1% pomada"
    ],
    "regimens": [
     {
@@ -764,6 +782,15 @@
      "dose": "1-2 mg/kg (habitual 40-80 mg)",
      "frequency": "dosis única, repetir según evolución",
      "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Eccema o dermatitis · aceponato",
+     "presentation": "0,1% crema",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 24 h",
+     "duration": "máx 2-4 semanas en adultos",
      "max": ""
     }
    ]
@@ -1309,14 +1336,17 @@
    ]
   },
   {
-   "name": "Glucosa hipertónica",
+   "name": "Glucosa",
    "brands": [
     "Glucosmon R50",
-    "Glucosa 33%"
+    "Glucosa 33%",
+    "Glucosado 5%"
    ],
    "folder": "Endocrino y metabolismo › Hipoglucemia",
    "presentations": [
-    "50% amp 20 ml (10 g)"
+    "50% amp 20 ml (10 g)",
+    "500 ml",
+    "250 ml"
    ],
    "regimens": [
     {
@@ -1325,6 +1355,15 @@
      "route": "IV lenta por vía gruesa",
      "dose": "10-20 g (20-40 ml)",
      "frequency": "repetir según glucemia",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Vía de mantenimiento / hipoglucemia tras bolo · 5%",
+     "presentation": "500 ml",
+     "route": "IV",
+     "dose": "500 ml",
+     "frequency": "cada 6-8 h según situación",
      "duration": "",
      "max": ""
     }
@@ -1800,29 +1839,6 @@
    ]
   },
   {
-   "name": "Metilprednisolona aceponato",
-   "brands": [
-    "Adventan",
-    "Lexxema"
-   ],
-   "folder": "Dermatología › Corticoides tópicos",
-   "presentations": [
-    "0,1% crema",
-    "0,1% pomada"
-   ],
-   "regimens": [
-    {
-     "indication": "Eccema o dermatitis",
-     "presentation": "0,1% crema",
-     "route": "Tópica",
-     "dose": "capa fina",
-     "frequency": "cada 24 h",
-     "duration": "máx 2-4 semanas en adultos",
-     "max": ""
-    }
-   ]
-  },
-  {
    "name": "Mupirocina",
    "brands": [
     "Bactroban",
@@ -1847,12 +1863,15 @@
   {
    "name": "Clotrimazol",
    "brands": [
-    "Canesten"
+    "Canesten",
+    "Gine-Canesten"
    ],
    "folder": "Dermatología › Antifúngicos tópicos",
    "presentations": [
     "1% crema",
-    "1% solución"
+    "1% solución",
+    "500 mg comp vaginal",
+    "2% crema vaginal"
    ],
    "regimens": [
     {
@@ -1862,6 +1881,15 @@
      "dose": "capa fina",
      "frequency": "cada 8-12 h",
      "duration": "2-4 semanas",
+     "max": ""
+    },
+    {
+     "indication": "Candidiasis vaginal",
+     "presentation": "500 mg comp vaginal",
+     "route": "Vaginal",
+     "dose": "500 mg",
+     "frequency": "dosis única al acostarse",
+     "duration": "",
      "max": ""
     }
    ]
@@ -1931,18 +1959,31 @@
    ]
   },
   {
-   "name": "Ciprofloxacino ótico",
+   "name": "Ciprofloxacino",
    "brands": [
+    "Baycip",
     "Cetraxal ótico",
     "Baycip ótico"
    ],
-   "folder": "Oftalmología y ORL › Otológicos",
+   "folder": "Antiinfecciosos › Quinolonas",
    "presentations": [
+    "250 mg comp",
+    "500 mg comp",
+    "750 mg comp",
     "0,3% gotas óticas monodosis"
    ],
    "regimens": [
     {
-     "indication": "Otitis externa",
+     "indication": "Pielonefritis no complicada / prostatitis",
+     "presentation": "500 mg comp",
+     "route": "VO",
+     "dose": "500 mg",
+     "frequency": "cada 12 h",
+     "duration": "7 días (prostatitis 4 semanas)",
+     "max": ""
+    },
+    {
+     "indication": "Otitis externa · ótico",
      "presentation": "0,3% gotas óticas monodosis",
      "route": "Ótica",
      "dose": "1 monodosis",
@@ -2070,7 +2111,8 @@
    "folder": "Soporte vital y urgencias › Parada y anafilaxia",
    "presentations": [
     "1 mg/1 ml amp (1:1.000)",
-    "0,3 mg autoinyector"
+    "0,3 mg autoinyector",
+    "0,15 mg autoinyector"
    ],
    "regimens": [
     {
@@ -2090,6 +2132,15 @@
      "frequency": "cada 3-5 min (desfibrilable: tras la 3.ª descarga)",
      "duration": "",
      "max": ""
+    },
+    {
+     "indication": "Anafilaxia (prescripción para casa o botiquín de rescate)",
+     "presentation": "0,3 mg autoinyector",
+     "route": "IM cara externa del muslo",
+     "dose": "0,3 mg (≥ 30 kg)",
+     "frequency": "repetir a los 5-15 min si no mejora",
+     "duration": "",
+     "max": "llevar siempre 2"
     }
    ]
   },
@@ -2188,15 +2239,18 @@
    ]
   },
   {
-   "name": "Cloruro sódico 0,9%",
+   "name": "Cloruro sódico",
    "brands": [
-    "Suero fisiológico"
+    "Suero fisiológico",
+    "Suero hipertónico 3%"
    ],
    "folder": "Soporte vital y urgencias › Sueroterapia",
    "presentations": [
     "500 ml",
     "1.000 ml",
-    "100 ml"
+    "100 ml",
+    "3% 100 ml",
+    "3% 250 ml"
    ],
    "regimens": [
     {
@@ -2207,6 +2261,15 @@
      "frequency": "reevaluar tras cada bolo",
      "duration": "",
      "max": "trauma: hipotensión permisiva (PAS 80-90)"
+    },
+    {
+     "indication": "Hiponatremia grave sintomática",
+     "presentation": "3% 100 ml",
+     "route": "IV",
+     "dose": "150 ml (o 2 ml/kg)",
+     "frequency": "en 20 min; repetir hasta 2-3 veces",
+     "duration": "",
+     "max": "no subir Na > 10 mEq/l en 24 h"
     }
    ]
   },
@@ -2320,11 +2383,16 @@
   {
    "name": "Fentanilo",
    "brands": [
-    "Fentanest"
+    "Fentanest",
+    "Durogesic Matrix",
+    "Matrifen"
    ],
    "folder": "Montaña y rescate › Analgesia en rescate",
    "presentations": [
-    "0,15 mg/3 ml amp (50 mcg/ml)"
+    "0,15 mg/3 ml amp (50 mcg/ml)",
+    "12 mcg/h parche",
+    "25 mcg/h parche",
+    "50 mcg/h parche"
    ],
    "regimens": [
     {
@@ -2342,6 +2410,15 @@
      "route": "Intranasal con atomizador (MAD)",
      "dose": "1,5 mcg/kg",
      "frequency": "repetir a los 10 min si precisa",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Dolor crónico (paciente ya tratado con opioides)",
+     "presentation": "12 mcg/h parche",
+     "route": "Transdérmica",
+     "dose": "12-25 mcg/h",
+     "frequency": "cambiar cada 72 h",
      "duration": "",
      "max": ""
     }
@@ -2392,12 +2469,17 @@
   {
    "name": "Diclofenaco",
    "brands": [
-    "Voltaren"
+    "Voltaren",
+    "Voltadol",
+    "Voltaren Emulgel"
    ],
    "folder": "Analgesia y anestesia › AINE",
    "presentations": [
     "50 mg comp",
-    "75 mg/3 ml amp"
+    "75 mg/3 ml amp",
+    "1% gel",
+    "2% gel",
+    "140 mg apósito"
    ],
    "regimens": [
     {
@@ -2417,6 +2499,15 @@
      "frequency": "dosis única",
      "duration": "",
      "max": "150 mg/día"
+    },
+    {
+     "indication": "Dolor musculoesquelético localizado · tópico",
+     "presentation": "1% gel",
+     "route": "Tópica",
+     "dose": "aplicación",
+     "frequency": "cada 6-8 h",
+     "duration": "máx 14 días",
+     "max": ""
     }
    ]
   },
@@ -2607,30 +2698,6 @@
      "frequency": "cada 12 h",
      "duration": "",
      "max": "160/80 mg/día"
-    }
-   ]
-  },
-  {
-   "name": "Fentanilo transdérmico",
-   "brands": [
-    "Durogesic Matrix",
-    "Matrifen"
-   ],
-   "folder": "Analgesia y anestesia › Opioides",
-   "presentations": [
-    "12 mcg/h parche",
-    "25 mcg/h parche",
-    "50 mcg/h parche"
-   ],
-   "regimens": [
-    {
-     "indication": "Dolor crónico (paciente ya tratado con opioides)",
-     "presentation": "12 mcg/h parche",
-     "route": "Transdérmica",
-     "dose": "12-25 mcg/h",
-     "frequency": "cambiar cada 72 h",
-     "duration": "",
-     "max": ""
     }
    ]
   },
@@ -3437,30 +3504,6 @@
    ]
   },
   {
-   "name": "Nitroglicerina transdérmica",
-   "brands": [
-    "Nitroplast",
-    "Trinipatch"
-   ],
-   "folder": "Cardiovascular › Antianginosos",
-   "presentations": [
-    "5 mg/24 h parche",
-    "10 mg/24 h parche",
-    "15 mg/24 h parche"
-   ],
-   "regimens": [
-    {
-     "indication": "Angina estable",
-     "presentation": "10 mg/24 h parche",
-     "route": "Transdérmica",
-     "dose": "1 parche",
-     "frequency": "12-14 h al día (retirar por la noche)",
-     "duration": "",
-     "max": ""
-    }
-   ]
-  },
-  {
    "name": "Mononitrato de isosorbida",
    "brands": [
     "Uniket retard"
@@ -4095,13 +4138,17 @@
    "name": "Hidrocortisona",
    "brands": [
     "Actocortina",
-    "Hidroaltesona"
+    "Hidroaltesona",
+    "Lactisona",
+    "Dermosa hidrocortisona"
    ],
    "folder": "Respiratorio › Corticoides sistémicos",
    "presentations": [
     "100 mg vial",
     "500 mg vial",
-    "20 mg comp"
+    "20 mg comp",
+    "1% crema",
+    "2,5% loción"
    ],
    "regimens": [
     {
@@ -4129,6 +4176,15 @@
      "dose": "15-25 mg/día repartidos",
      "frequency": "2-3 tomas",
      "duration": "crónico",
+     "max": ""
+    },
+    {
+     "indication": "Dermatitis leve / zonas sensibles",
+     "presentation": "1% crema",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 12 h",
+     "duration": "",
      "max": ""
     }
    ]
@@ -4254,13 +4310,16 @@
    ]
   },
   {
-   "name": "Mometasona nasal",
+   "name": "Mometasona",
    "brands": [
-    "Nasonex"
+    "Nasonex",
+    "Elocom"
    ],
    "folder": "Respiratorio › Rinitis y congestión nasal",
    "presentations": [
-    "50 mcg/pulsación spray nasal"
+    "50 mcg/pulsación spray nasal",
+    "0,1% crema",
+    "0,1% pomada"
    ],
    "regimens": [
     {
@@ -4268,6 +4327,15 @@
      "presentation": "50 mcg/pulsación spray nasal",
      "route": "Intranasal",
      "dose": "2 pulsaciones en cada fosa",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Eccema / dermatitis",
+     "presentation": "0,1% crema",
+     "route": "Tópica",
+     "dose": "capa fina",
      "frequency": "cada 24 h",
      "duration": "",
      "max": ""
@@ -4505,29 +4573,6 @@
    ]
   },
   {
-   "name": "Ciprofloxacino",
-   "brands": [
-    "Baycip"
-   ],
-   "folder": "Antiinfecciosos › Quinolonas",
-   "presentations": [
-    "250 mg comp",
-    "500 mg comp",
-    "750 mg comp"
-   ],
-   "regimens": [
-    {
-     "indication": "Pielonefritis no complicada / prostatitis",
-     "presentation": "500 mg comp",
-     "route": "VO",
-     "dose": "500 mg",
-     "frequency": "cada 12 h",
-     "duration": "7 días (prostatitis 4 semanas)",
-     "max": ""
-    }
-   ]
-  },
-  {
    "name": "Moxifloxacino",
    "brands": [
     "Actira",
@@ -4627,12 +4672,18 @@
   {
    "name": "Metronidazol",
    "brands": [
-    "Flagyl"
+    "Flagyl",
+    "Rozex",
+    "Rosiced",
+    "Flagyl óvulos"
    ],
    "folder": "Antiinfecciosos › Otros antibacterianos",
    "presentations": [
     "250 mg comp",
-    "500 mg comp"
+    "500 mg comp",
+    "0,75% gel",
+    "0,75% crema",
+    "500 mg óvulos"
    ],
    "regimens": [
     {
@@ -4641,6 +4692,24 @@
      "route": "VO",
      "dose": "500 mg",
      "frequency": "cada 8-12 h",
+     "duration": "7 días",
+     "max": ""
+    },
+    {
+     "indication": "Rosácea · tópico",
+     "presentation": "0,75% gel",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 12 h",
+     "duration": "3-4 meses",
+     "max": ""
+    },
+    {
+     "indication": "Vaginosis bacteriana",
+     "presentation": "500 mg óvulos",
+     "route": "Vaginal",
+     "dose": "1 óvulo",
+     "frequency": "cada 24 h",
      "duration": "7 días",
      "max": ""
     }
@@ -5643,28 +5712,6 @@
    ]
   },
   {
-   "name": "Cloruro sódico 3%",
-   "brands": [
-    "Suero hipertónico 3%"
-   ],
-   "folder": "Endocrino y metabolismo › Electrolitos",
-   "presentations": [
-    "3% 100 ml",
-    "3% 250 ml"
-   ],
-   "regimens": [
-    {
-     "indication": "Hiponatremia grave sintomática",
-     "presentation": "3% 100 ml",
-     "route": "IV",
-     "dose": "150 ml (o 2 ml/kg)",
-     "frequency": "en 20 min; repetir hasta 2-3 veces",
-     "duration": "",
-     "max": "no subir Na > 10 mEq/l en 24 h"
-    }
-   ]
-  },
-  {
    "name": "Calcifediol",
    "brands": [
     "Hidroferol"
@@ -6501,30 +6548,6 @@
    ]
   },
   {
-   "name": "Adrenalina autoinyector",
-   "brands": [
-    "Altellus",
-    "Jext",
-    "Emerade"
-   ],
-   "folder": "Alergia › Anafilaxia (autoinyectores)",
-   "presentations": [
-    "0,15 mg autoinyector",
-    "0,3 mg autoinyector"
-   ],
-   "regimens": [
-    {
-     "indication": "Anafilaxia (prescripción para casa o botiquín de rescate)",
-     "presentation": "0,3 mg autoinyector",
-     "route": "IM cara externa del muslo",
-     "dose": "0,3 mg (≥ 30 kg)",
-     "frequency": "repetir a los 5-15 min si no mejora",
-     "duration": "",
-     "max": "llevar siempre 2"
-    }
-   ]
-  },
-  {
    "name": "Complejo protrombínico",
    "brands": [
     "Octaplex",
@@ -6824,30 +6847,6 @@
    ]
   },
   {
-   "name": "Diclofenaco tópico",
-   "brands": [
-    "Voltadol",
-    "Voltaren Emulgel"
-   ],
-   "folder": "Musculoesquelético › Antiinflamatorios tópicos",
-   "presentations": [
-    "1% gel",
-    "2% gel",
-    "140 mg apósito"
-   ],
-   "regimens": [
-    {
-     "indication": "Dolor musculoesquelético localizado",
-     "presentation": "1% gel",
-     "route": "Tópica",
-     "dose": "aplicación",
-     "frequency": "cada 6-8 h",
-     "duration": "máx 14 días",
-     "max": ""
-    }
-   ]
-  },
-  {
    "name": "Etofenamato",
    "brands": [
     "Flogoprofen"
@@ -6891,13 +6890,17 @@
    ]
   },
   {
-   "name": "Betametasona depot",
+   "name": "Betametasona",
    "brands": [
-    "Celestone Cronodose"
+    "Celestone Cronodose",
+    "Celestoderm",
+    "Betnovate"
    ],
    "folder": "Musculoesquelético › Infiltraciones",
    "presentations": [
-    "6 mg/ml vial"
+    "6 mg/ml vial",
+    "0,1% crema",
+    "0,1% pomada"
    ],
    "regimens": [
     {
@@ -6907,6 +6910,15 @@
      "dose": "3-6 mg",
      "frequency": "dosis única",
      "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Dermatitis / eccema moderado · valerato",
+     "presentation": "0,1% crema",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 12-24 h",
+     "duration": "máx 2-3 semanas",
      "max": ""
     }
    ]
@@ -7084,29 +7096,6 @@
    ]
   },
   {
-   "name": "Betametasona valerato",
-   "brands": [
-    "Celestoderm",
-    "Betnovate"
-   ],
-   "folder": "Dermatología › Corticoides tópicos",
-   "presentations": [
-    "0,1% crema",
-    "0,1% pomada"
-   ],
-   "regimens": [
-    {
-     "indication": "Dermatitis / eccema moderado",
-     "presentation": "0,1% crema",
-     "route": "Tópica",
-     "dose": "capa fina",
-     "frequency": "cada 12-24 h",
-     "duration": "máx 2-3 semanas",
-     "max": ""
-    }
-   ]
-  },
-  {
    "name": "Clobetasol propionato",
    "brands": [
     "Clovate",
@@ -7126,51 +7115,6 @@
      "frequency": "cada 12-24 h",
      "duration": "máx 2 semanas",
      "max": "50 g/semana"
-    }
-   ]
-  },
-  {
-   "name": "Mometasona tópica",
-   "brands": [
-    "Elocom"
-   ],
-   "folder": "Dermatología › Corticoides tópicos",
-   "presentations": [
-    "0,1% crema",
-    "0,1% pomada"
-   ],
-   "regimens": [
-    {
-     "indication": "Eccema / dermatitis",
-     "presentation": "0,1% crema",
-     "route": "Tópica",
-     "dose": "capa fina",
-     "frequency": "cada 24 h",
-     "duration": "",
-     "max": ""
-    }
-   ]
-  },
-  {
-   "name": "Hidrocortisona tópica",
-   "brands": [
-    "Lactisona",
-    "Dermosa hidrocortisona"
-   ],
-   "folder": "Dermatología › Corticoides tópicos",
-   "presentations": [
-    "1% crema",
-    "2,5% loción"
-   ],
-   "regimens": [
-    {
-     "indication": "Dermatitis leve / zonas sensibles",
-     "presentation": "1% crema",
-     "route": "Tópica",
-     "dose": "capa fina",
-     "frequency": "cada 12 h",
-     "duration": "",
-     "max": ""
     }
    ]
   },
@@ -7325,29 +7269,6 @@
      "dose": "capa fina",
      "frequency": "cada 24 h",
      "duration": "≥ 8 semanas",
-     "max": ""
-    }
-   ]
-  },
-  {
-   "name": "Metronidazol tópico",
-   "brands": [
-    "Rozex",
-    "Rosiced"
-   ],
-   "folder": "Dermatología › Acné y rosácea",
-   "presentations": [
-    "0,75% gel",
-    "0,75% crema"
-   ],
-   "regimens": [
-    {
-     "indication": "Rosácea",
-     "presentation": "0,75% gel",
-     "route": "Tópica",
-     "dose": "capa fina",
-     "frequency": "cada 12 h",
-     "duration": "3-4 meses",
      "max": ""
     }
    ]
@@ -7637,49 +7558,6 @@
    ]
   },
   {
-   "name": "Clotrimazol vaginal",
-   "brands": [
-    "Gine-Canesten"
-   ],
-   "folder": "Ginecología y obstetricia › Infecciones vaginales",
-   "presentations": [
-    "500 mg comp vaginal",
-    "2% crema vaginal"
-   ],
-   "regimens": [
-    {
-     "indication": "Candidiasis vaginal",
-     "presentation": "500 mg comp vaginal",
-     "route": "Vaginal",
-     "dose": "500 mg",
-     "frequency": "dosis única al acostarse",
-     "duration": "",
-     "max": ""
-    }
-   ]
-  },
-  {
-   "name": "Metronidazol vaginal",
-   "brands": [
-    "Flagyl óvulos"
-   ],
-   "folder": "Ginecología y obstetricia › Infecciones vaginales",
-   "presentations": [
-    "500 mg óvulos"
-   ],
-   "regimens": [
-    {
-     "indication": "Vaginosis bacteriana",
-     "presentation": "500 mg óvulos",
-     "route": "Vaginal",
-     "dose": "1 óvulo",
-     "frequency": "cada 24 h",
-     "duration": "7 días",
-     "max": ""
-    }
-   ]
-  },
-  {
    "name": "Sulfato de magnesio",
    "brands": [
     "Sulmetin"
@@ -7867,28 +7745,6 @@
    ]
   },
   {
-   "name": "Glucosa 5%",
-   "brands": [
-    "Glucosado 5%"
-   ],
-   "folder": "Soporte vital y urgencias › Sueroterapia",
-   "presentations": [
-    "500 ml",
-    "250 ml"
-   ],
-   "regimens": [
-    {
-     "indication": "Vía de mantenimiento / hipoglucemia tras bolo",
-     "presentation": "500 ml",
-     "route": "IV",
-     "dose": "500 ml",
-     "frequency": "cada 6-8 h según situación",
-     "duration": "",
-     "max": ""
-    }
-   ]
-  },
-  {
    "name": "Antiveneno de víbora",
    "brands": [
     "ViperaTAb",
@@ -7911,5 +7767,5 @@
    ]
   }
  ],
- "templateVersion": 2
+ "templateVersion": 3
 }
