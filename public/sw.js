@@ -1,6 +1,6 @@
 // Service worker de Dr.Folio: guarda la app para usarla sin conexión.
 // Los datos (notas) los guarda Firestore por su cuenta, no este archivo.
-const VERSION = 'drfolio-v1.17.0';
+const VERSION = 'drfolio-v1.17.1';
 // Visor de PDF (PDF.js): caché aparte que solo cambia al actualizar PDF.js (pesa ~4 MB; no se descarga en cada versión)
 const PDFJS_CACHE = 'drfolio-pdfjs-6.5.438';
 const PDFJS_DIR = '/vendor/pdfjs/';

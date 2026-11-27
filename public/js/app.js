@@ -17,7 +17,7 @@ import {
 } from './snippets.js';
 import { snippetFileIds } from './snipbody.js';
 import { MODULES, NAV_HOME, NAV_SEARCH } from './modules.js';
-import { initViewport, initTitles, fitTitle, screenInfo, iosFit, setIosFit, iosShort } from './viewport.js';
+import { initViewport, initTitles, fitTitle, screenInfo } from './viewport.js';
 import { openPdfViewer } from './pdfviewer.js';
 import { initBackup, openBackup, backupReminder, backupPublicReason, exportJson, progress, lastBackupAt } from './backup.js';
 import {
@@ -2299,11 +2299,6 @@ function openSettings() {
         el('select', { onchange: (e) => { localStorage.setItem('drfolio.noteMode', e.target.value); toast('Guardado', 'ok'); } },
           el('option', { value: 'read', selected: openMode() === 'read' }, '📖 Lectura'),
           el('option', { value: 'edit', selected: openMode() === 'edit' }, '✏️ Edición'))),
-      iosShort() ? el('div', { class: 'settings-row' }, el('span', {}, 'Ajuste de pantalla (iPhone)', el('br'),
-        el('span', { class: 'muted small' }, 'Si la barra de abajo se ve cortada, elige «Barra al final de la ventana»')),
-        el('select', { onchange: (e) => { setIosFit(e.target.value); toast('Guardado', 'ok'); } },
-          el('option', { value: 'edge', selected: iosFit() === 'edge' }, 'Hasta el borde'),
-          el('option', { value: 'window', selected: iosFit() === 'window' }, 'Barra al final de la ventana'))) : null,
       el('div', { class: 'settings-row' }, el('span', {}, 'Pantalla', el('br'), el('span', { class: 'muted small screen-info' }, screenInfo()))),
       el('div', { class: 'settings-row' }, el('span', {}, 'Índice automático en notas con títulos',
         el('br'), el('span', { class: 'muted small' }, 'Si no, añádelo cuando quieras: ⋯ → «Añadir índice»')),
