@@ -318,6 +318,12 @@ export function importDrugs(folderId = null) {
 // Plantilla de carpetas (v1.20.0): grupos terapéuticos para Atención Primaria, Urgencias y Rescate en montaña,
 // con un fármaco de ejemplo en cada subcarpeta. Usa la misma importación: no repite ni cambia lo que ya tengas.
 export const TEMPLATE_URL = './plantillas/vademecum-ap-urgencias-montana.json';
+// Versión de la plantilla: al subirla, vuelve a aparecer el aviso «Cargar» en el Vademécum (settings/vademecum, común a todos los dispositivos)
+export const TEMPLATE_VERSION = 2;
+export const templateState = () => store.settings?.get('vademecum') || {};
+export const templatePending = () => !!store.loaded.settings && (templateState().templateVersion || 0) < TEMPLATE_VERSION
+  && (templateState().dismissed || 0) < TEMPLATE_VERSION;
+export function dismissTemplate() { put('settings', 'vademecum', { dismissed: TEMPLATE_VERSION, updatedAt: Date.now() }); }
 export async function importTemplate() {
   let text;
   try {
@@ -341,7 +347,7 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
       title: template ? 'Plantilla de carpetas' : 'Importar fichas',
       body: [
         el('p', { class: 'muted small' }, fileName),
-        template ? el('p', {}, `${tops.size} grupos con ${paths.size} subcarpetas (las que ya tengas se aprovechan) y un fármaco de ejemplo en cada una, para ir completando poco a poco.`) : null,
+        template ? el('p', {}, `${tops.size} grupos, ${paths.size} subcarpetas (las que ya tengas se aprovechan) y ${items.length} fármacos con sus nombres comerciales principales. No se borra ni cambia nada de lo que ya tengas.`) : null,
         el('table', { class: 'bk-table' }, el('tbody', {},
           el('tr', {}, el('td', {}, 'Fichas nuevas'), el('td', {}, String(plan.create.length))),
           el('tr', {}, el('td', {}, 'Ya existen: se completan'), el('td', {}, String(plan.merge.length))),
@@ -358,7 +364,7 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
     const ops = plan.create.reduce((s, it) => s + 1 + (it.notes.trim() ? 1 : 0), 0) + plan.merge.reduce((s, m) => s + 1 + (m.notes ? 1 : 0), 0) + 20;
     if (budget().w < ops) { toast('Hoy ya casi no quedan escrituras del plan gratuito. Importa mañana.', 'error', 6000); return; }
     let batch = writeBatch(db), n = 0;
-    const flush = () => { if (n >= 380) { commitBatch(batch); batch = writeBatch(db); n = 0; } };
+    const flush = () => { if (n >= 300) { commitBatch(batch); batch = writeBatch(db); n = 0; } };
     const created = [];
     const now = Date.now();
     for (const it of plan.create) {
@@ -375,6 +381,7 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
     commitBatch(batch);
     addQuota(ops - 20, 0);
     toast(`Importado: ${plan.create.length} nueva(s), ${plan.merge.length} completada(s)${created.length ? `, ${created.length} carpeta(s)` : ''}`, 'ok', 4500);
+    if (template) put('settings', 'vademecum', { templateVersion: TEMPLATE_VERSION, updatedAt: Date.now() });
     if (curId && plan.merge.some((m) => m.d.id === curId)) fillForm(store.drugs.get(curId));
     ctx.renderList(); ctx.renderSidebar();
   }

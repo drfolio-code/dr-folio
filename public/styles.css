@@ -1348,3 +1348,14 @@ textarea.ed-title { display: block; resize: none; overflow: hidden; line-height:
   .chat-img img { max-height: 200px; }
 }
 body.kb-open .chat-compose { padding-bottom: 6px; }
+
+/* Aviso de la plantilla del Vademécum (v1.21.0) */
+.tpl-banner {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 10px 12px 4px; padding: 12px 14px;
+  border: 1px solid var(--accent); border-radius: 14px; background: var(--accent-soft);
+}
+.tpl-ico { width: 40px; height: 40px; border-radius: 11px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tpl-ico .i { font-size: 22px; }
+.tpl-txt { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
+.tpl-txt b { font-size: 15px; }
+.tpl-btns { display: flex; gap: 8px; margin-left: auto; }

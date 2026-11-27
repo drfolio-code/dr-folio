@@ -1,7 +1,7 @@
 {
  "format": "drfolio-vademecum",
  "version": 1,
- "about": "Plantilla de Dr.Folio para Atención Primaria, Urgencias y Rescate en montaña: carpetas por grupo terapéutico con un fármaco de ejemplo en cada una. Dosis de adulto orientativas: revísalas antes de usarlas.",
+ "about": "Plantilla de Dr.Folio (v2) para Atención Primaria, Urgencias y Rescate en montaña: carpetas por grupo terapéutico con los fármacos y nombres comerciales principales. Dosis de adulto orientativas: revísalas antes de usarlas.",
  "drugs": [
   {
    "name": "Paracetamol",
@@ -32,6 +32,15 @@
      "indication": "Dolor moderado (urgencias)",
      "presentation": "1 g/100 ml vial IV",
      "route": "IV en 15 min",
+     "dose": "1 g",
+     "frequency": "cada 8 h",
+     "duration": "",
+     "max": "4 g/día"
+    },
+    {
+     "indication": "Cefalea de altura",
+     "presentation": "1 g comp",
+     "route": "VO",
      "dose": "1 g",
      "frequency": "cada 8 h",
      "duration": "",
@@ -100,6 +109,15 @@
      "dose": "400 mg",
      "frequency": "cada 12 h",
      "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Prevención del mal agudo de montaña (alternativa)",
+     "presentation": "600 mg comp",
+     "route": "VO",
+     "dose": "600 mg",
+     "frequency": "cada 8 h",
+     "duration": "desde el día del ascenso",
      "max": ""
     }
    ]
@@ -233,6 +251,15 @@
      "frequency": "",
      "duration": "",
      "max": "IM: 4-5 mg/kg"
+    },
+    {
+     "indication": "Analgesia sin vía (fuera de ficha)",
+     "presentation": "50 mg/ml vial 10 ml",
+     "route": "Intranasal con atomizador",
+     "dose": "0,5-1 mg/kg",
+     "frequency": "",
+     "duration": "",
+     "max": ""
     }
    ]
   },
@@ -1269,6 +1296,15 @@
      "frequency": "dosis única",
      "duration": "",
      "max": ""
+    },
+    {
+     "indication": "Intoxicación por betabloqueantes",
+     "presentation": "1 mg vial + jeringa",
+     "route": "IV",
+     "dose": "3-10 mg (50-150 mcg/kg)",
+     "frequency": "después perfusión",
+     "duration": "",
+     "max": ""
     }
    ]
   },
@@ -1348,6 +1384,15 @@
      "frequency": "repetir a los 5-10 min si persiste",
      "duration": "",
      "max": "20 mg"
+    },
+    {
+     "indication": "Ansiedad",
+     "presentation": "5 mg comp",
+     "route": "VO",
+     "dose": "5 mg",
+     "frequency": "cada 8-12 h",
+     "duration": "uso corto",
+     "max": ""
     }
    ]
   },
@@ -2066,6 +2111,15 @@
      "frequency": "cada 3-5 min",
      "duration": "",
      "max": "3 mg"
+    },
+    {
+     "indication": "Intoxicación por organofosforados",
+     "presentation": "1 mg/1 ml amp",
+     "route": "IV",
+     "dose": "1-2 mg",
+     "frequency": "duplicar cada 5 min hasta secar secreciones",
+     "duration": "",
+     "max": ""
     }
    ]
   },
@@ -2311,6 +2365,5551 @@
      "max": "solo en centro hospitalario"
     }
    ]
+  },
+  {
+   "name": "Naproxeno",
+   "brands": [
+    "Naprosyn",
+    "Antalgin"
+   ],
+   "folder": "Analgesia y anestesia › AINE",
+   "presentations": [
+    "500 mg comp",
+    "550 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor o inflamación",
+     "presentation": "550 mg comp",
+     "route": "VO con comida",
+     "dose": "550 mg",
+     "frequency": "cada 12 h",
+     "duration": "5-7 días",
+     "max": "1.100 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Diclofenaco",
+   "brands": [
+    "Voltaren"
+   ],
+   "folder": "Analgesia y anestesia › AINE",
+   "presentations": [
+    "50 mg comp",
+    "75 mg/3 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor agudo",
+     "presentation": "50 mg comp",
+     "route": "VO con comida",
+     "dose": "50 mg",
+     "frequency": "cada 8 h",
+     "duration": "",
+     "max": "150 mg/día"
+    },
+    {
+     "indication": "Cólico renal",
+     "presentation": "75 mg/3 ml amp",
+     "route": "IM profunda",
+     "dose": "75 mg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": "150 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Ketorolaco",
+   "brands": [
+    "Toradol",
+    "Droal"
+   ],
+   "folder": "Analgesia y anestesia › AINE",
+   "presentations": [
+    "10 mg comp",
+    "30 mg/1 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor agudo moderado-intenso",
+     "presentation": "30 mg/1 ml amp",
+     "route": "IV lenta o IM",
+     "dose": "10-30 mg",
+     "frequency": "cada 6-8 h",
+     "duration": "máx 2 días",
+     "max": "90 mg/día (60 mg/día si > 65 años)"
+    }
+   ]
+  },
+  {
+   "name": "Aceclofenaco",
+   "brands": [
+    "Airtal",
+    "Falcol"
+   ],
+   "folder": "Analgesia y anestesia › AINE",
+   "presentations": [
+    "100 mg comp",
+    "100 mg sobres"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor musculoesquelético",
+     "presentation": "100 mg comp",
+     "route": "VO con comida",
+     "dose": "100 mg",
+     "frequency": "cada 12 h",
+     "duration": "",
+     "max": "200 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Celecoxib",
+   "brands": [
+    "Celebrex"
+   ],
+   "folder": "Analgesia y anestesia › AINE",
+   "presentations": [
+    "100 mg cáps",
+    "200 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "Artrosis o dolor",
+     "presentation": "200 mg cáps",
+     "route": "VO",
+     "dose": "200 mg",
+     "frequency": "cada 24 h (o 100 mg cada 12 h)",
+     "duration": "",
+     "max": "400 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Etoricoxib",
+   "brands": [
+    "Arcoxia"
+   ],
+   "folder": "Analgesia y anestesia › AINE",
+   "presentations": [
+    "60 mg comp",
+    "90 mg comp",
+    "120 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Artrosis",
+     "presentation": "60 mg comp",
+     "route": "VO",
+     "dose": "60 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Crisis de gota",
+     "presentation": "120 mg comp",
+     "route": "VO",
+     "dose": "120 mg",
+     "frequency": "cada 24 h",
+     "duration": "máx 8 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Tramadol/paracetamol",
+   "brands": [
+    "Zaldiar",
+    "Pazital"
+   ],
+   "folder": "Analgesia y anestesia › Opioides",
+   "presentations": [
+    "37,5/325 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor moderado",
+     "presentation": "37,5/325 mg comp",
+     "route": "VO",
+     "dose": "1-2 comp",
+     "frequency": "cada 6-8 h",
+     "duration": "",
+     "max": "8 comp/día"
+    }
+   ]
+  },
+  {
+   "name": "Codeína/paracetamol",
+   "brands": [
+    "Termalgin codeína",
+    "Cod-efferalgan"
+   ],
+   "folder": "Analgesia y anestesia › Opioides",
+   "presentations": [
+    "500/30 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor moderado",
+     "presentation": "500/30 mg comp",
+     "route": "VO",
+     "dose": "1-2 comp",
+     "frequency": "cada 6-8 h",
+     "duration": "",
+     "max": "8 comp/día"
+    }
+   ]
+  },
+  {
+   "name": "Tapentadol",
+   "brands": [
+    "Palexia retard",
+    "Yantil retard"
+   ],
+   "folder": "Analgesia y anestesia › Opioides",
+   "presentations": [
+    "50 mg comp liberación prolongada",
+    "100 mg comp liberación prolongada"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor crónico intenso",
+     "presentation": "50 mg comp liberación prolongada",
+     "route": "VO",
+     "dose": "50 mg",
+     "frequency": "cada 12 h",
+     "duration": "",
+     "max": "500 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Oxicodona/naloxona",
+   "brands": [
+    "Targin"
+   ],
+   "folder": "Analgesia y anestesia › Opioides",
+   "presentations": [
+    "5/2,5 mg comp",
+    "10/5 mg comp",
+    "20/10 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor crónico intenso",
+     "presentation": "10/5 mg comp",
+     "route": "VO",
+     "dose": "10/5 mg",
+     "frequency": "cada 12 h",
+     "duration": "",
+     "max": "160/80 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Fentanilo transdérmico",
+   "brands": [
+    "Durogesic Matrix",
+    "Matrifen"
+   ],
+   "folder": "Analgesia y anestesia › Opioides",
+   "presentations": [
+    "12 mcg/h parche",
+    "25 mcg/h parche",
+    "50 mcg/h parche"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor crónico (paciente ya tratado con opioides)",
+     "presentation": "12 mcg/h parche",
+     "route": "Transdérmica",
+     "dose": "12-25 mcg/h",
+     "frequency": "cambiar cada 72 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Petidina",
+   "brands": [
+    "Dolantina"
+   ],
+   "folder": "Analgesia y anestesia › Opioides",
+   "presentations": [
+    "100 mg/2 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor intenso",
+     "presentation": "100 mg/2 ml amp",
+     "route": "IM o IV lenta diluida",
+     "dose": "50-100 mg",
+     "frequency": "cada 4-6 h",
+     "duration": "",
+     "max": "400 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Buprenorfina transdérmica",
+   "brands": [
+    "Transtec",
+    "Feliben"
+   ],
+   "folder": "Analgesia y anestesia › Opioides",
+   "presentations": [
+    "35 mcg/h parche",
+    "52,5 mcg/h parche"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor crónico moderado-intenso",
+     "presentation": "35 mcg/h parche",
+     "route": "Transdérmica",
+     "dose": "35 mcg/h",
+     "frequency": "cambiar cada 3-4 días",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Mepivacaína",
+   "brands": [
+    "Scandinibsa"
+   ],
+   "folder": "Analgesia y anestesia › Anestésicos locales",
+   "presentations": [
+    "1% amp",
+    "2% amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Infiltración o bloqueo",
+     "presentation": "1% amp",
+     "route": "Infiltración",
+     "dose": "según la zona",
+     "frequency": "",
+     "duration": "",
+     "max": "≈ 4 mg/kg (≤ 300 mg) sin vasoconstrictor"
+    }
+   ]
+  },
+  {
+   "name": "Bupivacaína",
+   "brands": [
+    "Bupivacaína Braun"
+   ],
+   "folder": "Analgesia y anestesia › Anestésicos locales",
+   "presentations": [
+    "0,25% amp",
+    "0,5% amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Bloqueo de larga duración",
+     "presentation": "0,25% amp",
+     "route": "Infiltración o bloqueo",
+     "dose": "según la zona",
+     "frequency": "",
+     "duration": "",
+     "max": "2 mg/kg (≤ 150 mg)"
+    }
+   ]
+  },
+  {
+   "name": "Lidocaína/prilocaína",
+   "brands": [
+    "EMLA"
+   ],
+   "folder": "Analgesia y anestesia › Anestésicos locales",
+   "presentations": [
+    "5% crema"
+   ],
+   "regimens": [
+    {
+     "indication": "Anestesia tópica antes de punción",
+     "presentation": "5% crema",
+     "route": "Tópica con apósito oclusivo",
+     "dose": "capa gruesa",
+     "frequency": "60 min antes",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Propofol",
+   "brands": [
+    "Diprivan",
+    "Propofol Lipuro"
+   ],
+   "folder": "Analgesia y anestesia › Sedoanalgesia",
+   "presentations": [
+    "10 mg/ml amp 20 ml"
+   ],
+   "regimens": [
+    {
+     "indication": "Sedación para procedimiento",
+     "presentation": "10 mg/ml amp 20 ml",
+     "route": "IV lenta",
+     "dose": "0,5-1 mg/kg",
+     "frequency": "después 0,25-0,5 mg/kg si precisa",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Inducción anestésica",
+     "presentation": "10 mg/ml amp 20 ml",
+     "route": "IV",
+     "dose": "1-2,5 mg/kg",
+     "frequency": "",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Óxido nitroso/oxígeno 50%",
+   "brands": [
+    "Kalinox",
+    "Entonox"
+   ],
+   "folder": "Analgesia y anestesia › Sedoanalgesia",
+   "presentations": [
+    "bala de gas medicinal"
+   ],
+   "regimens": [
+    {
+     "indication": "Analgesia en procedimientos breves",
+     "presentation": "bala de gas medicinal",
+     "route": "Inhalado autoadministrado",
+     "dose": "a demanda con mascarilla",
+     "frequency": "",
+     "duration": "",
+     "max": "no en neumotórax ni TCE"
+    }
+   ]
+  },
+  {
+   "name": "Pregabalina",
+   "brands": [
+    "Lyrica"
+   ],
+   "folder": "Analgesia y anestesia › Dolor neuropático",
+   "presentations": [
+    "25 mg cáps",
+    "75 mg cáps",
+    "150 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor neuropático",
+     "presentation": "75 mg cáps",
+     "route": "VO",
+     "dose": "75 mg",
+     "frequency": "cada 12 h; subir según respuesta",
+     "duration": "",
+     "max": "600 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Gabapentina",
+   "brands": [
+    "Neurontin"
+   ],
+   "folder": "Analgesia y anestesia › Dolor neuropático",
+   "presentations": [
+    "300 mg cáps",
+    "600 mg comp",
+    "800 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor neuropático",
+     "presentation": "300 mg cáps",
+     "route": "VO",
+     "dose": "300 mg",
+     "frequency": "día 1: 1 vez, día 2: cada 12 h, día 3: cada 8 h",
+     "duration": "",
+     "max": "3.600 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Amitriptilina",
+   "brands": [
+    "Tryptizol"
+   ],
+   "folder": "Analgesia y anestesia › Dolor neuropático",
+   "presentations": [
+    "10 mg comp",
+    "25 mg comp",
+    "50 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor neuropático o cefalea tensional",
+     "presentation": "10 mg comp",
+     "route": "VO por la noche",
+     "dose": "10-25 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": "75 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Capsaicina tópica",
+   "brands": [
+    "Capsicin",
+    "Qutenza"
+   ],
+   "folder": "Analgesia y anestesia › Dolor neuropático",
+   "presentations": [
+    "0,075% crema",
+    "8% parche"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor neuropático localizado",
+     "presentation": "0,075% crema",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 6-8 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ramipril",
+   "brands": [
+    "Acovil"
+   ],
+   "folder": "Cardiovascular › Antihipertensivos",
+   "presentations": [
+    "2,5 mg comp",
+    "5 mg comp",
+    "10 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertensión / cardiopatía",
+     "presentation": "2,5 mg comp",
+     "route": "VO",
+     "dose": "2,5-5 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "10 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Losartán",
+   "brands": [
+    "Cozaar"
+   ],
+   "folder": "Cardiovascular › Antihipertensivos",
+   "presentations": [
+    "50 mg comp",
+    "100 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertensión arterial",
+     "presentation": "50 mg comp",
+     "route": "VO",
+     "dose": "50 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "100 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Valsartán",
+   "brands": [
+    "Diovan"
+   ],
+   "folder": "Cardiovascular › Antihipertensivos",
+   "presentations": [
+    "80 mg comp",
+    "160 mg comp",
+    "320 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertensión arterial",
+     "presentation": "80 mg comp",
+     "route": "VO",
+     "dose": "80-160 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "320 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Candesartán",
+   "brands": [
+    "Atacand",
+    "Parapres"
+   ],
+   "folder": "Cardiovascular › Antihipertensivos",
+   "presentations": [
+    "8 mg comp",
+    "16 mg comp",
+    "32 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertensión arterial",
+     "presentation": "8 mg comp",
+     "route": "VO",
+     "dose": "8-16 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "32 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Olmesartán",
+   "brands": [
+    "Openvas",
+    "Olmetec"
+   ],
+   "folder": "Cardiovascular › Antihipertensivos",
+   "presentations": [
+    "10 mg comp",
+    "20 mg comp",
+    "40 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertensión arterial",
+     "presentation": "20 mg comp",
+     "route": "VO",
+     "dose": "20 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "40 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Lercanidipino",
+   "brands": [
+    "Zanidip",
+    "Lercadip"
+   ],
+   "folder": "Cardiovascular › Antihipertensivos",
+   "presentations": [
+    "10 mg comp",
+    "20 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertensión arterial",
+     "presentation": "10 mg comp",
+     "route": "VO antes del desayuno",
+     "dose": "10 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "20 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Doxazosina",
+   "brands": [
+    "Carduran Neo"
+   ],
+   "folder": "Cardiovascular › Antihipertensivos",
+   "presentations": [
+    "4 mg comp liberación prolongada",
+    "8 mg comp liberación prolongada"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertensión / HBP",
+     "presentation": "4 mg comp liberación prolongada",
+     "route": "VO",
+     "dose": "4 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "8 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Nebivolol",
+   "brands": [
+    "Lobivon",
+    "Silostar"
+   ],
+   "folder": "Cardiovascular › Antihipertensivos",
+   "presentations": [
+    "5 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertensión arterial",
+     "presentation": "5 mg comp",
+     "route": "VO",
+     "dose": "5 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Captopril",
+   "brands": [
+    "Capoten"
+   ],
+   "folder": "Cardiovascular › Antihipertensivos",
+   "presentations": [
+    "25 mg comp",
+    "50 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Urgencia hipertensiva (sin daño de órgano)",
+     "presentation": "25 mg comp",
+     "route": "VO",
+     "dose": "25 mg",
+     "frequency": "repetir a los 30-60 min si precisa",
+     "duration": "",
+     "max": "50 mg"
+    }
+   ]
+  },
+  {
+   "name": "Labetalol",
+   "brands": [
+    "Trandate"
+   ],
+   "folder": "Cardiovascular › Antihipertensivos",
+   "presentations": [
+    "100 mg comp",
+    "100 mg/20 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Emergencia hipertensiva",
+     "presentation": "100 mg/20 ml amp",
+     "route": "IV lenta (2 min)",
+     "dose": "20 mg",
+     "frequency": "repetir 20-80 mg cada 10 min",
+     "duration": "",
+     "max": "300 mg"
+    }
+   ]
+  },
+  {
+   "name": "Urapidil",
+   "brands": [
+    "Elgadil"
+   ],
+   "folder": "Cardiovascular › Antihipertensivos",
+   "presentations": [
+    "50 mg/10 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Emergencia hipertensiva",
+     "presentation": "50 mg/10 ml amp",
+     "route": "IV lenta",
+     "dose": "12,5-25 mg",
+     "frequency": "repetir a los 5 min si precisa",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Torasemida",
+   "brands": [
+    "Dilutol",
+    "Sutril"
+   ],
+   "folder": "Cardiovascular › Diuréticos",
+   "presentations": [
+    "5 mg comp",
+    "10 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Edemas o insuficiencia cardiaca",
+     "presentation": "5 mg comp",
+     "route": "VO",
+     "dose": "5-20 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Espironolactona",
+   "brands": [
+    "Aldactone"
+   ],
+   "folder": "Cardiovascular › Diuréticos",
+   "presentations": [
+    "25 mg comp",
+    "100 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Insuficiencia cardiaca",
+     "presentation": "25 mg comp",
+     "route": "VO",
+     "dose": "25 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico (vigilar K y FG)",
+     "max": "50 mg/día"
+    },
+    {
+     "indication": "Ascitis",
+     "presentation": "100 mg comp",
+     "route": "VO",
+     "dose": "100 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": "400 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Indapamida",
+   "brands": [
+    "Tertensif retard"
+   ],
+   "folder": "Cardiovascular › Diuréticos",
+   "presentations": [
+    "1,5 mg comp liberación prolongada"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertensión arterial",
+     "presentation": "1,5 mg comp liberación prolongada",
+     "route": "VO",
+     "dose": "1,5 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Clortalidona",
+   "brands": [
+    "Higrotona"
+   ],
+   "folder": "Cardiovascular › Diuréticos",
+   "presentations": [
+    "50 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertensión arterial",
+     "presentation": "50 mg comp",
+     "route": "VO",
+     "dose": "12,5-25 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Atenolol",
+   "brands": [
+    "Tenormin"
+   ],
+   "folder": "Cardiovascular › Antiarrítmicos y control de frecuencia",
+   "presentations": [
+    "50 mg comp",
+    "100 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertensión / control de frecuencia",
+     "presentation": "50 mg comp",
+     "route": "VO",
+     "dose": "50 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "100 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Metoprolol",
+   "brands": [
+    "Beloken",
+    "Lopresor"
+   ],
+   "folder": "Cardiovascular › Antiarrítmicos y control de frecuencia",
+   "presentations": [
+    "100 mg comp",
+    "5 mg/5 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Control de frecuencia",
+     "presentation": "100 mg comp",
+     "route": "VO",
+     "dose": "50-100 mg",
+     "frequency": "cada 12 h",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "FA rápida o taquicardia (urgencias)",
+     "presentation": "5 mg/5 ml amp",
+     "route": "IV lenta",
+     "dose": "2,5-5 mg",
+     "frequency": "cada 5 min",
+     "duration": "",
+     "max": "15 mg"
+    }
+   ]
+  },
+  {
+   "name": "Carvedilol",
+   "brands": [
+    "Coropres"
+   ],
+   "folder": "Cardiovascular › Antiarrítmicos y control de frecuencia",
+   "presentations": [
+    "6,25 mg comp",
+    "25 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Insuficiencia cardiaca",
+     "presentation": "6,25 mg comp",
+     "route": "VO",
+     "dose": "3,125 mg",
+     "frequency": "cada 12 h; subir cada 2 semanas",
+     "duration": "crónico",
+     "max": "25 mg/12 h"
+    }
+   ]
+  },
+  {
+   "name": "Diltiazem",
+   "brands": [
+    "Masdil"
+   ],
+   "folder": "Cardiovascular › Antiarrítmicos y control de frecuencia",
+   "presentations": [
+    "60 mg comp",
+    "120 mg cáps retard",
+    "25 mg vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Control de frecuencia en FA",
+     "presentation": "60 mg comp",
+     "route": "VO",
+     "dose": "60 mg",
+     "frequency": "cada 8 h",
+     "duration": "",
+     "max": "360 mg/día"
+    },
+    {
+     "indication": "FA rápida (urgencias)",
+     "presentation": "25 mg vial",
+     "route": "IV en 2 min",
+     "dose": "0,25 mg/kg",
+     "frequency": "repetir 0,35 mg/kg a los 15 min",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Verapamilo",
+   "brands": [
+    "Manidon"
+   ],
+   "folder": "Cardiovascular › Antiarrítmicos y control de frecuencia",
+   "presentations": [
+    "80 mg comp",
+    "5 mg/2 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Taquicardia supraventricular",
+     "presentation": "5 mg/2 ml amp",
+     "route": "IV en 2 min",
+     "dose": "5 mg",
+     "frequency": "repetir 5 mg a los 10 min",
+     "duration": "",
+     "max": "20 mg"
+    }
+   ]
+  },
+  {
+   "name": "Digoxina",
+   "brands": [
+    "Digoxina Kern",
+    "Lanacordin"
+   ],
+   "folder": "Cardiovascular › Antiarrítmicos y control de frecuencia",
+   "presentations": [
+    "0,25 mg comp",
+    "0,25 mg/1 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Control de frecuencia en FA con IC",
+     "presentation": "0,25 mg comp",
+     "route": "VO",
+     "dose": "0,125-0,25 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico (ajustar a FG y edad)",
+     "max": ""
+    },
+    {
+     "indication": "FA rápida (urgencias)",
+     "presentation": "0,25 mg/1 ml amp",
+     "route": "IV lenta",
+     "dose": "0,25-0,5 mg",
+     "frequency": "después 0,25 mg cada 4-6 h",
+     "duration": "",
+     "max": "1 mg en 24 h"
+    }
+   ]
+  },
+  {
+   "name": "Adenosina",
+   "brands": [
+    "Adenocor"
+   ],
+   "folder": "Cardiovascular › Antiarrítmicos y control de frecuencia",
+   "presentations": [
+    "6 mg/2 ml vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Taquicardia supraventricular",
+     "presentation": "6 mg/2 ml vial",
+     "route": "IV en bolo rápido + 20 ml SF",
+     "dose": "6 mg",
+     "frequency": "si no cede: 12 mg y después 18 mg",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Flecainida",
+   "brands": [
+    "Apocard"
+   ],
+   "folder": "Cardiovascular › Antiarrítmicos y control de frecuencia",
+   "presentations": [
+    "100 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "FA paroxística («pastilla en el bolsillo»)",
+     "presentation": "100 mg comp",
+     "route": "VO",
+     "dose": "200 mg (< 70 kg) o 300 mg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": "solo sin cardiopatía estructural"
+    }
+   ]
+  },
+  {
+   "name": "Nitroglicerina transdérmica",
+   "brands": [
+    "Nitroplast",
+    "Trinipatch"
+   ],
+   "folder": "Cardiovascular › Antianginosos",
+   "presentations": [
+    "5 mg/24 h parche",
+    "10 mg/24 h parche",
+    "15 mg/24 h parche"
+   ],
+   "regimens": [
+    {
+     "indication": "Angina estable",
+     "presentation": "10 mg/24 h parche",
+     "route": "Transdérmica",
+     "dose": "1 parche",
+     "frequency": "12-14 h al día (retirar por la noche)",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Mononitrato de isosorbida",
+   "brands": [
+    "Uniket retard"
+   ],
+   "folder": "Cardiovascular › Antianginosos",
+   "presentations": [
+    "50 mg cáps retard"
+   ],
+   "regimens": [
+    {
+     "indication": "Angina estable",
+     "presentation": "50 mg cáps retard",
+     "route": "VO",
+     "dose": "50 mg",
+     "frequency": "cada 24 h por la mañana",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ranolazina",
+   "brands": [
+    "Ranexa"
+   ],
+   "folder": "Cardiovascular › Antianginosos",
+   "presentations": [
+    "375 mg comp",
+    "500 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Angina estable (2.ª línea)",
+     "presentation": "375 mg comp",
+     "route": "VO",
+     "dose": "375 mg",
+     "frequency": "cada 12 h",
+     "duration": "",
+     "max": "750 mg/12 h"
+    }
+   ]
+  },
+  {
+   "name": "Ivabradina",
+   "brands": [
+    "Procoralan"
+   ],
+   "folder": "Cardiovascular › Antianginosos",
+   "presentations": [
+    "5 mg comp",
+    "7,5 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Angina / IC en ritmo sinusal",
+     "presentation": "5 mg comp",
+     "route": "VO con comida",
+     "dose": "5 mg",
+     "frequency": "cada 12 h",
+     "duration": "",
+     "max": "7,5 mg/12 h"
+    }
+   ]
+  },
+  {
+   "name": "Ticagrelor",
+   "brands": [
+    "Brilique"
+   ],
+   "folder": "Cardiovascular › Antiagregantes",
+   "presentations": [
+    "90 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Síndrome coronario agudo (según protocolo)",
+     "presentation": "90 mg comp",
+     "route": "VO",
+     "dose": "180 mg de carga",
+     "frequency": "después 90 mg cada 12 h",
+     "duration": "12 meses",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Prasugrel",
+   "brands": [
+    "Efient"
+   ],
+   "folder": "Cardiovascular › Antiagregantes",
+   "presentations": [
+    "10 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "SCA con angioplastia (según protocolo)",
+     "presentation": "10 mg comp",
+     "route": "VO",
+     "dose": "60 mg de carga",
+     "frequency": "después 10 mg cada 24 h",
+     "duration": "12 meses",
+     "max": "5 mg si ≥ 75 años o < 60 kg"
+    }
+   ]
+  },
+  {
+   "name": "Rivaroxabán",
+   "brands": [
+    "Xarelto"
+   ],
+   "folder": "Cardiovascular › Anticoagulantes",
+   "presentations": [
+    "10 mg comp",
+    "15 mg comp",
+    "20 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "FA no valvular",
+     "presentation": "20 mg comp",
+     "route": "VO con comida",
+     "dose": "20 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "15 mg si FG 15-49"
+    },
+    {
+     "indication": "TVP/TEP",
+     "presentation": "15 mg comp",
+     "route": "VO con comida",
+     "dose": "15 mg",
+     "frequency": "cada 12 h 21 días, luego 20 mg cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Edoxabán",
+   "brands": [
+    "Lixiana"
+   ],
+   "folder": "Cardiovascular › Anticoagulantes",
+   "presentations": [
+    "30 mg comp",
+    "60 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "FA no valvular",
+     "presentation": "60 mg comp",
+     "route": "VO",
+     "dose": "60 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "30 mg si FG 15-50, ≤ 60 kg o inhibidores de P-gp"
+    }
+   ]
+  },
+  {
+   "name": "Dabigatrán",
+   "brands": [
+    "Pradaxa"
+   ],
+   "folder": "Cardiovascular › Anticoagulantes",
+   "presentations": [
+    "110 mg cáps",
+    "150 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "FA no valvular",
+     "presentation": "150 mg cáps",
+     "route": "VO",
+     "dose": "150 mg",
+     "frequency": "cada 12 h",
+     "duration": "crónico",
+     "max": "110 mg/12 h si ≥ 80 años o riesgo de sangrado"
+    }
+   ]
+  },
+  {
+   "name": "Acenocumarol",
+   "brands": [
+    "Sintrom"
+   ],
+   "folder": "Cardiovascular › Anticoagulantes",
+   "presentations": [
+    "1 mg comp",
+    "4 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Anticoagulación oral",
+     "presentation": "4 mg comp",
+     "route": "VO",
+     "dose": "según INR",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "INR objetivo habitual 2-3"
+    }
+   ]
+  },
+  {
+   "name": "Bemiparina",
+   "brands": [
+    "Hibor"
+   ],
+   "folder": "Cardiovascular › Anticoagulantes",
+   "presentations": [
+    "2.500 UI jer",
+    "3.500 UI jer",
+    "5.000-10.000 UI jer"
+   ],
+   "regimens": [
+    {
+     "indication": "Profilaxis de ETV",
+     "presentation": "3.500 UI jer",
+     "route": "SC",
+     "dose": "2.500-3.500 UI",
+     "frequency": "cada 24 h",
+     "duration": "mientras dure el riesgo",
+     "max": ""
+    },
+    {
+     "indication": "Tratamiento de TVP",
+     "presentation": "",
+     "route": "SC",
+     "dose": "115 UI/kg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Tinzaparina",
+   "brands": [
+    "Innohep"
+   ],
+   "folder": "Cardiovascular › Anticoagulantes",
+   "presentations": [
+    "3.500 UI jer",
+    "10.000-18.000 UI jer"
+   ],
+   "regimens": [
+    {
+     "indication": "Tratamiento de TVP/TEP",
+     "presentation": "",
+     "route": "SC",
+     "dose": "175 UI/kg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Heparina sódica",
+   "brands": [
+    "Heparina sódica Chiesi"
+   ],
+   "folder": "Cardiovascular › Anticoagulantes",
+   "presentations": [
+    "1% (1.000 UI/ml) vial",
+    "5% (5.000 UI/ml) vial"
+   ],
+   "regimens": [
+    {
+     "indication": "SCA o TEP (según protocolo)",
+     "presentation": "5% (5.000 UI/ml) vial",
+     "route": "IV en bolo",
+     "dose": "60-80 UI/kg",
+     "frequency": "después perfusión según TTPa",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Rosuvastatina",
+   "brands": [
+    "Crestor"
+   ],
+   "folder": "Cardiovascular › Hipolipemiantes",
+   "presentations": [
+    "5 mg comp",
+    "10 mg comp",
+    "20 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipercolesterolemia / prevención CV",
+     "presentation": "10 mg comp",
+     "route": "VO",
+     "dose": "5-20 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "40 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Simvastatina",
+   "brands": [
+    "Zocor"
+   ],
+   "folder": "Cardiovascular › Hipolipemiantes",
+   "presentations": [
+    "20 mg comp",
+    "40 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipercolesterolemia",
+     "presentation": "20 mg comp",
+     "route": "VO por la noche",
+     "dose": "20-40 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "40 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Ezetimiba",
+   "brands": [
+    "Ezetrol"
+   ],
+   "folder": "Cardiovascular › Hipolipemiantes",
+   "presentations": [
+    "10 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipercolesterolemia (con estatina)",
+     "presentation": "10 mg comp",
+     "route": "VO",
+     "dose": "10 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Fenofibrato",
+   "brands": [
+    "Secalip"
+   ],
+   "folder": "Cardiovascular › Hipolipemiantes",
+   "presentations": [
+    "145 mg comp",
+    "160 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertrigliceridemia",
+     "presentation": "145 mg comp",
+     "route": "VO",
+     "dose": "145 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Sacubitrilo/valsartán",
+   "brands": [
+    "Entresto"
+   ],
+   "folder": "Cardiovascular › Insuficiencia cardiaca",
+   "presentations": [
+    "24/26 mg comp",
+    "49/51 mg comp",
+    "97/103 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "IC con FE reducida",
+     "presentation": "49/51 mg comp",
+     "route": "VO",
+     "dose": "49/51 mg",
+     "frequency": "cada 12 h; subir a las 2-4 semanas",
+     "duration": "crónico",
+     "max": "97/103 mg/12 h"
+    }
+   ]
+  },
+  {
+   "name": "Dapagliflozina",
+   "brands": [
+    "Forxiga"
+   ],
+   "folder": "Cardiovascular › Insuficiencia cardiaca",
+   "presentations": [
+    "10 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "IC, ERC o DM2",
+     "presentation": "10 mg comp",
+     "route": "VO",
+     "dose": "10 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Terbutalina",
+   "brands": [
+    "Terbasmin"
+   ],
+   "folder": "Respiratorio › Broncodilatadores de rescate",
+   "presentations": [
+    "500 mcg/inh Turbuhaler",
+    "0,5 mg/ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Broncoespasmo",
+     "presentation": "500 mcg/inh Turbuhaler",
+     "route": "Inhalada",
+     "dose": "1 inhalación",
+     "frequency": "a demanda",
+     "duration": "",
+     "max": "6 inh/día"
+    },
+    {
+     "indication": "Crisis asmática grave sin respuesta",
+     "presentation": "0,5 mg/ml amp",
+     "route": "SC",
+     "dose": "0,25-0,5 mg",
+     "frequency": "repetir a los 20 min",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Fluticasona/salmeterol",
+   "brands": [
+    "Seretide",
+    "Inaladuo",
+    "Plusvent"
+   ],
+   "folder": "Respiratorio › Inhaladores de mantenimiento",
+   "presentations": [
+    "250/50 mcg Accuhaler",
+    "500/50 mcg Accuhaler",
+    "125/25 mcg aerosol"
+   ],
+   "regimens": [
+    {
+     "indication": "Asma o EPOC (mantenimiento)",
+     "presentation": "250/50 mcg Accuhaler",
+     "route": "Inhalada",
+     "dose": "1 inhalación",
+     "frequency": "cada 12 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Beclometasona/formoterol",
+   "brands": [
+    "Foster",
+    "Formodual"
+   ],
+   "folder": "Respiratorio › Inhaladores de mantenimiento",
+   "presentations": [
+    "100/6 mcg aerosol",
+    "100/6 mcg Nexthaler"
+   ],
+   "regimens": [
+    {
+     "indication": "Asma o EPOC (mantenimiento)",
+     "presentation": "100/6 mcg aerosol",
+     "route": "Inhalada con cámara",
+     "dose": "1-2 inhalaciones",
+     "frequency": "cada 12 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Fluticasona furoato/vilanterol",
+   "brands": [
+    "Relvar Ellipta",
+    "Revinty Ellipta"
+   ],
+   "folder": "Respiratorio › Inhaladores de mantenimiento",
+   "presentations": [
+    "92/22 mcg Ellipta",
+    "184/22 mcg Ellipta"
+   ],
+   "regimens": [
+    {
+     "indication": "Asma o EPOC (mantenimiento)",
+     "presentation": "92/22 mcg Ellipta",
+     "route": "Inhalada",
+     "dose": "1 inhalación",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Umeclidinio/vilanterol",
+   "brands": [
+    "Anoro Ellipta"
+   ],
+   "folder": "Respiratorio › Inhaladores de mantenimiento",
+   "presentations": [
+    "55/22 mcg Ellipta"
+   ],
+   "regimens": [
+    {
+     "indication": "EPOC (mantenimiento)",
+     "presentation": "55/22 mcg Ellipta",
+     "route": "Inhalada",
+     "dose": "1 inhalación",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Indacaterol/glicopirronio",
+   "brands": [
+    "Ultibro Breezhaler"
+   ],
+   "folder": "Respiratorio › Inhaladores de mantenimiento",
+   "presentations": [
+    "85/43 mcg cáps inhalación"
+   ],
+   "regimens": [
+    {
+     "indication": "EPOC (mantenimiento)",
+     "presentation": "85/43 mcg cáps inhalación",
+     "route": "Inhalada",
+     "dose": "1 cápsula",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Fluticasona furoato/umeclidinio/vilanterol",
+   "brands": [
+    "Trelegy Ellipta"
+   ],
+   "folder": "Respiratorio › Inhaladores de mantenimiento",
+   "presentations": [
+    "92/55/22 mcg Ellipta"
+   ],
+   "regimens": [
+    {
+     "indication": "EPOC con exacerbaciones (triple terapia)",
+     "presentation": "92/55/22 mcg Ellipta",
+     "route": "Inhalada",
+     "dose": "1 inhalación",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Budesonida",
+   "brands": [
+    "Pulmicort"
+   ],
+   "folder": "Respiratorio › Inhaladores de mantenimiento",
+   "presentations": [
+    "200 mcg/inh Turbuhaler",
+    "0,5 mg/2 ml susp nebulizar"
+   ],
+   "regimens": [
+    {
+     "indication": "Asma (mantenimiento)",
+     "presentation": "200 mcg/inh Turbuhaler",
+     "route": "Inhalada",
+     "dose": "200-400 mcg",
+     "frequency": "cada 12 h",
+     "duration": "crónico",
+     "max": ""
+    },
+    {
+     "indication": "Laringitis (crup)",
+     "presentation": "0,5 mg/2 ml susp nebulizar",
+     "route": "Nebulizada",
+     "dose": "2 mg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Montelukast",
+   "brands": [
+    "Singulair"
+   ],
+   "folder": "Respiratorio › Inhaladores de mantenimiento",
+   "presentations": [
+    "10 mg comp",
+    "4 mg y 5 mg comp masticables"
+   ],
+   "regimens": [
+    {
+     "indication": "Asma o rinitis alérgica",
+     "presentation": "10 mg comp",
+     "route": "VO por la noche",
+     "dose": "10 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Hidrocortisona",
+   "brands": [
+    "Actocortina",
+    "Hidroaltesona"
+   ],
+   "folder": "Respiratorio › Corticoides sistémicos",
+   "presentations": [
+    "100 mg vial",
+    "500 mg vial",
+    "20 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Crisis asmática grave / anafilaxia (adyuvante)",
+     "presentation": "100 mg vial",
+     "route": "IV",
+     "dose": "100-200 mg",
+     "frequency": "cada 6 h",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Crisis suprarrenal",
+     "presentation": "100 mg vial",
+     "route": "IV o IM",
+     "dose": "100 mg",
+     "frequency": "después 50 mg cada 6 h",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Insuficiencia suprarrenal (mantenimiento)",
+     "presentation": "20 mg comp",
+     "route": "VO",
+     "dose": "15-25 mg/día repartidos",
+     "frequency": "2-3 tomas",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Deflazacort",
+   "brands": [
+    "Dezacor",
+    "Zamene"
+   ],
+   "folder": "Respiratorio › Corticoides sistémicos",
+   "presentations": [
+    "6 mg comp",
+    "30 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Corticoterapia oral",
+     "presentation": "30 mg comp",
+     "route": "VO por la mañana",
+     "dose": "6-90 mg",
+     "frequency": "cada 24 h",
+     "duration": "pauta descendente según duración",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Cloperastina",
+   "brands": [
+    "Flutox"
+   ],
+   "folder": "Respiratorio › Antitusivos y mucolíticos",
+   "presentations": [
+    "3,54 mg/ml jarabe",
+    "10 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Tos seca",
+     "presentation": "3,54 mg/ml jarabe",
+     "route": "VO",
+     "dose": "10-20 mg",
+     "frequency": "cada 8 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Codeína",
+   "brands": [
+    "Codeisan"
+   ],
+   "folder": "Respiratorio › Antitusivos y mucolíticos",
+   "presentations": [
+    "28,7 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Tos seca rebelde",
+     "presentation": "28,7 mg comp",
+     "route": "VO",
+     "dose": "1 comp",
+     "frequency": "cada 6-8 h",
+     "duration": "pocos días",
+     "max": "120 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Ambroxol",
+   "brands": [
+    "Mucosan"
+   ],
+   "folder": "Respiratorio › Antitusivos y mucolíticos",
+   "presentations": [
+    "30 mg comp",
+    "15 mg/5 ml jarabe"
+   ],
+   "regimens": [
+    {
+     "indication": "Secreciones espesas",
+     "presentation": "30 mg comp",
+     "route": "VO",
+     "dose": "30 mg",
+     "frequency": "cada 8 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Oxígeno medicinal",
+   "brands": [
+    "Oxígeno medicinal"
+   ],
+   "folder": "Respiratorio › Oxigenoterapia",
+   "presentations": [
+    "bala o concentrador",
+    "gafas nasales",
+    "mascarilla con reservorio"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipoxemia",
+     "presentation": "gafas nasales",
+     "route": "Inhalado",
+     "dose": "1-4 l/min",
+     "frequency": "objetivo SatO2 94-98% (88-92% en EPOC)",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Hipoxemia grave / intoxicación por CO",
+     "presentation": "mascarilla con reservorio",
+     "route": "Inhalado",
+     "dose": "10-15 l/min",
+     "frequency": "",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Mometasona nasal",
+   "brands": [
+    "Nasonex"
+   ],
+   "folder": "Respiratorio › Rinitis y congestión nasal",
+   "presentations": [
+    "50 mcg/pulsación spray nasal"
+   ],
+   "regimens": [
+    {
+     "indication": "Rinitis alérgica / sinusitis",
+     "presentation": "50 mcg/pulsación spray nasal",
+     "route": "Intranasal",
+     "dose": "2 pulsaciones en cada fosa",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Fluticasona furoato nasal",
+   "brands": [
+    "Avamys"
+   ],
+   "folder": "Respiratorio › Rinitis y congestión nasal",
+   "presentations": [
+    "27,5 mcg/pulsación spray nasal"
+   ],
+   "regimens": [
+    {
+     "indication": "Rinitis alérgica",
+     "presentation": "27,5 mcg/pulsación spray nasal",
+     "route": "Intranasal",
+     "dose": "2 pulsaciones en cada fosa",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Oximetazolina",
+   "brands": [
+    "Utabon",
+    "Respibien"
+   ],
+   "folder": "Respiratorio › Rinitis y congestión nasal",
+   "presentations": [
+    "0,05% spray nasal"
+   ],
+   "regimens": [
+    {
+     "indication": "Congestión nasal",
+     "presentation": "0,05% spray nasal",
+     "route": "Intranasal",
+     "dose": "1-2 pulsaciones en cada fosa",
+     "frequency": "cada 12 h",
+     "duration": "máx 3 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Fenoximetilpenicilina (penicilina V)",
+   "brands": [
+    "Penilevel"
+   ],
+   "folder": "Antiinfecciosos › Penicilinas",
+   "presentations": [
+    "250 mg sobres",
+    "500 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Faringoamigdalitis estreptocócica",
+     "presentation": "500 mg comp",
+     "route": "VO",
+     "dose": "500 mg",
+     "frequency": "cada 12 h",
+     "duration": "10 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Penicilina G benzatina",
+   "brands": [
+    "Benzetacil",
+    "Lentocilin"
+   ],
+   "folder": "Antiinfecciosos › Penicilinas",
+   "presentations": [
+    "1.200.000 UI vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Faringoamigdalitis (mala adherencia) / sífilis precoz",
+     "presentation": "1.200.000 UI vial",
+     "route": "IM",
+     "dose": "1,2 MUI (sífilis 2,4 MUI)",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Cloxacilina",
+   "brands": [
+    "Orbenin"
+   ],
+   "folder": "Antiinfecciosos › Penicilinas",
+   "presentations": [
+    "500 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "Celulitis / infección cutánea estafilocócica",
+     "presentation": "500 mg cáps",
+     "route": "VO en ayunas",
+     "dose": "500 mg",
+     "frequency": "cada 6 h",
+     "duration": "7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Cefuroxima axetilo",
+   "brands": [
+    "Zinnat",
+    "Nivador"
+   ],
+   "folder": "Antiinfecciosos › Cefalosporinas",
+   "presentations": [
+    "250 mg comp",
+    "500 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Infección respiratoria o urinaria",
+     "presentation": "500 mg comp",
+     "route": "VO con comida",
+     "dose": "500 mg",
+     "frequency": "cada 12 h",
+     "duration": "7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Cefixima",
+   "brands": [
+    "Denvar"
+   ],
+   "folder": "Antiinfecciosos › Cefalosporinas",
+   "presentations": [
+    "400 mg cáps",
+    "200 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Infección urinaria / pielonefritis leve",
+     "presentation": "400 mg cáps",
+     "route": "VO",
+     "dose": "400 mg",
+     "frequency": "cada 24 h",
+     "duration": "7-10 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Cefadroxilo",
+   "brands": [
+    "Duracef"
+   ],
+   "folder": "Antiinfecciosos › Cefalosporinas",
+   "presentations": [
+    "500 mg cáps",
+    "1 g comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Infección cutánea / faringoamigdalitis",
+     "presentation": "1 g comp",
+     "route": "VO",
+     "dose": "1 g",
+     "frequency": "cada 12 h",
+     "duration": "7-10 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Cefditoreno",
+   "brands": [
+    "Meiact",
+    "Spectracef"
+   ],
+   "folder": "Antiinfecciosos › Cefalosporinas",
+   "presentations": [
+    "200 mg comp",
+    "400 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Infección respiratoria",
+     "presentation": "400 mg comp",
+     "route": "VO con comida",
+     "dose": "400 mg",
+     "frequency": "cada 12 h",
+     "duration": "5-7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Claritromicina",
+   "brands": [
+    "Klacid",
+    "Kofron"
+   ],
+   "folder": "Antiinfecciosos › Macrólidos",
+   "presentations": [
+    "500 mg comp",
+    "500 mg comp liberación prolongada"
+   ],
+   "regimens": [
+    {
+     "indication": "Infección respiratoria (alergia a penicilina)",
+     "presentation": "500 mg comp",
+     "route": "VO",
+     "dose": "500 mg",
+     "frequency": "cada 12 h",
+     "duration": "7 días",
+     "max": ""
+    },
+    {
+     "indication": "Erradicación de H. pylori (parte de pauta)",
+     "presentation": "500 mg comp",
+     "route": "VO",
+     "dose": "500 mg",
+     "frequency": "cada 12 h",
+     "duration": "14 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ciprofloxacino",
+   "brands": [
+    "Baycip"
+   ],
+   "folder": "Antiinfecciosos › Quinolonas",
+   "presentations": [
+    "250 mg comp",
+    "500 mg comp",
+    "750 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Pielonefritis no complicada / prostatitis",
+     "presentation": "500 mg comp",
+     "route": "VO",
+     "dose": "500 mg",
+     "frequency": "cada 12 h",
+     "duration": "7 días (prostatitis 4 semanas)",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Moxifloxacino",
+   "brands": [
+    "Actira",
+    "Octegra"
+   ],
+   "folder": "Antiinfecciosos › Quinolonas",
+   "presentations": [
+    "400 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Neumonía o sinusitis (alergia a betalactámicos)",
+     "presentation": "400 mg comp",
+     "route": "VO",
+     "dose": "400 mg",
+     "frequency": "cada 24 h",
+     "duration": "5-7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Doxiciclina",
+   "brands": [
+    "Vibracina",
+    "Proderma"
+   ],
+   "folder": "Antiinfecciosos › Otros antibacterianos",
+   "presentations": [
+    "100 mg cáps",
+    "100 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Picadura de garrapata (Lyme, rickettsias) / neumonía atípica",
+     "presentation": "100 mg cáps",
+     "route": "VO con agua, sin tumbarse",
+     "dose": "100 mg",
+     "frequency": "cada 12 h",
+     "duration": "7-14 días",
+     "max": ""
+    },
+    {
+     "indication": "Profilaxis tras picadura de garrapata (Lyme, si procede)",
+     "presentation": "100 mg cáps",
+     "route": "VO",
+     "dose": "200 mg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Cotrimoxazol",
+   "brands": [
+    "Septrin Forte"
+   ],
+   "folder": "Antiinfecciosos › Otros antibacterianos",
+   "presentations": [
+    "800/160 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Infección urinaria / cutánea (SARM comunitario)",
+     "presentation": "800/160 mg comp",
+     "route": "VO",
+     "dose": "1 comp",
+     "frequency": "cada 12 h",
+     "duration": "3-7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Clindamicina",
+   "brands": [
+    "Dalacin"
+   ],
+   "folder": "Antiinfecciosos › Otros antibacterianos",
+   "presentations": [
+    "150 mg cáps",
+    "300 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "Infección cutánea o dental (alergia a penicilina)",
+     "presentation": "300 mg cáps",
+     "route": "VO",
+     "dose": "300 mg",
+     "frequency": "cada 8 h",
+     "duration": "7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Metronidazol",
+   "brands": [
+    "Flagyl"
+   ],
+   "folder": "Antiinfecciosos › Otros antibacterianos",
+   "presentations": [
+    "250 mg comp",
+    "500 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Vaginosis / tricomoniasis / C. difficile",
+     "presentation": "500 mg comp",
+     "route": "VO",
+     "dose": "500 mg",
+     "frequency": "cada 8-12 h",
+     "duration": "7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Gentamicina",
+   "brands": [
+    "Gentamicina Braun"
+   ],
+   "folder": "Antiinfecciosos › Otros antibacterianos",
+   "presentations": [
+    "80 mg/2 ml amp",
+    "240 mg/80 ml vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Pielonefritis (dosis única antes del antibiótico oral)",
+     "presentation": "80 mg/2 ml amp",
+     "route": "IM o IV",
+     "dose": "5 mg/kg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": "ajustar a FG"
+    }
+   ]
+  },
+  {
+   "name": "Aciclovir",
+   "brands": [
+    "Zovirax"
+   ],
+   "folder": "Antiinfecciosos › Antivirales",
+   "presentations": [
+    "200 mg comp",
+    "800 mg comp",
+    "5% crema"
+   ],
+   "regimens": [
+    {
+     "indication": "Herpes zóster",
+     "presentation": "800 mg comp",
+     "route": "VO",
+     "dose": "800 mg",
+     "frequency": "5 veces al día",
+     "duration": "7 días",
+     "max": ""
+    },
+    {
+     "indication": "Herpes labial",
+     "presentation": "5% crema",
+     "route": "Tópica",
+     "dose": "aplicación",
+     "frequency": "5 veces al día",
+     "duration": "5 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Famciclovir",
+   "brands": [
+    "Famvir"
+   ],
+   "folder": "Antiinfecciosos › Antivirales",
+   "presentations": [
+    "250 mg comp",
+    "500 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Herpes zóster",
+     "presentation": "500 mg comp",
+     "route": "VO",
+     "dose": "500 mg",
+     "frequency": "cada 8 h",
+     "duration": "7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Oseltamivir",
+   "brands": [
+    "Tamiflu"
+   ],
+   "folder": "Antiinfecciosos › Antivirales",
+   "presentations": [
+    "75 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "Gripe en paciente de riesgo (< 48 h)",
+     "presentation": "75 mg cáps",
+     "route": "VO",
+     "dose": "75 mg",
+     "frequency": "cada 12 h",
+     "duration": "5 días",
+     "max": ""
+    },
+    {
+     "indication": "Profilaxis postexposición",
+     "presentation": "75 mg cáps",
+     "route": "VO",
+     "dose": "75 mg",
+     "frequency": "cada 24 h",
+     "duration": "10 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Terbinafina",
+   "brands": [
+    "Lamisil"
+   ],
+   "folder": "Antiinfecciosos › Antifúngicos",
+   "presentations": [
+    "250 mg comp",
+    "1% crema"
+   ],
+   "regimens": [
+    {
+     "indication": "Onicomicosis",
+     "presentation": "250 mg comp",
+     "route": "VO",
+     "dose": "250 mg",
+     "frequency": "cada 24 h",
+     "duration": "6 semanas (manos) - 12 semanas (pies)",
+     "max": ""
+    },
+    {
+     "indication": "Tiña cutánea",
+     "presentation": "1% crema",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 12-24 h",
+     "duration": "1-2 semanas",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Nistatina",
+   "brands": [
+    "Mycostatin"
+   ],
+   "folder": "Antiinfecciosos › Antifúngicos",
+   "presentations": [
+    "100.000 UI/ml suspensión"
+   ],
+   "regimens": [
+    {
+     "indication": "Candidiasis oral",
+     "presentation": "100.000 UI/ml suspensión",
+     "route": "VO (enjuagar y tragar)",
+     "dose": "4-6 ml",
+     "frequency": "cada 6 h",
+     "duration": "7-14 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Miconazol oral",
+   "brands": [
+    "Daktarin oral"
+   ],
+   "folder": "Antiinfecciosos › Antifúngicos",
+   "presentations": [
+    "2% gel oral"
+   ],
+   "regimens": [
+    {
+     "indication": "Candidiasis oral",
+     "presentation": "2% gel oral",
+     "route": "Bucal",
+     "dose": "2,5 ml",
+     "frequency": "cada 6 h",
+     "duration": "7 días tras desaparecer",
+     "max": "interacción con acenocumarol"
+    }
+   ]
+  },
+  {
+   "name": "Albendazol",
+   "brands": [
+    "Eskazole"
+   ],
+   "folder": "Antiinfecciosos › Antiparasitarios",
+   "presentations": [
+    "400 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Parasitosis intestinal",
+     "presentation": "400 mg comp",
+     "route": "VO",
+     "dose": "400 mg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Permetrina",
+   "brands": [
+    "Sarcop",
+    "Permetrina Isdin"
+   ],
+   "folder": "Antiinfecciosos › Antiparasitarios",
+   "presentations": [
+    "5% crema"
+   ],
+   "regimens": [
+    {
+     "indication": "Sarna",
+     "presentation": "5% crema",
+     "route": "Tópica de cuello a pies",
+     "dose": "capa fina",
+     "frequency": "retirar a las 8-12 h",
+     "duration": "repetir a los 7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ivermectina",
+   "brands": [
+    "Ivergalen"
+   ],
+   "folder": "Antiinfecciosos › Antiparasitarios",
+   "presentations": [
+    "3 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Sarna (extensa o costrosa)",
+     "presentation": "3 mg comp",
+     "route": "VO en ayunas",
+     "dose": "200 mcg/kg",
+     "frequency": "dosis única",
+     "duration": "repetir a los 7-14 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Vacuna antitetánica-diftérica",
+   "brands": [
+    "Diftavax",
+    "Ditanrix"
+   ],
+   "folder": "Antiinfecciosos › Vacunas e inmunoglobulinas",
+   "presentations": [
+    "0,5 ml jer"
+   ],
+   "regimens": [
+    {
+     "indication": "Herida con vacunación incompleta o > 10 años",
+     "presentation": "0,5 ml jer",
+     "route": "IM deltoides",
+     "dose": "0,5 ml",
+     "frequency": "dosis única",
+     "duration": "completar pauta si procede",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Inmunoglobulina antitetánica",
+   "brands": [
+    "Gammatetanos"
+   ],
+   "folder": "Antiinfecciosos › Vacunas e inmunoglobulinas",
+   "presentations": [
+    "250 UI jer"
+   ],
+   "regimens": [
+    {
+     "indication": "Herida tetanígena con vacunación incompleta o desconocida",
+     "presentation": "250 UI jer",
+     "route": "IM (lugar distinto a la vacuna)",
+     "dose": "250 UI (500 UI si > 24 h o alto riesgo)",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Pantoprazol",
+   "brands": [
+    "Anagastra",
+    "Pantecta"
+   ],
+   "folder": "Digestivo › Antiácidos e IBP",
+   "presentations": [
+    "20 mg comp",
+    "40 mg comp",
+    "40 mg vial IV"
+   ],
+   "regimens": [
+    {
+     "indication": "Protección gástrica / ERGE",
+     "presentation": "20 mg comp",
+     "route": "VO en ayunas",
+     "dose": "20-40 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Hemorragia digestiva alta",
+     "presentation": "40 mg vial IV",
+     "route": "IV",
+     "dose": "80 mg en bolo",
+     "frequency": "después 40 mg cada 12 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Esomeprazol",
+   "brands": [
+    "Nexium",
+    "Axiago"
+   ],
+   "folder": "Digestivo › Antiácidos e IBP",
+   "presentations": [
+    "20 mg comp",
+    "40 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "ERGE",
+     "presentation": "40 mg comp",
+     "route": "VO en ayunas",
+     "dose": "20-40 mg",
+     "frequency": "cada 24 h",
+     "duration": "4-8 semanas",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Almagato",
+   "brands": [
+    "Almax"
+   ],
+   "folder": "Digestivo › Antiácidos e IBP",
+   "presentations": [
+    "1,5 g sobres",
+    "500 mg comp masticables"
+   ],
+   "regimens": [
+    {
+     "indication": "Pirosis",
+     "presentation": "1,5 g sobres",
+     "route": "VO",
+     "dose": "1,5 g",
+     "frequency": "tras las comidas",
+     "duration": "",
+     "max": "6 g/día"
+    }
+   ]
+  },
+  {
+   "name": "Domperidona",
+   "brands": [
+    "Motilium"
+   ],
+   "folder": "Digestivo › Antieméticos",
+   "presentations": [
+    "10 mg comp",
+    "1 mg/ml suspensión"
+   ],
+   "regimens": [
+    {
+     "indication": "Náuseas y vómitos",
+     "presentation": "10 mg comp",
+     "route": "VO",
+     "dose": "10 mg",
+     "frequency": "cada 8 h",
+     "duration": "máx 7 días",
+     "max": "30 mg/día; riesgo de QT"
+    }
+   ]
+  },
+  {
+   "name": "Doxilamina/piridoxina",
+   "brands": [
+    "Cariban"
+   ],
+   "folder": "Digestivo › Antieméticos",
+   "presentations": [
+    "10/10 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "Náuseas y vómitos del embarazo",
+     "presentation": "10/10 mg cáps",
+     "route": "VO",
+     "dose": "2 cáps por la noche",
+     "frequency": "subir hasta 4 cáps/día",
+     "duration": "",
+     "max": "4 cáps/día"
+    }
+   ]
+  },
+  {
+   "name": "Racecadotrilo",
+   "brands": [
+    "Tiorfan"
+   ],
+   "folder": "Digestivo › Antidiarreicos y rehidratación",
+   "presentations": [
+    "100 mg cáps",
+    "10 mg y 30 mg sobres"
+   ],
+   "regimens": [
+    {
+     "indication": "Diarrea aguda",
+     "presentation": "100 mg cáps",
+     "route": "VO",
+     "dose": "100 mg",
+     "frequency": "cada 8 h",
+     "duration": "hasta 7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Lactulosa",
+   "brands": [
+    "Duphalac"
+   ],
+   "folder": "Digestivo › Laxantes",
+   "presentations": [
+    "10 g/15 ml solución",
+    "10 g sobres"
+   ],
+   "regimens": [
+    {
+     "indication": "Estreñimiento",
+     "presentation": "10 g/15 ml solución",
+     "route": "VO",
+     "dose": "15-30 ml",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Encefalopatía hepática",
+     "presentation": "10 g/15 ml solución",
+     "route": "VO",
+     "dose": "30 ml",
+     "frequency": "cada 8 h (2-3 deposiciones blandas)",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Plantago ovata",
+   "brands": [
+    "Plantaben",
+    "Metamucil"
+   ],
+   "folder": "Digestivo › Laxantes",
+   "presentations": [
+    "3,5 g sobres"
+   ],
+   "regimens": [
+    {
+     "indication": "Estreñimiento / diarrea funcional",
+     "presentation": "3,5 g sobres",
+     "route": "VO con mucha agua",
+     "dose": "1 sobre",
+     "frequency": "cada 8-24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Bisacodilo",
+   "brands": [
+    "Dulcolaxo"
+   ],
+   "folder": "Digestivo › Laxantes",
+   "presentations": [
+    "5 mg comp",
+    "10 mg supositorios"
+   ],
+   "regimens": [
+    {
+     "indication": "Estreñimiento",
+     "presentation": "5 mg comp",
+     "route": "VO por la noche",
+     "dose": "5-10 mg",
+     "frequency": "cada 24 h",
+     "duration": "uso puntual",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Enema de fosfatos",
+   "brands": [
+    "Enema Casen"
+   ],
+   "folder": "Digestivo › Laxantes",
+   "presentations": [
+    "140 ml y 250 ml enema"
+   ],
+   "regimens": [
+    {
+     "indication": "Estreñimiento / impactación fecal",
+     "presentation": "250 ml enema",
+     "route": "Rectal",
+     "dose": "1 enema",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": "evitar en ERC y ancianos frágiles"
+    }
+   ]
+  },
+  {
+   "name": "Mebeverina",
+   "brands": [
+    "Duspatalin"
+   ],
+   "folder": "Digestivo › Espasmolíticos",
+   "presentations": [
+    "200 mg cáps retard"
+   ],
+   "regimens": [
+    {
+     "indication": "Síndrome de intestino irritable",
+     "presentation": "200 mg cáps retard",
+     "route": "VO",
+     "dose": "200 mg",
+     "frequency": "cada 12 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Otilonio bromuro",
+   "brands": [
+    "Spasmoctyl"
+   ],
+   "folder": "Digestivo › Espasmolíticos",
+   "presentations": [
+    "40 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Síndrome de intestino irritable",
+     "presentation": "40 mg comp",
+     "route": "VO",
+     "dose": "40 mg",
+     "frequency": "cada 8-12 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Simeticona",
+   "brands": [
+    "Aero Red"
+   ],
+   "folder": "Digestivo › Espasmolíticos",
+   "presentations": [
+    "40 mg comp",
+    "80 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Meteorismo",
+     "presentation": "80 mg comp",
+     "route": "VO tras las comidas",
+     "dose": "40-80 mg",
+     "frequency": "cada 8 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Hidrocortisona/lidocaína rectal",
+   "brands": [
+    "Anso",
+    "Hemoal"
+   ],
+   "folder": "Digestivo › Hemorroides y patología anal",
+   "presentations": [
+    "pomada rectal"
+   ],
+   "regimens": [
+    {
+     "indication": "Hemorroides",
+     "presentation": "pomada rectal",
+     "route": "Rectal",
+     "dose": "aplicación",
+     "frequency": "cada 8-12 h",
+     "duration": "máx 7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Sitagliptina",
+   "brands": [
+    "Januvia",
+    "Tesavel"
+   ],
+   "folder": "Endocrino y metabolismo › Antidiabéticos orales",
+   "presentations": [
+    "25 mg comp",
+    "50 mg comp",
+    "100 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Diabetes tipo 2",
+     "presentation": "100 mg comp",
+     "route": "VO",
+     "dose": "100 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "50 mg si FG 30-45; 25 mg si < 30"
+    }
+   ]
+  },
+  {
+   "name": "Metformina/sitagliptina",
+   "brands": [
+    "Janumet",
+    "Velmetia"
+   ],
+   "folder": "Endocrino y metabolismo › Antidiabéticos orales",
+   "presentations": [
+    "50/850 mg comp",
+    "50/1.000 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Diabetes tipo 2",
+     "presentation": "50/1.000 mg comp",
+     "route": "VO con comidas",
+     "dose": "1 comp",
+     "frequency": "cada 12 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Linagliptina",
+   "brands": [
+    "Trajenta"
+   ],
+   "folder": "Endocrino y metabolismo › Antidiabéticos orales",
+   "presentations": [
+    "5 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Diabetes tipo 2 (también con ERC)",
+     "presentation": "5 mg comp",
+     "route": "VO",
+     "dose": "5 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "sin ajuste renal"
+    }
+   ]
+  },
+  {
+   "name": "Gliclazida",
+   "brands": [
+    "Diamicron"
+   ],
+   "folder": "Endocrino y metabolismo › Antidiabéticos orales",
+   "presentations": [
+    "30 mg comp liberación modificada",
+    "60 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Diabetes tipo 2",
+     "presentation": "30 mg comp liberación modificada",
+     "route": "VO con el desayuno",
+     "dose": "30-120 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": "riesgo de hipoglucemia"
+    }
+   ]
+  },
+  {
+   "name": "Repaglinida",
+   "brands": [
+    "Novonorm"
+   ],
+   "folder": "Endocrino y metabolismo › Antidiabéticos orales",
+   "presentations": [
+    "0,5 mg comp",
+    "1 mg comp",
+    "2 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Diabetes tipo 2",
+     "presentation": "0,5 mg comp",
+     "route": "VO antes de cada comida",
+     "dose": "0,5-4 mg",
+     "frequency": "con cada comida principal",
+     "duration": "crónico",
+     "max": "16 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Semaglutida",
+   "brands": [
+    "Ozempic",
+    "Rybelsus (oral)"
+   ],
+   "folder": "Endocrino y metabolismo › Antidiabéticos inyectables (GLP-1)",
+   "presentations": [
+    "0,25-0,5 mg pluma",
+    "1 mg pluma",
+    "3, 7 y 14 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "DM2 / obesidad con DM2",
+     "presentation": "0,25-0,5 mg pluma",
+     "route": "SC",
+     "dose": "0,25 mg",
+     "frequency": "semanal 4 semanas, luego 0,5 mg y subir a 1 mg",
+     "duration": "crónico",
+     "max": "2 mg/semana"
+    }
+   ]
+  },
+  {
+   "name": "Dulaglutida",
+   "brands": [
+    "Trulicity"
+   ],
+   "folder": "Endocrino y metabolismo › Antidiabéticos inyectables (GLP-1)",
+   "presentations": [
+    "1,5 mg pluma",
+    "3 mg pluma"
+   ],
+   "regimens": [
+    {
+     "indication": "Diabetes tipo 2",
+     "presentation": "1,5 mg pluma",
+     "route": "SC",
+     "dose": "1,5 mg",
+     "frequency": "1 vez a la semana",
+     "duration": "crónico",
+     "max": "4,5 mg/semana"
+    }
+   ]
+  },
+  {
+   "name": "Liraglutida",
+   "brands": [
+    "Victoza"
+   ],
+   "folder": "Endocrino y metabolismo › Antidiabéticos inyectables (GLP-1)",
+   "presentations": [
+    "6 mg/ml pluma"
+   ],
+   "regimens": [
+    {
+     "indication": "Diabetes tipo 2",
+     "presentation": "6 mg/ml pluma",
+     "route": "SC",
+     "dose": "0,6 mg",
+     "frequency": "cada 24 h; a la semana 1,2 mg",
+     "duration": "crónico",
+     "max": "1,8 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Insulina degludec",
+   "brands": [
+    "Tresiba"
+   ],
+   "folder": "Endocrino y metabolismo › Insulinas",
+   "presentations": [
+    "100 UI/ml FlexTouch",
+    "200 UI/ml FlexTouch"
+   ],
+   "regimens": [
+    {
+     "indication": "Insulina basal",
+     "presentation": "100 UI/ml FlexTouch",
+     "route": "SC",
+     "dose": "10 UI (o 0,1-0,2 UI/kg)",
+     "frequency": "cada 24 h",
+     "duration": "ajustar según glucemia basal",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Insulina NPH",
+   "brands": [
+    "Insulatard",
+    "Humulina NPH"
+   ],
+   "folder": "Endocrino y metabolismo › Insulinas",
+   "presentations": [
+    "100 UI/ml FlexPen / KwikPen"
+   ],
+   "regimens": [
+    {
+     "indication": "Insulina basal (intermedia)",
+     "presentation": "100 UI/ml FlexPen / KwikPen",
+     "route": "SC",
+     "dose": "0,1-0,2 UI/kg",
+     "frequency": "cada 12-24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Insulina aspart",
+   "brands": [
+    "NovoRapid",
+    "Fiasp"
+   ],
+   "folder": "Endocrino y metabolismo › Insulinas",
+   "presentations": [
+    "100 UI/ml FlexPen"
+   ],
+   "regimens": [
+    {
+     "indication": "Insulina prandial / corrección",
+     "presentation": "100 UI/ml FlexPen",
+     "route": "SC antes de comer",
+     "dose": "según pauta",
+     "frequency": "con las comidas",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Insulina lispro",
+   "brands": [
+    "Humalog"
+   ],
+   "folder": "Endocrino y metabolismo › Insulinas",
+   "presentations": [
+    "100 UI/ml KwikPen"
+   ],
+   "regimens": [
+    {
+     "indication": "Insulina prandial / corrección",
+     "presentation": "100 UI/ml KwikPen",
+     "route": "SC antes de comer",
+     "dose": "según pauta",
+     "frequency": "con las comidas",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Insulina regular",
+   "brands": [
+    "Actrapid",
+    "Humulina Regular"
+   ],
+   "folder": "Endocrino y metabolismo › Insulinas",
+   "presentations": [
+    "100 UI/ml vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Cetoacidosis / hiperglucemia grave (urgencias)",
+     "presentation": "100 UI/ml vial",
+     "route": "Perfusión IV",
+     "dose": "0,1 UI/kg/h",
+     "frequency": "ajustar según glucemia y K",
+     "duration": "",
+     "max": "no iniciar si K < 3,5"
+    }
+   ]
+  },
+  {
+   "name": "Tiamazol",
+   "brands": [
+    "Tirodril"
+   ],
+   "folder": "Endocrino y metabolismo › Tiroides",
+   "presentations": [
+    "5 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipertiroidismo",
+     "presentation": "5 mg comp",
+     "route": "VO",
+     "dose": "10-30 mg",
+     "frequency": "cada 24 h",
+     "duration": "según TSH/T4",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Cloruro potásico",
+   "brands": [
+    "Potasion",
+    "Boi-K aspártico"
+   ],
+   "folder": "Endocrino y metabolismo › Electrolitos",
+   "presentations": [
+    "600 mg cáps (8 mEq)",
+    "2 mEq/ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipopotasemia leve",
+     "presentation": "600 mg cáps (8 mEq)",
+     "route": "VO con comida",
+     "dose": "1-2 cáps",
+     "frequency": "cada 8-12 h",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Hipopotasemia (urgencias)",
+     "presentation": "2 mEq/ml amp",
+     "route": "IV diluido",
+     "dose": "10-20 mEq/h",
+     "frequency": "",
+     "duration": "",
+     "max": "≤ 10 mEq/h por vía periférica"
+    }
+   ]
+  },
+  {
+   "name": "Gluconato cálcico 10%",
+   "brands": [
+    "Suplecal",
+    "Gluconato cálcico Braun"
+   ],
+   "folder": "Endocrino y metabolismo › Electrolitos",
+   "presentations": [
+    "10% amp 10 ml"
+   ],
+   "regimens": [
+    {
+     "indication": "Hiperpotasemia con alteraciones en el ECG",
+     "presentation": "10% amp 10 ml",
+     "route": "IV en 5-10 min",
+     "dose": "10-30 ml",
+     "frequency": "repetir si persiste el ECG",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Bicarbonato sódico 1 M",
+   "brands": [
+    "Bicarbonato 1 M Braun"
+   ],
+   "folder": "Endocrino y metabolismo › Electrolitos",
+   "presentations": [
+    "1 M (1 mEq/ml) 250 ml"
+   ],
+   "regimens": [
+    {
+     "indication": "Hiperpotasemia con acidosis / intoxicación por tricíclicos",
+     "presentation": "1 M (1 mEq/ml) 250 ml",
+     "route": "IV",
+     "dose": "1-2 mEq/kg",
+     "frequency": "en 10-20 min",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Cloruro sódico 3%",
+   "brands": [
+    "Suero hipertónico 3%"
+   ],
+   "folder": "Endocrino y metabolismo › Electrolitos",
+   "presentations": [
+    "3% 100 ml",
+    "3% 250 ml"
+   ],
+   "regimens": [
+    {
+     "indication": "Hiponatremia grave sintomática",
+     "presentation": "3% 100 ml",
+     "route": "IV",
+     "dose": "150 ml (o 2 ml/kg)",
+     "frequency": "en 20 min; repetir hasta 2-3 veces",
+     "duration": "",
+     "max": "no subir Na > 10 mEq/l en 24 h"
+    }
+   ]
+  },
+  {
+   "name": "Calcifediol",
+   "brands": [
+    "Hidroferol"
+   ],
+   "folder": "Endocrino y metabolismo › Electrolitos",
+   "presentations": [
+    "0,266 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "Déficit de vitamina D",
+     "presentation": "0,266 mg cáps",
+     "route": "VO",
+     "dose": "1 cáps",
+     "frequency": "cada 15-30 días",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Valproato sódico",
+   "brands": [
+    "Depakine"
+   ],
+   "folder": "Neurología y psiquiatría › Anticonvulsivantes",
+   "presentations": [
+    "200 mg comp",
+    "500 mg comp",
+    "400 mg vial IV"
+   ],
+   "regimens": [
+    {
+     "indication": "Estatus epiléptico (2.ª línea)",
+     "presentation": "400 mg vial IV",
+     "route": "IV en 10 min",
+     "dose": "20-40 mg/kg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": "3 g; no en embarazo"
+    }
+   ]
+  },
+  {
+   "name": "Lacosamida",
+   "brands": [
+    "Vimpat"
+   ],
+   "folder": "Neurología y psiquiatría › Anticonvulsivantes",
+   "presentations": [
+    "50 mg comp",
+    "200 mg/20 ml vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Crisis focales / estatus (2.ª línea)",
+     "presentation": "200 mg/20 ml vial",
+     "route": "IV en 15-60 min",
+     "dose": "200-400 mg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Clonazepam",
+   "brands": [
+    "Rivotril"
+   ],
+   "folder": "Neurología y psiquiatría › Anticonvulsivantes",
+   "presentations": [
+    "0,5 mg comp",
+    "2 mg comp",
+    "1 mg/1 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Crisis convulsiva",
+     "presentation": "1 mg/1 ml amp",
+     "route": "IV lenta",
+     "dose": "1 mg",
+     "frequency": "repetir si persiste",
+     "duration": "",
+     "max": "4 mg"
+    }
+   ]
+  },
+  {
+   "name": "Rizatriptán",
+   "brands": [
+    "Maxalt",
+    "Maxalt Max"
+   ],
+   "folder": "Neurología y psiquiatría › Migraña y cefalea",
+   "presentations": [
+    "10 mg comp",
+    "10 mg liotabs"
+   ],
+   "regimens": [
+    {
+     "indication": "Crisis de migraña",
+     "presentation": "10 mg liotabs",
+     "route": "VO",
+     "dose": "10 mg",
+     "frequency": "repetir a las 2 h si reaparece",
+     "duration": "",
+     "max": "20 mg/día (5 mg con propranolol)"
+    }
+   ]
+  },
+  {
+   "name": "Zolmitriptán",
+   "brands": [
+    "Zomig",
+    "Zomig Flas"
+   ],
+   "folder": "Neurología y psiquiatría › Migraña y cefalea",
+   "presentations": [
+    "2,5 mg comp",
+    "5 mg comp",
+    "5 mg spray nasal"
+   ],
+   "regimens": [
+    {
+     "indication": "Crisis de migraña",
+     "presentation": "2,5 mg comp",
+     "route": "VO",
+     "dose": "2,5-5 mg",
+     "frequency": "repetir a las 2 h si reaparece",
+     "duration": "",
+     "max": "10 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Almotriptán",
+   "brands": [
+    "Almogran"
+   ],
+   "folder": "Neurología y psiquiatría › Migraña y cefalea",
+   "presentations": [
+    "12,5 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Crisis de migraña",
+     "presentation": "12,5 mg comp",
+     "route": "VO",
+     "dose": "12,5 mg",
+     "frequency": "repetir a las 2 h si reaparece",
+     "duration": "",
+     "max": "25 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Propranolol",
+   "brands": [
+    "Sumial"
+   ],
+   "folder": "Neurología y psiquiatría › Migraña y cefalea",
+   "presentations": [
+    "10 mg comp",
+    "40 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Profilaxis de migraña",
+     "presentation": "40 mg comp",
+     "route": "VO",
+     "dose": "20-40 mg",
+     "frequency": "cada 12 h",
+     "duration": "≥ 3 meses",
+     "max": "160 mg/día"
+    },
+    {
+     "indication": "Temblor esencial / ansiedad somática",
+     "presentation": "10 mg comp",
+     "route": "VO",
+     "dose": "10-40 mg",
+     "frequency": "cada 8-12 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Topiramato",
+   "brands": [
+    "Topamax"
+   ],
+   "folder": "Neurología y psiquiatría › Migraña y cefalea",
+   "presentations": [
+    "25 mg comp",
+    "50 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Profilaxis de migraña",
+     "presentation": "25 mg comp",
+     "route": "VO",
+     "dose": "25 mg",
+     "frequency": "por la noche; subir 25 mg cada semana hasta 50 mg cada 12 h",
+     "duration": "≥ 3 meses",
+     "max": "100 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Betahistina",
+   "brands": [
+    "Serc",
+    "Fidium"
+   ],
+   "folder": "Neurología y psiquiatría › Vértigo y mareo",
+   "presentations": [
+    "8 mg comp",
+    "16 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Enfermedad de Ménière / vértigo",
+     "presentation": "16 mg comp",
+     "route": "VO con comida",
+     "dose": "16 mg",
+     "frequency": "cada 8 h",
+     "duration": "",
+     "max": "48 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Alprazolam",
+   "brands": [
+    "Trankimazin"
+   ],
+   "folder": "Neurología y psiquiatría › Ansiolíticos",
+   "presentations": [
+    "0,25 mg comp",
+    "0,5 mg comp",
+    "1 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Ansiedad",
+     "presentation": "0,25 mg comp",
+     "route": "VO",
+     "dose": "0,25-0,5 mg",
+     "frequency": "cada 8 h",
+     "duration": "uso corto",
+     "max": "4 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Clorazepato dipotásico",
+   "brands": [
+    "Tranxilium"
+   ],
+   "folder": "Neurología y psiquiatría › Ansiolíticos",
+   "presentations": [
+    "5 mg cáps",
+    "10 mg cáps",
+    "15 mg cáps",
+    "50 mg vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Ansiedad",
+     "presentation": "5 mg cáps",
+     "route": "VO",
+     "dose": "5-15 mg",
+     "frequency": "cada 8-24 h",
+     "duration": "uso corto",
+     "max": ""
+    },
+    {
+     "indication": "Agitación / abstinencia (urgencias)",
+     "presentation": "50 mg vial",
+     "route": "IM o IV lenta",
+     "dose": "20-50 mg",
+     "frequency": "repetir según respuesta",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Zolpidem",
+   "brands": [
+    "Stilnox",
+    "Dalparan"
+   ],
+   "folder": "Neurología y psiquiatría › Hipnóticos",
+   "presentations": [
+    "10 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Insomnio",
+     "presentation": "10 mg comp",
+     "route": "VO al acostarse",
+     "dose": "5-10 mg (5 mg en mayores)",
+     "frequency": "cada 24 h",
+     "duration": "máx 4 semanas",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Lormetazepam",
+   "brands": [
+    "Noctamid"
+   ],
+   "folder": "Neurología y psiquiatría › Hipnóticos",
+   "presentations": [
+    "1 mg comp",
+    "2 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Insomnio",
+     "presentation": "1 mg comp",
+     "route": "VO al acostarse",
+     "dose": "1 mg",
+     "frequency": "cada 24 h",
+     "duration": "máx 4 semanas",
+     "max": "2 mg"
+    }
+   ]
+  },
+  {
+   "name": "Trazodona",
+   "brands": [
+    "Deprax"
+   ],
+   "folder": "Neurología y psiquiatría › Hipnóticos",
+   "presentations": [
+    "100 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Insomnio (uso fuera de ficha)",
+     "presentation": "100 mg comp",
+     "route": "VO al acostarse",
+     "dose": "50-100 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Depresión",
+     "presentation": "100 mg comp",
+     "route": "VO",
+     "dose": "150 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": "300 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Melatonina",
+   "brands": [
+    "Circadin"
+   ],
+   "folder": "Neurología y psiquiatría › Hipnóticos",
+   "presentations": [
+    "2 mg comp liberación prolongada"
+   ],
+   "regimens": [
+    {
+     "indication": "Insomnio en ≥ 55 años",
+     "presentation": "2 mg comp liberación prolongada",
+     "route": "VO 1-2 h antes de acostarse",
+     "dose": "2 mg",
+     "frequency": "cada 24 h",
+     "duration": "13 semanas",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Escitalopram",
+   "brands": [
+    "Cipralex",
+    "Esertia"
+   ],
+   "folder": "Neurología y psiquiatría › Antidepresivos",
+   "presentations": [
+    "10 mg comp",
+    "15 mg comp",
+    "20 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Depresión / ansiedad",
+     "presentation": "10 mg comp",
+     "route": "VO",
+     "dose": "10 mg",
+     "frequency": "cada 24 h",
+     "duration": "≥ 6 meses tras remisión",
+     "max": "20 mg/día (10 mg si > 65 años)"
+    }
+   ]
+  },
+  {
+   "name": "Citalopram",
+   "brands": [
+    "Seropram"
+   ],
+   "folder": "Neurología y psiquiatría › Antidepresivos",
+   "presentations": [
+    "20 mg comp",
+    "30 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Depresión",
+     "presentation": "20 mg comp",
+     "route": "VO",
+     "dose": "20 mg",
+     "frequency": "cada 24 h",
+     "duration": "≥ 6 meses tras remisión",
+     "max": "40 mg/día (20 mg si > 65 años)"
+    }
+   ]
+  },
+  {
+   "name": "Fluoxetina",
+   "brands": [
+    "Prozac",
+    "Adofen"
+   ],
+   "folder": "Neurología y psiquiatría › Antidepresivos",
+   "presentations": [
+    "20 mg cáps",
+    "20 mg comp dispersables"
+   ],
+   "regimens": [
+    {
+     "indication": "Depresión / bulimia / TOC",
+     "presentation": "20 mg cáps",
+     "route": "VO por la mañana",
+     "dose": "20 mg",
+     "frequency": "cada 24 h",
+     "duration": "≥ 6 meses tras remisión",
+     "max": "60 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Paroxetina",
+   "brands": [
+    "Seroxat",
+    "Motivan"
+   ],
+   "folder": "Neurología y psiquiatría › Antidepresivos",
+   "presentations": [
+    "20 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Depresión / pánico",
+     "presentation": "20 mg comp",
+     "route": "VO por la mañana",
+     "dose": "20 mg",
+     "frequency": "cada 24 h",
+     "duration": "≥ 6 meses tras remisión",
+     "max": "50 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Venlafaxina",
+   "brands": [
+    "Vandral retard"
+   ],
+   "folder": "Neurología y psiquiatría › Antidepresivos",
+   "presentations": [
+    "75 mg cáps retard",
+    "150 mg cáps retard"
+   ],
+   "regimens": [
+    {
+     "indication": "Depresión / ansiedad generalizada",
+     "presentation": "75 mg cáps retard",
+     "route": "VO",
+     "dose": "75 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": "225 mg/día (AP)"
+    }
+   ]
+  },
+  {
+   "name": "Duloxetina",
+   "brands": [
+    "Cymbalta",
+    "Xeristar"
+   ],
+   "folder": "Neurología y psiquiatría › Antidepresivos",
+   "presentations": [
+    "30 mg cáps",
+    "60 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "Depresión / dolor neuropático diabético",
+     "presentation": "60 mg cáps",
+     "route": "VO",
+     "dose": "30-60 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": "120 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Mirtazapina",
+   "brands": [
+    "Rexer"
+   ],
+   "folder": "Neurología y psiquiatría › Antidepresivos",
+   "presentations": [
+    "15 mg comp",
+    "30 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Depresión con insomnio o hiporexia",
+     "presentation": "15 mg comp",
+     "route": "VO al acostarse",
+     "dose": "15-30 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": "45 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Quetiapina",
+   "brands": [
+    "Seroquel"
+   ],
+   "folder": "Neurología y psiquiatría › Antipsicóticos y agitación",
+   "presentations": [
+    "25 mg comp",
+    "100 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Delirium / agitación en ancianos (uso fuera de ficha)",
+     "presentation": "25 mg comp",
+     "route": "VO",
+     "dose": "12,5-25 mg",
+     "frequency": "cada 12 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Risperidona",
+   "brands": [
+    "Risperdal"
+   ],
+   "folder": "Neurología y psiquiatría › Antipsicóticos y agitación",
+   "presentations": [
+    "0,5 mg comp",
+    "1 mg comp",
+    "1 mg/ml solución"
+   ],
+   "regimens": [
+    {
+     "indication": "Agitación en demencia",
+     "presentation": "0,5 mg comp",
+     "route": "VO",
+     "dose": "0,25-0,5 mg",
+     "frequency": "cada 12 h",
+     "duration": "máx 6 semanas",
+     "max": "1 mg/12 h"
+    }
+   ]
+  },
+  {
+   "name": "Biperideno",
+   "brands": [
+    "Akineton"
+   ],
+   "folder": "Neurología y psiquiatría › Antipsicóticos y agitación",
+   "presentations": [
+    "2 mg comp",
+    "5 mg/1 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Distonía aguda por neurolépticos o metoclopramida",
+     "presentation": "5 mg/1 ml amp",
+     "route": "IM o IV lenta",
+     "dose": "2,5-5 mg",
+     "frequency": "repetir a los 30 min si precisa",
+     "duration": "",
+     "max": "20 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Donepezilo",
+   "brands": [
+    "Aricept"
+   ],
+   "folder": "Neurología y psiquiatría › Demencia y Parkinson",
+   "presentations": [
+    "5 mg comp",
+    "10 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Alzheimer leve-moderado",
+     "presentation": "5 mg comp",
+     "route": "VO al acostarse",
+     "dose": "5 mg",
+     "frequency": "cada 24 h; a las 4-6 semanas 10 mg",
+     "duration": "",
+     "max": "10 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Levodopa/carbidopa",
+   "brands": [
+    "Sinemet"
+   ],
+   "folder": "Neurología y psiquiatría › Demencia y Parkinson",
+   "presentations": [
+    "100/25 mg comp",
+    "250/25 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Enfermedad de Parkinson",
+     "presentation": "100/25 mg comp",
+     "route": "VO",
+     "dose": "1 comp",
+     "frequency": "cada 8 h; ajustar",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Tiamina (vitamina B1)",
+   "brands": [
+    "Benerva"
+   ],
+   "folder": "Neurología y psiquiatría › Alcohol y abstinencia",
+   "presentations": [
+    "300 mg comp",
+    "100 mg/1 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Alcoholismo / prevención de Wernicke (antes de la glucosa)",
+     "presentation": "100 mg/1 ml amp",
+     "route": "IM o IV lenta",
+     "dose": "100 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Suplemento",
+     "presentation": "300 mg comp",
+     "route": "VO",
+     "dose": "300 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Clometiazol",
+   "brands": [
+    "Distraneurine"
+   ],
+   "folder": "Neurología y psiquiatría › Alcohol y abstinencia",
+   "presentations": [
+    "192 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "Abstinencia alcohólica",
+     "presentation": "192 mg cáps",
+     "route": "VO",
+     "dose": "2-3 cáps",
+     "frequency": "cada 8 h; reducir en 5-7 días",
+     "duration": "máx 10 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ebastina",
+   "brands": [
+    "Ebastel"
+   ],
+   "folder": "Alergia › Antihistamínicos",
+   "presentations": [
+    "10 mg comp",
+    "20 mg comp",
+    "10 mg y 20 mg liotabs"
+   ],
+   "regimens": [
+    {
+     "indication": "Rinitis o urticaria",
+     "presentation": "10 mg comp",
+     "route": "VO",
+     "dose": "10-20 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Bilastina",
+   "brands": [
+    "Bilaxten",
+    "Obalix"
+   ],
+   "folder": "Alergia › Antihistamínicos",
+   "presentations": [
+    "20 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Rinitis o urticaria",
+     "presentation": "20 mg comp",
+     "route": "VO en ayunas",
+     "dose": "20 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Desloratadina",
+   "brands": [
+    "Aerius",
+    "Azomyr"
+   ],
+   "folder": "Alergia › Antihistamínicos",
+   "presentations": [
+    "5 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Rinitis o urticaria",
+     "presentation": "5 mg comp",
+     "route": "VO",
+     "dose": "5 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Loratadina",
+   "brands": [
+    "Clarityne"
+   ],
+   "folder": "Alergia › Antihistamínicos",
+   "presentations": [
+    "10 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Rinitis o urticaria",
+     "presentation": "10 mg comp",
+     "route": "VO",
+     "dose": "10 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Rupatadina",
+   "brands": [
+    "Rupafin",
+    "Alergoliber"
+   ],
+   "folder": "Alergia › Antihistamínicos",
+   "presentations": [
+    "10 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Rinitis o urticaria",
+     "presentation": "10 mg comp",
+     "route": "VO",
+     "dose": "10 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Hidroxicina",
+   "brands": [
+    "Atarax"
+   ],
+   "folder": "Alergia › Antihistamínicos",
+   "presentations": [
+    "25 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Prurito / ansiedad",
+     "presentation": "25 mg comp",
+     "route": "VO",
+     "dose": "25 mg",
+     "frequency": "cada 8 h",
+     "duration": "",
+     "max": "100 mg/día (50 mg en mayores)"
+    }
+   ]
+  },
+  {
+   "name": "Adrenalina autoinyector",
+   "brands": [
+    "Altellus",
+    "Jext",
+    "Emerade"
+   ],
+   "folder": "Alergia › Anafilaxia (autoinyectores)",
+   "presentations": [
+    "0,15 mg autoinyector",
+    "0,3 mg autoinyector"
+   ],
+   "regimens": [
+    {
+     "indication": "Anafilaxia (prescripción para casa o botiquín de rescate)",
+     "presentation": "0,3 mg autoinyector",
+     "route": "IM cara externa del muslo",
+     "dose": "0,3 mg (≥ 30 kg)",
+     "frequency": "repetir a los 5-15 min si no mejora",
+     "duration": "",
+     "max": "llevar siempre 2"
+    }
+   ]
+  },
+  {
+   "name": "Complejo protrombínico",
+   "brands": [
+    "Octaplex",
+    "Beriplex"
+   ],
+   "folder": "Hematología › Antídotos de anticoagulantes",
+   "presentations": [
+    "500 UI vial",
+    "1.000 UI vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Hemorragia grave con antivitamina K / anti-Xa",
+     "presentation": "500 UI vial",
+     "route": "IV",
+     "dose": "25-50 UI/kg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": "junto con vitamina K si AVK"
+    }
+   ]
+  },
+  {
+   "name": "Idarucizumab",
+   "brands": [
+    "Praxbind"
+   ],
+   "folder": "Hematología › Antídotos de anticoagulantes",
+   "presentations": [
+    "2,5 g/50 ml vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Revertir dabigatrán (sangrado grave o cirugía urgente)",
+     "presentation": "2,5 g/50 ml vial",
+     "route": "IV",
+     "dose": "5 g (2 viales)",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Protamina",
+   "brands": [
+    "Protamina Hospira"
+   ],
+   "folder": "Hematología › Antídotos de anticoagulantes",
+   "presentations": [
+    "50 mg/5 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Revertir heparina sódica",
+     "presentation": "50 mg/5 ml amp",
+     "route": "IV lenta",
+     "dose": "1 mg por cada 100 UI de heparina",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": "50 mg"
+    }
+   ]
+  },
+  {
+   "name": "Ácido fólico",
+   "brands": [
+    "Acfol"
+   ],
+   "folder": "Hematología › Antianémicos",
+   "presentations": [
+    "5 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Déficit de folato / embarazo de riesgo",
+     "presentation": "5 mg comp",
+     "route": "VO",
+     "dose": "5 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Prevención de defectos del tubo neural",
+     "presentation": "5 mg comp",
+     "route": "VO",
+     "dose": "0,4-5 mg",
+     "frequency": "cada 24 h",
+     "duration": "desde 1 mes antes hasta 12 semanas",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Cianocobalamina (vitamina B12)",
+   "brands": [
+    "Optovite B12"
+   ],
+   "folder": "Hematología › Antianémicos",
+   "presentations": [
+    "1.000 mcg/2 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Déficit de B12",
+     "presentation": "1.000 mcg/2 ml amp",
+     "route": "IM",
+     "dose": "1.000 mcg",
+     "frequency": "días alternos 2 semanas, luego mensual",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Déficit de B12 (VO)",
+     "presentation": "",
+     "route": "VO",
+     "dose": "1.000-2.000 mcg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Hierro carboximaltosa",
+   "brands": [
+    "Ferinject"
+   ],
+   "folder": "Hematología › Antianémicos",
+   "presentations": [
+    "500 mg/10 ml vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Ferropenia con intolerancia oral (hospital de día)",
+     "presentation": "500 mg/10 ml vial",
+     "route": "Perfusión IV",
+     "dose": "500-1.000 mg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": "20 mg/kg"
+    }
+   ]
+  },
+  {
+   "name": "Febuxostat",
+   "brands": [
+    "Adenuric"
+   ],
+   "folder": "Musculoesquelético › Gota",
+   "presentations": [
+    "80 mg comp",
+    "120 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hiperuricemia (intolerancia a alopurinol)",
+     "presentation": "80 mg comp",
+     "route": "VO",
+     "dose": "80 mg",
+     "frequency": "cada 24 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Risedronato",
+   "brands": [
+    "Actonel"
+   ],
+   "folder": "Musculoesquelético › Osteoporosis",
+   "presentations": [
+    "35 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Osteoporosis",
+     "presentation": "35 mg comp",
+     "route": "VO en ayunas con agua, de pie 30 min",
+     "dose": "35 mg",
+     "frequency": "1 vez a la semana",
+     "duration": "5 años y reevaluar",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Denosumab",
+   "brands": [
+    "Prolia"
+   ],
+   "folder": "Musculoesquelético › Osteoporosis",
+   "presentations": [
+    "60 mg jer"
+   ],
+   "regimens": [
+    {
+     "indication": "Osteoporosis",
+     "presentation": "60 mg jer",
+     "route": "SC",
+     "dose": "60 mg",
+     "frequency": "cada 6 meses",
+     "duration": "no suspender sin pauta de salida",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Colecalciferol (vitamina D3)",
+   "brands": [
+    "Deltius",
+    "Kern Pharma vitamina D"
+   ],
+   "folder": "Musculoesquelético › Osteoporosis",
+   "presentations": [
+    "25.000 UI ampolla bebible",
+    "2.000 UI/ml gotas"
+   ],
+   "regimens": [
+    {
+     "indication": "Déficit de vitamina D",
+     "presentation": "25.000 UI ampolla bebible",
+     "route": "VO",
+     "dose": "25.000 UI",
+     "frequency": "cada 2-4 semanas",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Calcio/colecalciferol",
+   "brands": [
+    "Mastical D",
+    "Ideos",
+    "Natecal D"
+   ],
+   "folder": "Musculoesquelético › Osteoporosis",
+   "presentations": [
+    "500 mg/400 UI comp masticables",
+    "1.000 mg/880 UI"
+   ],
+   "regimens": [
+    {
+     "indication": "Osteoporosis con déficit de calcio y vitamina D",
+     "presentation": "500 mg/400 UI comp masticables",
+     "route": "VO",
+     "dose": "1 comp",
+     "frequency": "cada 12-24 h",
+     "duration": "crónico",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Metocarbamol",
+   "brands": [
+    "Robaxin"
+   ],
+   "folder": "Musculoesquelético › Relajantes musculares",
+   "presentations": [
+    "500 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Contractura muscular aguda",
+     "presentation": "500 mg comp",
+     "route": "VO",
+     "dose": "1.000-1.500 mg",
+     "frequency": "cada 6-8 h",
+     "duration": "pocos días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ciclobenzaprina",
+   "brands": [
+    "Yurelax"
+   ],
+   "folder": "Musculoesquelético › Relajantes musculares",
+   "presentations": [
+    "10 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "Contractura muscular aguda",
+     "presentation": "10 mg cáps",
+     "route": "VO",
+     "dose": "5-10 mg",
+     "frequency": "cada 8 h",
+     "duration": "máx 2-3 semanas",
+     "max": "30 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Diclofenaco tópico",
+   "brands": [
+    "Voltadol",
+    "Voltaren Emulgel"
+   ],
+   "folder": "Musculoesquelético › Antiinflamatorios tópicos",
+   "presentations": [
+    "1% gel",
+    "2% gel",
+    "140 mg apósito"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor musculoesquelético localizado",
+     "presentation": "1% gel",
+     "route": "Tópica",
+     "dose": "aplicación",
+     "frequency": "cada 6-8 h",
+     "duration": "máx 14 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Etofenamato",
+   "brands": [
+    "Flogoprofen"
+   ],
+   "folder": "Musculoesquelético › Antiinflamatorios tópicos",
+   "presentations": [
+    "50 mg/g gel",
+    "100 mg/ml spray"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor musculoesquelético localizado",
+     "presentation": "50 mg/g gel",
+     "route": "Tópica",
+     "dose": "aplicación",
+     "frequency": "cada 8 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Triamcinolona acetónido",
+   "brands": [
+    "Trigon Depot"
+   ],
+   "folder": "Musculoesquelético › Infiltraciones",
+   "presentations": [
+    "40 mg/1 ml vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Infiltración articular o periarticular",
+     "presentation": "40 mg/1 ml vial",
+     "route": "Intraarticular",
+     "dose": "10-40 mg según articulación",
+     "frequency": "dosis única",
+     "duration": "máx 3-4 al año en la misma articulación",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Betametasona depot",
+   "brands": [
+    "Celestone Cronodose"
+   ],
+   "folder": "Musculoesquelético › Infiltraciones",
+   "presentations": [
+    "6 mg/ml vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Infiltración / corticoide de depósito",
+     "presentation": "6 mg/ml vial",
+     "route": "Intraarticular o IM",
+     "dose": "3-6 mg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Silodosina",
+   "brands": [
+    "Urorec",
+    "Silodyx"
+   ],
+   "folder": "Urología › Próstata y vía urinaria",
+   "presentations": [
+    "8 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "HBP",
+     "presentation": "8 mg cáps",
+     "route": "VO con comida",
+     "dose": "8 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Dutasterida/tamsulosina",
+   "brands": [
+    "Duodart"
+   ],
+   "folder": "Urología › Próstata y vía urinaria",
+   "presentations": [
+    "0,5/0,4 mg cáps"
+   ],
+   "regimens": [
+    {
+     "indication": "HBP con próstata grande",
+     "presentation": "0,5/0,4 mg cáps",
+     "route": "VO",
+     "dose": "1 cáps",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Finasterida",
+   "brands": [
+    "Proscar"
+   ],
+   "folder": "Urología › Próstata y vía urinaria",
+   "presentations": [
+    "5 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "HBP con próstata grande",
+     "presentation": "5 mg comp",
+     "route": "VO",
+     "dose": "5 mg",
+     "frequency": "cada 24 h",
+     "duration": "≥ 6 meses",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Solifenacina",
+   "brands": [
+    "Vesicare"
+   ],
+   "folder": "Urología › Vejiga hiperactiva",
+   "presentations": [
+    "5 mg comp",
+    "10 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Vejiga hiperactiva",
+     "presentation": "5 mg comp",
+     "route": "VO",
+     "dose": "5 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": "10 mg/día"
+    }
+   ]
+  },
+  {
+   "name": "Mirabegrón",
+   "brands": [
+    "Betmiga"
+   ],
+   "folder": "Urología › Vejiga hiperactiva",
+   "presentations": [
+    "25 mg comp",
+    "50 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Vejiga hiperactiva (mayores o con riesgo anticolinérgico)",
+     "presentation": "50 mg comp",
+     "route": "VO",
+     "dose": "50 mg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Sildenafilo",
+   "brands": [
+    "Viagra"
+   ],
+   "folder": "Urología › Disfunción eréctil",
+   "presentations": [
+    "25 mg comp",
+    "50 mg comp",
+    "100 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Disfunción eréctil",
+     "presentation": "50 mg comp",
+     "route": "VO 1 h antes",
+     "dose": "50 mg",
+     "frequency": "a demanda, máx 1 vez/día",
+     "duration": "",
+     "max": "100 mg; nunca con nitratos"
+    },
+    {
+     "indication": "Prevención del edema pulmonar de altura (alternativa)",
+     "presentation": "50 mg comp",
+     "route": "VO",
+     "dose": "50 mg",
+     "frequency": "cada 8 h",
+     "duration": "durante el ascenso",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Tadalafilo",
+   "brands": [
+    "Cialis"
+   ],
+   "folder": "Urología › Disfunción eréctil",
+   "presentations": [
+    "5 mg comp",
+    "10 mg comp",
+    "20 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Disfunción eréctil",
+     "presentation": "10 mg comp",
+     "route": "VO",
+     "dose": "10-20 mg a demanda (o 5 mg diario)",
+     "frequency": "",
+     "duration": "",
+     "max": "nunca con nitratos"
+    },
+    {
+     "indication": "Prevención del edema pulmonar de altura (susceptibles)",
+     "presentation": "10 mg comp",
+     "route": "VO",
+     "dose": "10 mg",
+     "frequency": "cada 12 h",
+     "duration": "durante el ascenso",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Betametasona valerato",
+   "brands": [
+    "Celestoderm",
+    "Betnovate"
+   ],
+   "folder": "Dermatología › Corticoides tópicos",
+   "presentations": [
+    "0,1% crema",
+    "0,1% pomada"
+   ],
+   "regimens": [
+    {
+     "indication": "Dermatitis / eccema moderado",
+     "presentation": "0,1% crema",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 12-24 h",
+     "duration": "máx 2-3 semanas",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Clobetasol propionato",
+   "brands": [
+    "Clovate",
+    "Decloban"
+   ],
+   "folder": "Dermatología › Corticoides tópicos",
+   "presentations": [
+    "0,05% crema",
+    "0,05% pomada"
+   ],
+   "regimens": [
+    {
+     "indication": "Dermatosis grave (psoriasis, liquen)",
+     "presentation": "0,05% crema",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 12-24 h",
+     "duration": "máx 2 semanas",
+     "max": "50 g/semana"
+    }
+   ]
+  },
+  {
+   "name": "Mometasona tópica",
+   "brands": [
+    "Elocom"
+   ],
+   "folder": "Dermatología › Corticoides tópicos",
+   "presentations": [
+    "0,1% crema",
+    "0,1% pomada"
+   ],
+   "regimens": [
+    {
+     "indication": "Eccema / dermatitis",
+     "presentation": "0,1% crema",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Hidrocortisona tópica",
+   "brands": [
+    "Lactisona",
+    "Dermosa hidrocortisona"
+   ],
+   "folder": "Dermatología › Corticoides tópicos",
+   "presentations": [
+    "1% crema",
+    "2,5% loción"
+   ],
+   "regimens": [
+    {
+     "indication": "Dermatitis leve / zonas sensibles",
+     "presentation": "1% crema",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 12 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ácido fusídico",
+   "brands": [
+    "Fucidine"
+   ],
+   "folder": "Dermatología › Antibióticos tópicos",
+   "presentations": [
+    "2% crema",
+    "2% pomada"
+   ],
+   "regimens": [
+    {
+     "indication": "Impétigo / infección cutánea localizada",
+     "presentation": "2% crema",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 8 h",
+     "duration": "7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ketoconazol tópico",
+   "brands": [
+    "Fungarest",
+    "Panfungol"
+   ],
+   "folder": "Dermatología › Antifúngicos tópicos",
+   "presentations": [
+    "2% crema",
+    "2% gel/champú"
+   ],
+   "regimens": [
+    {
+     "indication": "Dermatitis seborreica / pitiriasis versicolor",
+     "presentation": "2% gel/champú",
+     "route": "Tópica",
+     "dose": "aplicar 5 min y aclarar",
+     "frequency": "2 veces por semana",
+     "duration": "2-4 semanas",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Sertaconazol",
+   "brands": [
+    "Dermofix",
+    "Zalain"
+   ],
+   "folder": "Dermatología › Antifúngicos tópicos",
+   "presentations": [
+    "2% crema",
+    "2% polvo"
+   ],
+   "regimens": [
+    {
+     "indication": "Tiña / candidiasis cutánea",
+     "presentation": "2% crema",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 12-24 h",
+     "duration": "4 semanas",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ciclopirox",
+   "brands": [
+    "Ciclochem"
+   ],
+   "folder": "Dermatología › Antifúngicos tópicos",
+   "presentations": [
+    "8% laca de uñas",
+    "1% crema"
+   ],
+   "regimens": [
+    {
+     "indication": "Onicomicosis leve",
+     "presentation": "8% laca de uñas",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "días alternos el 1.er mes",
+     "duration": "6 meses",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Povidona yodada",
+   "brands": [
+    "Betadine"
+   ],
+   "folder": "Dermatología › Quemaduras y heridas",
+   "presentations": [
+    "10% solución"
+   ],
+   "regimens": [
+    {
+     "indication": "Antisepsia de piel y heridas",
+     "presentation": "10% solución",
+     "route": "Tópica",
+     "dose": "aplicación",
+     "frequency": "",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Clorhexidina",
+   "brands": [
+    "Cristalmina"
+   ],
+   "folder": "Dermatología › Quemaduras y heridas",
+   "presentations": [
+    "1% solución",
+    "2% solución acuosa"
+   ],
+   "regimens": [
+    {
+     "indication": "Antisepsia de heridas",
+     "presentation": "1% solución",
+     "route": "Tópica",
+     "dose": "aplicación",
+     "frequency": "cada 12-24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Peróxido de benzoilo",
+   "brands": [
+    "Peroxiben",
+    "Benzac"
+   ],
+   "folder": "Dermatología › Acné y rosácea",
+   "presentations": [
+    "2,5%, 5% y 10% gel"
+   ],
+   "regimens": [
+    {
+     "indication": "Acné leve-moderado",
+     "presentation": "5% gel",
+     "route": "Tópica por la noche",
+     "dose": "capa fina",
+     "frequency": "cada 24 h",
+     "duration": "≥ 8 semanas",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Metronidazol tópico",
+   "brands": [
+    "Rozex",
+    "Rosiced"
+   ],
+   "folder": "Dermatología › Acné y rosácea",
+   "presentations": [
+    "0,75% gel",
+    "0,75% crema"
+   ],
+   "regimens": [
+    {
+     "indication": "Rosácea",
+     "presentation": "0,75% gel",
+     "route": "Tópica",
+     "dose": "capa fina",
+     "frequency": "cada 12 h",
+     "duration": "3-4 meses",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Tobramicina/dexametasona colirio",
+   "brands": [
+    "Tobradex"
+   ],
+   "folder": "Oftalmología y ORL › Colirios",
+   "presentations": [
+    "colirio 5 ml",
+    "pomada oftálmica"
+   ],
+   "regimens": [
+    {
+     "indication": "Inflamación ocular con infección (con valoración oftalmológica)",
+     "presentation": "colirio 5 ml",
+     "route": "Oftálmica",
+     "dose": "1-2 gotas",
+     "frequency": "cada 4-6 h",
+     "duration": "7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ofloxacino colirio",
+   "brands": [
+    "Exocin"
+   ],
+   "folder": "Oftalmología y ORL › Colirios",
+   "presentations": [
+    "0,3% colirio"
+   ],
+   "regimens": [
+    {
+     "indication": "Conjuntivitis bacteriana / úlcera en portador de lentillas",
+     "presentation": "0,3% colirio",
+     "route": "Oftálmica",
+     "dose": "1-2 gotas",
+     "frequency": "cada 4 h",
+     "duration": "7-10 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ciclopentolato colirio",
+   "brands": [
+    "Colircusi ciclopléjico"
+   ],
+   "folder": "Oftalmología y ORL › Colirios",
+   "presentations": [
+    "1% colirio"
+   ],
+   "regimens": [
+    {
+     "indication": "Dolor por erosión corneal / ceguera de las nieves",
+     "presentation": "1% colirio",
+     "route": "Oftálmica",
+     "dose": "1 gota",
+     "frequency": "cada 8-12 h",
+     "duration": "1-2 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Fluoresceína colirio",
+   "brands": [
+    "Colircusi fluoresceína"
+   ],
+   "folder": "Oftalmología y ORL › Colirios",
+   "presentations": [
+    "2% colirio"
+   ],
+   "regimens": [
+    {
+     "indication": "Diagnóstico de erosión corneal (solo en consulta)",
+     "presentation": "2% colirio",
+     "route": "Oftálmica",
+     "dose": "1 gota",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Lágrimas artificiales (hialuronato)",
+   "brands": [
+    "Hylo",
+    "Aquoral",
+    "Systane"
+   ],
+   "folder": "Oftalmología y ORL › Colirios",
+   "presentations": [
+    "colirio multidosis",
+    "monodosis"
+   ],
+   "regimens": [
+    {
+     "indication": "Ojo seco / protección (ceguera de las nieves)",
+     "presentation": "colirio multidosis",
+     "route": "Oftálmica",
+     "dose": "1 gota",
+     "frequency": "a demanda",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Eritromicina pomada oftálmica",
+   "brands": [
+    "Oftalmolosa Cusí eritromicina"
+   ],
+   "folder": "Oftalmología y ORL › Colirios",
+   "presentations": [
+    "0,5% pomada oftálmica"
+   ],
+   "regimens": [
+    {
+     "indication": "Erosión corneal / blefaritis",
+     "presentation": "0,5% pomada oftálmica",
+     "route": "Oftálmica",
+     "dose": "1 cm",
+     "frequency": "cada 6-8 h",
+     "duration": "5-7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ciprofloxacino/fluocinolona ótico",
+   "brands": [
+    "Cetraxal Plus"
+   ],
+   "folder": "Oftalmología y ORL › Otológicos",
+   "presentations": [
+    "gotas óticas monodosis"
+   ],
+   "regimens": [
+    {
+     "indication": "Otitis externa con inflamación",
+     "presentation": "gotas óticas monodosis",
+     "route": "Ótica",
+     "dose": "1 monodosis",
+     "frequency": "cada 12 h",
+     "duration": "7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Cerumenolítico",
+   "brands": [
+    "Otocerum"
+   ],
+   "folder": "Oftalmología y ORL › Otológicos",
+   "presentations": [
+    "gotas óticas"
+   ],
+   "regimens": [
+    {
+     "indication": "Tapón de cerumen",
+     "presentation": "gotas óticas",
+     "route": "Ótica",
+     "dose": "4-5 gotas",
+     "frequency": "cada 8-12 h",
+     "duration": "3-4 días antes del lavado",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Clorhexidina/benzocaína",
+   "brands": [
+    "Angileptol",
+    "Cariax"
+   ],
+   "folder": "Oftalmología y ORL › Garganta y boca",
+   "presentations": [
+    "comp para chupar",
+    "colutorio"
+   ],
+   "regimens": [
+    {
+     "indication": "Odinofagia / gingivitis",
+     "presentation": "comp para chupar",
+     "route": "Bucal",
+     "dose": "1 comp",
+     "frequency": "cada 2-4 h",
+     "duration": "",
+     "max": "8 comp/día"
+    }
+   ]
+  },
+  {
+   "name": "Ulipristal",
+   "brands": [
+    "ellaOne"
+   ],
+   "folder": "Ginecología y obstetricia › Anticoncepción de urgencia",
+   "presentations": [
+    "30 mg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Anticoncepción de urgencia (< 120 h)",
+     "presentation": "30 mg comp",
+     "route": "VO",
+     "dose": "30 mg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Etinilestradiol/levonorgestrel",
+   "brands": [
+    "Loette",
+    "Ovoplex",
+    "Microgynon"
+   ],
+   "folder": "Ginecología y obstetricia › Anticonceptivos",
+   "presentations": [
+    "20/100 mcg comp",
+    "30/150 mcg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Anticoncepción oral combinada",
+     "presentation": "20/100 mcg comp",
+     "route": "VO",
+     "dose": "1 comp",
+     "frequency": "cada 24 h 21 días + 7 de descanso",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Desogestrel",
+   "brands": [
+    "Cerazet",
+    "Azalia"
+   ],
+   "folder": "Ginecología y obstetricia › Anticonceptivos",
+   "presentations": [
+    "75 mcg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Anticoncepción solo gestágeno (lactancia, contraindicación de estrógenos)",
+     "presentation": "75 mcg comp",
+     "route": "VO",
+     "dose": "1 comp",
+     "frequency": "cada 24 h sin descanso",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Yoduro potásico",
+   "brands": [
+    "Yoduk",
+    "Yodocefol"
+   ],
+   "folder": "Ginecología y obstetricia › Embarazo y lactancia",
+   "presentations": [
+    "200 mcg comp"
+   ],
+   "regimens": [
+    {
+     "indication": "Embarazo y lactancia",
+     "presentation": "200 mcg comp",
+     "route": "VO",
+     "dose": "200 mcg",
+     "frequency": "cada 24 h",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Clotrimazol vaginal",
+   "brands": [
+    "Gine-Canesten"
+   ],
+   "folder": "Ginecología y obstetricia › Infecciones vaginales",
+   "presentations": [
+    "500 mg comp vaginal",
+    "2% crema vaginal"
+   ],
+   "regimens": [
+    {
+     "indication": "Candidiasis vaginal",
+     "presentation": "500 mg comp vaginal",
+     "route": "Vaginal",
+     "dose": "500 mg",
+     "frequency": "dosis única al acostarse",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Metronidazol vaginal",
+   "brands": [
+    "Flagyl óvulos"
+   ],
+   "folder": "Ginecología y obstetricia › Infecciones vaginales",
+   "presentations": [
+    "500 mg óvulos"
+   ],
+   "regimens": [
+    {
+     "indication": "Vaginosis bacteriana",
+     "presentation": "500 mg óvulos",
+     "route": "Vaginal",
+     "dose": "1 óvulo",
+     "frequency": "cada 24 h",
+     "duration": "7 días",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Sulfato de magnesio",
+   "brands": [
+    "Sulmetin"
+   ],
+   "folder": "Ginecología y obstetricia › Urgencias obstétricas",
+   "presentations": [
+    "1,5 g/10 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Eclampsia / preeclampsia grave",
+     "presentation": "1,5 g/10 ml amp",
+     "route": "IV",
+     "dose": "4 g en 15-20 min",
+     "frequency": "después 1 g/h",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Torsade de pointes",
+     "presentation": "1,5 g/10 ml amp",
+     "route": "IV",
+     "dose": "2 g en 10 min",
+     "frequency": "",
+     "duration": "",
+     "max": ""
+    },
+    {
+     "indication": "Crisis asmática grave",
+     "presentation": "1,5 g/10 ml amp",
+     "route": "IV",
+     "dose": "2 g en 20 min",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Oxitocina",
+   "brands": [
+    "Syntocinon"
+   ],
+   "folder": "Ginecología y obstetricia › Urgencias obstétricas",
+   "presentations": [
+    "10 UI/1 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Prevención de hemorragia posparto (parto extrahospitalario)",
+     "presentation": "10 UI/1 ml amp",
+     "route": "IM",
+     "dose": "10 UI",
+     "frequency": "tras la salida del bebé",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Hidroxocobalamina",
+   "brands": [
+    "Cyanokit"
+   ],
+   "folder": "Antídotos y toxicología › Humo, cianuro y monóxido",
+   "presentations": [
+    "5 g vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Intoxicación por humo de incendio con sospecha de cianuro",
+     "presentation": "5 g vial",
+     "route": "IV en 15 min",
+     "dose": "5 g (70 mg/kg)",
+     "frequency": "repetir 5 g si persiste",
+     "duration": "",
+     "max": "10 g"
+    }
+   ]
+  },
+  {
+   "name": "Dobutamina",
+   "brands": [
+    "Dobutamina Inibsa"
+   ],
+   "folder": "Soporte vital y urgencias › Vasoactivos",
+   "presentations": [
+    "250 mg/20 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Shock cardiogénico / bajo gasto",
+     "presentation": "250 mg/20 ml amp",
+     "route": "Perfusión IV",
+     "dose": "2,5-10 mcg/kg/min",
+     "frequency": "ajustar según respuesta",
+     "duration": "",
+     "max": "20 mcg/kg/min"
+    }
+   ]
+  },
+  {
+   "name": "Efedrina",
+   "brands": [
+    "Efedrina Level"
+   ],
+   "folder": "Soporte vital y urgencias › Vasoactivos",
+   "presentations": [
+    "50 mg/1 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Hipotensión tras sedación o anestesia",
+     "presentation": "50 mg/1 ml amp",
+     "route": "IV en bolo (diluida)",
+     "dose": "5-10 mg",
+     "frequency": "repetir cada 5 min si precisa",
+     "duration": "",
+     "max": "50 mg"
+    }
+   ]
+  },
+  {
+   "name": "Succinilcolina",
+   "brands": [
+    "Anectine"
+   ],
+   "folder": "Soporte vital y urgencias › Secuencia rápida de intubación",
+   "presentations": [
+    "100 mg/2 ml amp"
+   ],
+   "regimens": [
+    {
+     "indication": "Relajación para intubación de secuencia rápida",
+     "presentation": "100 mg/2 ml amp",
+     "route": "IV",
+     "dose": "1-1,5 mg/kg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": "no si hiperpotasemia, quemados > 48 h, inmovilización"
+    }
+   ]
+  },
+  {
+   "name": "Sugammadex",
+   "brands": [
+    "Bridion"
+   ],
+   "folder": "Soporte vital y urgencias › Secuencia rápida de intubación",
+   "presentations": [
+    "200 mg/2 ml vial"
+   ],
+   "regimens": [
+    {
+     "indication": "Revertir rocuronio (no intubable / no ventilable)",
+     "presentation": "200 mg/2 ml vial",
+     "route": "IV en bolo",
+     "dose": "16 mg/kg",
+     "frequency": "dosis única",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Ringer lactato",
+   "brands": [
+    "Ringer lactato Braun"
+   ],
+   "folder": "Soporte vital y urgencias › Sueroterapia",
+   "presentations": [
+    "500 ml",
+    "1.000 ml"
+   ],
+   "regimens": [
+    {
+     "indication": "Shock hipovolémico / quemados",
+     "presentation": "500 ml",
+     "route": "IV",
+     "dose": "500 ml en bolo",
+     "frequency": "reevaluar tras cada bolo",
+     "duration": "",
+     "max": "quemados: 2-4 ml/kg/% SCQ en 24 h (mitad en las 8 primeras)"
+    }
+   ]
+  },
+  {
+   "name": "Glucosa 5%",
+   "brands": [
+    "Glucosado 5%"
+   ],
+   "folder": "Soporte vital y urgencias › Sueroterapia",
+   "presentations": [
+    "500 ml",
+    "250 ml"
+   ],
+   "regimens": [
+    {
+     "indication": "Vía de mantenimiento / hipoglucemia tras bolo",
+     "presentation": "500 ml",
+     "route": "IV",
+     "dose": "500 ml",
+     "frequency": "cada 6-8 h según situación",
+     "duration": "",
+     "max": ""
+    }
+   ]
+  },
+  {
+   "name": "Antiveneno de víbora",
+   "brands": [
+    "ViperaTAb",
+    "Viperfav"
+   ],
+   "folder": "Montaña y rescate › Mordeduras y picaduras",
+   "presentations": [
+    "vial liofilizado"
+   ],
+   "regimens": [
+    {
+     "indication": "Mordedura de víbora grado II-III (consultar toxicología)",
+     "presentation": "vial liofilizado",
+     "route": "IV en 15-30 min",
+     "dose": "según producto (ViperaTAb: 2 viales; Viperfav: 4 ml)",
+     "frequency": "repetir según evolución",
+     "duration": "",
+     "max": "pedir al hospital de referencia"
+    }
+   ]
   }
- ]
+ ],
+ "templateVersion": 2
 }

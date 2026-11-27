@@ -28,7 +28,7 @@ import { legacyNotes, migrateNotes, snippetsToMigrate, migrateSnippets } from '.
 import { icon, iconOr } from './icons.js';
 import {
   initDrugs, newDrug, openDrug, closeDrug, currentDrug, flushDrug, onDrugsChange, refreshDrugBacklinks, drugCard, drugItemMenu,
-  drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, emptyDrugTrash, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading
+  drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, templatePending, dismissTemplate, emptyDrugTrash, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading
 } from './drugs.js';
 import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies } from './drugbody.js';
 import {
@@ -155,8 +155,8 @@ const TREES = {
     extraActions: (folderId) => [
       el('button', { class: 'btn', type: 'button', onclick: () => addManyDrugs(folderId) }, icon('list-plus'), ' Añadir varios'),
       el('button', { class: 'btn', type: 'button', onclick: () => importDrugs(folderId) }, icon('file-up'), ' Importar'),
-      // Plantilla de carpetas: solo en la raíz y mientras haya pocas carpetas (luego queda en ⋯)
-      !folderId && store.drugFolders.size < 10 ? el('button', { class: 'btn', type: 'button', onclick: () => importTemplate() }, icon('folder-plus'), ' Plantilla de carpetas') : null],
+      // Plantilla de carpetas: en la raíz (también en ⋯ y en el aviso de arriba)
+      !folderId ? el('button', { class: 'btn', type: 'button', onclick: () => importTemplate() }, icon('folder-plus'), ' Plantilla de carpetas') : null],
     menuExtra: (folderId) => [
       { icon: 'list-plus', label: folderId ? 'Añadir varios aquí…' : 'Añadir varios…', onClick: () => addManyDrugs(folderId) },
       { icon: 'file-up', label: folderId ? 'Importar fichas aquí (JSON)…' : 'Importar fichas (JSON)…', onClick: () => importDrugs(folderId) },
@@ -461,6 +461,7 @@ function onData(name, changed) {
     if (isDrugView()) renderListSoon();
   } else if (name === 'settings') {
     settingsChanged(); // caducidad del chat
+    if (isDrugView()) renderListSoon(); // aviso de la plantilla del Vademécum
   }
 }
 
@@ -1736,7 +1737,20 @@ function renderDrugView(box, T) {
     box.replaceChildren(el('div', { class: 'list-empty' }, store.loaded.drugFolders ? 'Esta carpeta ya no existe.' : 'Cargando carpetas…'));
     return;
   }
-  if (v.type === T.root || v.type === T.folder) { renderExplorer(box, T); return; }
+  if (v.type === T.root || v.type === T.folder) {
+    renderExplorer(box, T);
+    // Aviso bien visible arriba mientras no se haya cargado (o descartado) la versión actual de la plantilla
+    if (v.type === T.root && templatePending()) {
+      box.prepend(el('div', { class: 'tpl-banner' },
+        el('span', { class: 'tpl-ico' }, icon('folder-plus')),
+        el('div', { class: 'tpl-txt' }, el('b', {}, 'Plantilla del Vademécum'),
+          el('span', {}, 'Carpetas por grupos con los fármacos y nombres comerciales principales de Atención Primaria, Urgencias y Rescate en montaña. No borra nada de lo tuyo.')),
+        el('div', { class: 'tpl-btns' },
+          el('button', { class: 'btn primary', type: 'button', onclick: () => importTemplate() }, 'Cargar'),
+          el('button', { class: 'btn', type: 'button', onclick: () => { dismissTemplate(); renderList(); } }, 'Ahora no'))));
+    }
+    return;
+  }
   let list = drugsForView(v.type);
   const q = norm(S.search.trim());
   const words = q ? q.split(/\s+/) : [];
