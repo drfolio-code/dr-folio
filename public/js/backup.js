@@ -2,11 +2,13 @@
 //
 // Formato del JSON (formatVersion 1):
 //   { format: 'drfolio-backup', formatVersion: 1, app: 'Dr.Folio', appVersion, exportedAt (ISO), exportedAtMs,
-//     withFiles, counts: {colección: n}, data: { folders, tags, notes, files, snippets, snippetFolders },
+//     withFiles, counts: {colección: n}, data: { folders, tags, notes, files, snippets, snippetFolders, drugFolders, drugs },
 //     fileData: { fileId: base64 } }            ← solo si withFiles
 // También se aceptan las copias antiguas (≤ v1.8.0): colecciones en la raíz y fileData como «data:…;base64,…».
 // Cada documento se guarda tal cual (sin el campo id). Las notas van COMPLETAS, como antes de v1.10.0
 // (datos de notes/{id} + html/text/refs de noteBodies/{id}, sin los campos calculados): el formato no cambia.
+// Vademécum (v1.18.0): `drugs` también COMPLETOS (drugs/{id} + html/text de drugBodies/{id}, sin campos calculados) y
+// `drugFolders`. Las copias anteriores no los traen y se leen igual (listas vacías).
 import { writeBatch, doc, collection } from '../vendor/libs.js';
 import { db } from './db.js';
 import { store, ref, allLoaded } from './store.js';
@@ -18,14 +20,18 @@ import { el, download, formatBytes, longDate } from './util.js';
 import { modal, toast } from './ui.js';
 import { icon } from './icons.js';
 import { htmlOf } from './snipbody.js';
+import { ensureAllDrugBodies, fullDrug, deriveDrugLight, rememberDrugBody, DRUG_DERIVED, lineOf, regSummary } from './drugbody.js';
 
 export const BACKUP_FORMAT = 'drfolio-backup';
 export const BACKUP_VERSION = 1;
-const COLS = ['folders', 'tags', 'files', 'notes', 'snippetFolders', 'snippets']; // orden de escritura
+const COLS = ['folders', 'tags', 'files', 'notes', 'snippetFolders', 'snippets', 'drugFolders', 'drugs']; // orden de escritura
 const COL_NAMES = {
   notes: 'Notas', folders: 'Carpetas', tags: 'Etiquetas', snippets: 'Prerredactados',
-  snippetFolders: 'Carpetas de prerredactados', files: 'Archivos (imágenes y PDF)'
+  snippetFolders: 'Carpetas de prerredactados', drugs: 'Fármacos (Vademécum)', drugFolders: 'Carpetas del Vademécum',
+  files: 'Archivos (imágenes y PDF)'
 };
+/** Colecciones que se guardan como dos documentos (ligero + contenido) */
+const BODY_COL = { notes: 'noteBodies', drugs: 'drugBodies' };
 const LAST_KEY = 'drfolio.lastBackup';   // ms de la última copia JSON guardada en este dispositivo
 const JOB_KEY = 'drfolio.restoreJob';    // restauración que se quedó a medias (límite diario)
 const QUOTA_KEY = 'drfolio.quota';       // escrituras/borrados hechos hoy por las restauraciones
@@ -123,8 +129,12 @@ function deliverButtons(blob, name, { onSaved } = {}) {
 export async function buildBackup({ withFiles, onProgress = () => {} }) {
   onProgress(0, 'Descargando el contenido de las notas…');
   await ensureAllBodies(); // las notas solo se exportan completas
+  await ensureAllDrugBodies(); // y los fármacos, con «Mis notas»
   const data = {};
-  for (const c of COLS) data[c] = c === 'notes' ? [...store.notes.values()].map(fullNote) : [...store[c].values()];
+  for (const c of COLS) {
+    data[c] = c === 'notes' ? [...store.notes.values()].map(fullNote)
+      : c === 'drugs' ? [...store.drugs.values()].map(fullDrug) : [...store[c].values()];
+  }
   const counts = Object.fromEntries(COLS.map((c) => [c, data[c].length]));
   const head = {
     format: BACKUP_FORMAT, formatVersion: BACKUP_VERSION, app: 'Dr.Folio', appVersion: APP_VERSION,
@@ -175,7 +185,8 @@ async function runExportJson(p, withFiles) {
 
 function summaryTable(counts, extra = {}) {
   const rows = [
-    ['notes', 'notebook-text'], ['folders', 'folder'], ['tags', 'tag'], ['snippets', 'clipboard-list'], ['snippetFolders', 'folder'], ['files', 'image']
+    ['notes', 'notebook-text'], ['folders', 'folder'], ['tags', 'tag'], ['snippets', 'clipboard-list'], ['snippetFolders', 'folder'],
+    ['drugs', 'pill'], ['drugFolders', 'folder'], ['files', 'image']
   ];
   return el('table', { class: 'bk-table' }, el('tbody', {},
     rows.map(([c, ico]) => el('tr', {}, el('td', {}, icon(ico), ` ${COL_NAMES[c]}`), el('td', {}, (counts[c] || 0).toLocaleString('es-ES'),
@@ -237,6 +248,10 @@ function noteHtml(n, ctx) {
     const p = pathOf(a.dataset.note);
     if (p) a.setAttribute('href', rel(dir, p)); else a.removeAttribute('href');
   });
+  body.querySelectorAll('a[data-drug]').forEach((a) => {
+    const p = pathOf(`d:${a.dataset.drug}`);
+    if (p) a.setAttribute('href', rel(dir, p)); else a.removeAttribute('href');
+  });
   // Índice: lista de los títulos
   const heads = [...body.querySelectorAll('h1, h2, h3')];
   heads.forEach((h, i) => { h.id = `t${i + 1}`; });
@@ -251,7 +266,7 @@ function noteHtml(n, ctx) {
     });
     toc.append(ul);
   });
-  const folder = n.folderId ? ctx.folderNames(n.folderId) : '';
+  const folder = n.drug ? n.drugPath : n.folderId ? ctx.folderNames(n.folderId) : '';
   const tags = (n.tags || []).map((t) => store.tags.get(t)?.name).filter(Boolean);
   const refs = (n.refs || []).map((r) => {
     const fp = r.fileId ? ctx.filePath.get(`${n.id}/${r.fileId}`) : null;
@@ -262,10 +277,23 @@ function noteHtml(n, ctx) {
   return page(n.title || 'Sin título',
     `<div class="crumbs"><a href="${escapeHtml(rel(dir, 'index.html'))}">🏠 Índice</a>${folder ? ` · ${escapeHtml(folder)}` : ''}${n.trashed ? ' · 🗑 Papelera' : ''}</div>`
     + `<h1 class="title">${escapeHtml(n.title || 'Sin título')}</h1>`
-    + `<div class="meta">Creada ${escapeHtml(longDate(n.createdAt))} · Modificada ${escapeHtml(longDate(n.updatedAt))}${n.pinned ? ' · 📌 Fijada' : ''}`
+    + `<div class="meta">Creada ${escapeHtml(longDate(n.createdAt))} · Modificada ${escapeHtml(longDate(n.updatedAt))}${n.pinned ? ' · 📌 Fijada' : ''}${n.drug && n.reviewed === false ? ' · ⚠ Pendiente de revisar' : ''}`
     + `${tags.length ? `<br>${tags.map((t) => `<span class="tag">#${escapeHtml(t)}</span>`).join('')}` : ''}</div>`
     + body.innerHTML
     + (refs.length ? `<div class="refs"><h2>Bibliografía</h2><ol>${refs.join('')}</ol></div>` : ''));
+}
+
+/** HTML de una ficha del Vademécum para el .zip: nombres comerciales, presentaciones, pautas y «Mis notas» */
+function drugPageHtml(d) {
+  const e = escapeHtml;
+  const parts = [];
+  if (d.brands?.length) parts.push(`<p><strong>Nombres comerciales:</strong> ${e(d.brands.join(', '))}</p>`);
+  if (d.presentations?.length) parts.push(`<h2>Presentaciones</h2><ul>${d.presentations.map((p) => `<li>${e(p)}</li>`).join('')}</ul>`);
+  if (d.regimens?.length) {
+    parts.push(`<h2>Pautas</h2><table><thead><tr><th>Indicación</th><th>Pauta</th><th>Para el informe</th></tr></thead><tbody>${d.regimens.map((r) => `<tr><td>${e(r.indication || '')}</td><td>${e(regSummary(r))}</td><td>${e(lineOf(d.name, r))}</td></tr>`).join('')}</tbody></table>`);
+  }
+  if (String(d.html || '').trim()) parts.push(`<h2>Mis notas</h2>${d.html}`);
+  return parts.join('');
 }
 
 const fileIdsOf = (n) => {
@@ -322,9 +350,23 @@ async function exportZip() {
       id: `s:${s.id}`, snippetFolder: s.folderId, title: s.title, html: htmlOf(s), refs: [], tags: [],
       createdAt: s.createdAt, updatedAt: s.updatedAt, snippet: true
     }]));
-    for (const n of [...notes, ...snipNotes.values()]) {
+    // Los fármacos, como «notas» de la carpeta Vademécum (id «d:…»), con sus pautas en una tabla
+    await ensureAllDrugBodies();
+    const drugs = [...store.drugs.values()].map(fullDrug).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+    const drugNames = (id) => {
+      const out = []; const seen = new Set();
+      for (let x = store.drugFolders.get(id); x && !seen.has(x.id); x = x.parentId ? store.drugFolders.get(x.parentId) : null) { seen.add(x.id); out.unshift(x.name); }
+      return out.join(' › ');
+    };
+    const drugNotes = new Map(drugs.map((d) => [d.id, {
+      id: `d:${d.id}`, drugFolder: d.folderId, title: d.name || 'Sin nombre', html: drugPageHtml(d), refs: [], tags: [],
+      createdAt: d.createdAt, updatedAt: d.updatedAt, drug: true, trashed: !!d.trashed, reviewed: d.reviewed,
+      drugPath: `💊 Vademécum${d.folderId && store.drugFolders.has(d.folderId) ? ` › ${drugNames(d.folderId)}` : ''}`
+    }]));
+    for (const n of [...notes, ...snipNotes.values(), ...drugNotes.values()]) {
       const dir = n.snippet ? (n.snippetFolder && store.snippetFolders.has(n.snippetFolder) ? dirOf(n.snippetFolder, 'Prerredactados', store.snippetFolders) : 'Prerredactados')
-        : n.trashed ? 'Papelera' : n.folderId && store.folders.has(n.folderId) ? dirOf(n.folderId, 'Notas', store.folders) : 'Notas';
+        : n.drug ? (n.trashed ? 'Vademécum/Papelera' : n.drugFolder && store.drugFolders.has(n.drugFolder) ? dirOf(n.drugFolder, 'Vademécum', store.drugFolders) : 'Vademécum')
+          : n.trashed ? 'Papelera' : n.folderId && store.folders.has(n.folderId) ? dirOf(n.folderId, 'Notas', store.folders) : 'Notas';
       const title = safeName(n.title, 'Sin título');
       const file = uniqueIn(used, dir, `${title}.html`);
       ctx.noteDir.set(n.id, dir);
@@ -367,17 +409,24 @@ async function exportZip() {
       root.file(txt, `${s.title || ''}\n\n${s.body || ''}\n`);
       snipPaths.push([s, ctx.notePath.get(sn.id)]);
     }
-    root.file('index.html', indexPage(notes, ctx, snipPaths));
+    const drugPaths = [];
+    for (const d of drugs) {
+      const dn = drugNotes.get(d.id);
+      root.file(ctx.notePath.get(dn.id), noteHtml(dn, ctx));
+      if (!d.trashed) drugPaths.push([dn, ctx.notePath.get(dn.id)]);
+    }
+    root.file('index.html', indexPage(notes, ctx, snipPaths, drugPaths));
     root.file('LEEME.txt', `Exportación legible de Dr.Folio (${new Date().toLocaleString('es-ES')}).\n\n`
       + 'Abre «index.html» con cualquier navegador. Cada nota es un .html con sus imágenes y PDF en la carpeta «(archivos)» de al lado.\n'
-      + 'Los prerredactados están en «Prerredactados»: .html con su formato e imágenes y .txt con el texto tal como se copia.\n\n'
+      + 'Los prerredactados están en «Prerredactados»: .html con su formato e imágenes y .txt con el texto tal como se copia.\n'
+      + 'Los fármacos están en «Vademécum» (por carpetas): un .html por ficha con presentaciones, pautas y tus notas.\n\n'
       + 'Para RESTAURAR en la app usa la copia .json (Ajustes → Copia de seguridad), no este .zip.\n');
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
       (m) => p.set(0.6 + 0.4 * (m.percent / 100), 'Comprimiendo…', m.currentFile ? m.currentFile.split('/').pop() : ''));
     const zblob = new Blob([blob], { type: 'application/zip' });
     const name = `drfolio-legible-${stamp()}.zip`;
     p.finish(`Exportación lista · ${formatBytes(zblob.size)}`, [
-      el('p', {}, `${plural(notes.length, 'nota', 'notas')}, ${plural(store.snippets.size, 'prerredactado', 'prerredactados')} y ${plural(wanted.length, 'archivo', 'archivos')}.`),
+      el('p', {}, `${plural(notes.length, 'nota', 'notas')}, ${plural(store.snippets.size, 'prerredactado', 'prerredactados')}, ${plural(drugs.length, 'fármaco', 'fármacos')} y ${plural(wanted.length, 'archivo', 'archivos')}.`),
       missing.length ? el('p', { class: 'bk-warn' }, `⚠️ ${missing.length} archivo(s) no se pudieron leer (¿sin conexión?).`) : null,
       el('p', { class: 'muted small' }, 'Se abre sin la app (index.html). Para restaurar usa la copia .json.'),
       deliverButtons(zblob, name)
@@ -391,7 +440,7 @@ function extFor(meta) {
   return m[meta.mime] || '';
 }
 
-function indexPage(notes, ctx, snipPaths) {
+function indexPage(notes, ctx, snipPaths, drugPaths = []) {
   const link = (path, text) => `<a href="${escapeHtml(rel('', path))}">${escapeHtml(text)}</a>`;
   const live = notes.filter((n) => !n.trashed);
   const tree = (parentId) => {
@@ -404,9 +453,10 @@ function indexPage(notes, ctx, snipPaths) {
   };
   const trash = notes.filter((n) => n.trashed);
   return page('Dr.Folio — índice',
-    `<h1 class="title">Dr.Folio</h1><div class="meta">Exportado el ${escapeHtml(new Date().toLocaleString('es-ES'))} · ${live.length} notas · ${snipPaths.length} prerredactados</div>`
+    `<h1 class="title">Dr.Folio</h1><div class="meta">Exportado el ${escapeHtml(new Date().toLocaleString('es-ES'))} · ${live.length} notas · ${snipPaths.length} prerredactados · ${drugPaths.length} fármacos</div>`
     + `<h2>🗂 Notas</h2><div class="tree">${tree(null) || '<p class="muted">Sin notas</p>'}</div>`
     + (snipPaths.length ? `<h2>📋 Prerredactados</h2><ul>${snipPaths.map(([s, p]) => `<li>${link(p, s.title || 'Sin título')}</li>`).join('')}</ul>` : '')
+    + (drugPaths.length ? `<h2>💊 Vademécum</h2><ul>${drugPaths.map(([d, p]) => `<li>${link(p, d.title)}${d.drugPath.includes('›') ? ` <span class="muted">· ${escapeHtml(d.drugPath.replace(/^💊 Vademécum › /, ''))}</span>` : ''}</li>`).join('')}</ul>` : '')
     + (trash.length ? `<h2>🗑 Papelera</h2><ul>${trash.map((n) => `<li>${link(ctx.notePath.get(n.id), n.title || 'Sin título')}</li>`).join('')}</ul>` : ''));
 }
 
@@ -471,6 +521,16 @@ function fixDoc(c, d) {
     x.body = typeof x.body === 'string' ? x.body : '';
     if ('html' in x) x.html = sanitize(typeof x.html === 'string' ? x.html : ''); // la huella `bh` dice si sigue al día
   }
+  if (c === 'drugs') {
+    for (const f of DRUG_DERIVED) delete x[f]; // se recalculan al escribir
+    x.html = sanitize(typeof x.html === 'string' ? x.html : '');
+    x.text = typeof x.text === 'string' ? x.text : '';
+    x.name = typeof x.name === 'string' ? x.name : '';
+    const strs = (a) => (Array.isArray(a) ? a.filter((t) => typeof t === 'string') : []);
+    x.brands = strs(x.brands);
+    x.presentations = strs(x.presentations);
+    x.regimens = Array.isArray(x.regimens) ? x.regimens.filter(isObj) : [];
+  }
   if (c === 'files') {
     x.size = Number(x.size) || 0;
     x.chunks = Number(x.chunks) || 0;
@@ -496,8 +556,9 @@ export function planRestore(parsed, mode) {
   const plan = { mode, add: {}, upd: {}, del: {}, writes: [], deletes: [], noData: 0, writeOps: 0, deleteOps: 0 };
   for (const c of COLS) {
     plan.add[c] = 0; plan.upd[c] = 0; plan.del[c] = 0;
-    const local = c === 'notes' ? new Map([...store.notes.values()].map((n) => [n.id, fullNote(n)])) : store[c];
-    const per = c === 'notes' ? 2 : 1; // nota = notes/{id} + noteBodies/{id}
+    const local = c === 'notes' ? new Map([...store.notes.values()].map((n) => [n.id, fullNote(n)]))
+      : c === 'drugs' ? new Map([...store.drugs.values()].map((d) => [d.id, fullDrug(d)])) : store[c];
+    const per = BODY_COL[c] ? 2 : 1; // nota = notes/{id} + noteBodies/{id} · fármaco = drugs/{id} + drugBodies/{id}
     const inBackup = new Set();
     for (const d of data[c]) {
       inBackup.add(d.id);
@@ -573,17 +634,29 @@ async function runPlan(plan, onProgress) {
           { op: 'set', r: ref('notes', x.d.id), data: light, bytes: JSON.stringify(light).length + 200 }
         ];
       } });
+    } else if (x.c === 'drugs') {
+      // Ficha completa → drugs/{id} (ligera) + drugBodies/{id} («Mis notas»), con bodyAt = updatedAt del cuerpo
+      ops.push({ w: 2, d: 0, make: () => {
+        const { html, text, ...rest } = clean(x.d);
+        const t = Number(rest.updatedAt) || Number(rest.createdAt) || 1;
+        const body = { html: html || '', text: text || '', updatedAt: t };
+        const light = { ...rest, ...deriveDrugLight(body), bodyAt: body.html ? t : 0 };
+        return [
+          { op: 'set', r: ref('drugBodies', x.d.id), data: body, bytes: JSON.stringify(body).length + 200, after: () => rememberDrugBody(x.d.id, body) },
+          { op: 'set', r: ref('drugs', x.d.id), data: light, bytes: JSON.stringify(light).length + 200 }
+        ];
+      } });
     } else {
       ops.push({ w: 1, d: 0, make: () => { const data = clean(x.d); return [{ op: 'set', r: ref(x.c, x.d.id), data, bytes: JSON.stringify(data).length + 200 }]; } });
     }
   }
   // Primero se escribe y después se borra: si se corta, nunca queda menos de lo que había
   for (const x of plan.deletes) {
-    ops.push({ w: 0, d: x.chunks + (x.c === 'notes' ? 2 : 1), make: () => {
+    ops.push({ w: 0, d: x.chunks + (BODY_COL[x.c] ? 2 : 1), make: () => {
       const group = [];
       const chunkCol = collection(db, 'users', store.uid, 'files', x.id, 'chunks');
       for (let i = 0; i < x.chunks; i++) group.push({ op: 'del', r: doc(chunkCol, String(i).padStart(3, '0')), bytes: 100 });
-      if (x.c === 'notes') group.push({ op: 'del', r: ref('noteBodies', x.id), bytes: 100 });
+      if (BODY_COL[x.c]) group.push({ op: 'del', r: ref(BODY_COL[x.c], x.id), bytes: 100 });
       group.push({ op: 'del', r: ref(x.c, x.id), bytes: 100 });
       return group;
     } });

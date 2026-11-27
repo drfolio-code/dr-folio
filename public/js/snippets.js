@@ -81,7 +81,7 @@ async function richForClipboard(html) {
   tpl.innerHTML = html;
   const c = tpl.content;
   c.querySelectorAll('.note-toc,.sec-copy').forEach((n) => n.remove());
-  c.querySelectorAll('a.note-link').forEach((a) => a.replaceWith(...a.childNodes)); // enlaces internos: solo el texto
+  c.querySelectorAll('a.note-link,a.drug-link').forEach((a) => a.replaceWith(...a.childNodes)); // enlaces internos: solo el texto
   c.querySelectorAll('table').forEach((t) => t.setAttribute('style', 'border-collapse:collapse'));
   c.querySelectorAll('td,th').forEach((x) => x.setAttribute('style', `${x.getAttribute('style') || ''};border:1px solid #999;padding:4px 8px;vertical-align:top`));
   c.querySelectorAll('.keep-ws').forEach((x) => x.setAttribute('style', `${x.getAttribute('style') || ''};white-space:pre-wrap`));

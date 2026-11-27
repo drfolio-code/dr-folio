@@ -9,8 +9,8 @@ import { FIELD_RE } from './snipbody.js';
 const ALLOWED_TAGS = ['p', 'div', 'br', 'span', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del', 'mark', 'sub', 'sup',
   'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'hr', 'a', 'img',
   'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption'];
-const ALLOWED_ATTR = ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'data-file', 'data-note', 'data-checked', 'data-toc', 'data-collapsed', 'class', 'style'];
-const ALLOWED_CLASSES = new Set(['checklist', 'note-link', 'note-toc', 'keep-ws']);
+const ALLOWED_ATTR = ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'data-file', 'data-note', 'data-drug', 'data-checked', 'data-toc', 'data-collapsed', 'class', 'style'];
+const ALLOWED_CLASSES = new Set(['checklist', 'note-link', 'drug-link', 'note-toc', 'keep-ws']);
 let pasteMode = false;
 
 function parseColor(v) {
@@ -65,7 +65,7 @@ DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
     if (!data.attrValue) data.keepAttr = false;
   } else if (name === 'href') {
     const v = (data.attrValue || '').trim();
-    if (!/^(https?:|mailto:|tel:|#nota\/)/i.test(v)) data.keepAttr = false;
+    if (!/^(https?:|mailto:|tel:|#nota\/|#farmaco\/)/i.test(v)) data.keepAttr = false;
   } else if (name === 'src') {
     const v = (data.attrValue || '').trim();
     const ok = /^https:/i.test(v) || /^blob:/i.test(v) || (pasteMode && /^data:image\//i.test(v));
@@ -189,6 +189,7 @@ export function createEditor(opts) {
   // opts: { onChange(), onNoteLink(id), onImage(fileId), pickNote() → Promise<{id,title}>,
   //         uploadImages(files) → Promise<[{id,url}]>, resolveImage(id) → Promise<url>,
   //         noteExists(id) → bool, onCopy(text, btn), pickSnippet() → Promise<{html, text}|string>,
+  //         pickDrug() → Promise<{id,name}> (Vademécum), onDrugLink(id), drugExists(id) → bool,
   //         els: elementos propios (para tener varios editores: notas y prerredactados),
   //         markFields: resalta {campo} en lectura, tabs: el tabulador escribe una tabulación }
   const E = opts.els || {};
@@ -285,6 +286,7 @@ export function createEditor(opts) {
         { icon: 'table', label: 'Tabla', run: () => runAct('table', b) },
         { icon: 'link', label: 'Enlace web', run: () => runAct('link', b) },
         { icon: 'notebook-text', label: 'Enlace a una nota', run: () => runAct('notelink', b) },
+        opts.pickDrug ? { icon: 'pill', label: 'Fármaco (Vademécum)', run: () => runAct('druglink', b) } : null,
         { icon: 'table-of-contents', label: 'Índice', run: () => runAct('tocblock', b) },
         { icon: 'clipboard-list', label: 'Prerredactado', run: () => runAct('snippet', b) },
         opts.fields ? { icon: 'braces', label: 'Campo a rellenar {…}', run: () => runAct('field', b) } : null,
@@ -340,6 +342,8 @@ export function createEditor(opts) {
       await insertLink();
     } else if (act === 'notelink') {
       await insertNoteLink();
+    } else if (act === 'druglink') {
+      await insertDrugLink();
     } else if (act === 'snippet') {
       await insertSnippet();
     } else if (act === 'tocblock') {
@@ -547,6 +551,16 @@ export function createEditor(opts) {
     changed();
   }
 
+  /** Enlace a la ficha de un fármaco del Vademécum (como los enlaces entre notas) */
+  async function insertDrugLink() {
+    if (!opts.pickDrug) return;
+    const target = await opts.pickDrug();
+    if (!target) return;
+    restoreRange();
+    exec('insertHTML', `<a href="#farmaco/${escapeAttr(target.id)}" data-drug="${escapeAttr(target.id)}" class="drug-link">${escapeHtml(target.name || 'Fármaco')}</a>&nbsp;`);
+    changed();
+  }
+
   async function insertSnippet() {
     if (!opts.pickSnippet) return;
     const res = await opts.pickSnippet();
@@ -646,7 +660,14 @@ export function createEditor(opts) {
     if (a && inContent(a)) {
       e.preventDefault();
       const noteId = a.dataset.note;
-      if (noteId) {
+      const drugId = a.dataset.drug;
+      if (drugId) {
+        if (readOnly || e.metaKey || e.ctrlKey || !opts.onDrugLink) { opts.onDrugLink?.(drugId); return; }
+        showBubble(a, [
+          { label: '💊 Abrir ficha', onClick: () => opts.onDrugLink(drugId) },
+          { label: 'Quitar enlace', onClick: () => { unwrap(a); changed(); } }
+        ]);
+      } else if (noteId) {
         if (readOnly || e.metaKey || e.ctrlKey) { opts.onNoteLink(noteId); return; }
         showBubble(a, [
           { label: '↪ Abrir nota', onClick: () => opts.onNoteLink(noteId) },
@@ -1000,6 +1021,7 @@ export function createEditor(opts) {
     },
     markLinks() {
       for (const a of $$('a[data-note]', content)) a.classList.toggle('broken', !opts.noteExists(a.dataset.note));
+      if (opts.drugExists) for (const a of $$('a[data-drug]', content)) a.classList.toggle('broken', !opts.drugExists(a.dataset.drug));
     },
     getContent() {
       const clone = content.cloneNode(true);

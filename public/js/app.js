@@ -26,6 +26,11 @@ import {
 } from './bodies.js';
 import { legacyNotes, migrateNotes, snippetsToMigrate, migrateSnippets } from './migrate.js';
 import { icon, iconOr } from './icons.js';
+import {
+  initDrugs, newDrug, openDrug, closeDrug, currentDrug, flushDrug, onDrugsChange, refreshDrugBacklinks, drugCard, drugItemMenu,
+  drugsForView, moveDrugTo, addManyDrugs, importDrugs, emptyDrugTrash, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading
+} from './drugs.js';
+import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies } from './drugbody.js';
 
 // ====================== Estado ======================
 const S = {
@@ -38,6 +43,7 @@ const S = {
   sort: localStorage.getItem('drfolio.sort') || 'updated',
   searchAll: false,                                                   // buscador: todas las notas en vez de la carpeta actual
   folderSort: localStorage.getItem('drfolio.folderSort') || 'manual',  // 'manual' | 'name'
+  drugFolderSort: localStorage.getItem('drfolio.drugFolderSort') || 'name', // carpetas del Vademécum: 'manual' | 'name'
   layout: localStorage.getItem('drfolio.layout') || 'list',            // 'list' | 'grid'
   expanded: new Set(JSON.parse(localStorage.getItem('drfolio.expanded') || '[]')),
   dirty: false,
@@ -50,6 +56,7 @@ const S = {
 };
 let editor = null;
 let snipEditor = null; // el mismo editor, para los prerredactados
+let drugEditor = null; // el mismo editor, para «Mis notas» de cada fármaco (Vademécum)
 
 // ====================== Árboles de carpetas ======================
 // El mismo explorador (ruta, carpetas, menús, arrastrar, buscar) sirve para Notas y para Prerredactados.
@@ -116,12 +123,58 @@ const TREES = {
       searchAll: 'Buscar en todos los prerredactados…', searchingAll: 'Buscando en todos los prerredactados', searchAllBtn: 'Buscar en todos',
       noMatch: 'No hay prerredactados que coincidan.'
     }
+  },
+  // Vademécum (v1.18.0): carpetas por grupo terapéutico (p. ej. Analgésicos › AINE), elementos = fichas de fármacos
+  drugs: {
+    id: 'drugs', col: 'drugFolders', itemCol: 'drugs', map: () => store.drugFolders,
+    root: 'drugs', folder: 'dfolder', views: ['daz', 'dfav', 'drecent', 'dreview', 'dtrash'],
+    rootHash: '#/vademecum', rootName: 'Vademécum', rootIcon: 'pill',
+    one: 'fármaco', many: 'fármacos',
+    items: () => liveDrugs(),
+    newItem: () => newDrugHere(),
+    matches: (d, words) => drugMatches(d, words),
+    sortItems: (list) => list.sort(byName),
+    block: (list, opts) => drugsBlock(list, opts),
+    moveItem: (id, folderId) => moveDrugTo(id, folderId),
+    folderSort: () => S.drugFolderSort,
+    sortValue: () => S.drugFolderSort,
+    setSort: (m) => { S.drugFolderSort = m; localStorage.setItem('drfolio.drugFolderSort', m); },
+    sortOptions: [['manual', 'Orden manual'], ['name', 'Por nombre']],
+    folderSelect: true,
+    shortcuts: () => {
+      const live = liveDrugs();
+      const rev = live.filter((d) => d.reviewed === false).length;
+      return [['star', 'Favoritos', live.filter((d) => d.favorite).length, 'dfav'], ['clock', 'Recientes', null, 'drecent'],
+        ['arrow-down-a-z', 'A-Z', live.length, 'daz'], ...(rev ? [['triangle-alert', 'Por revisar', rev, 'dreview']] : [])];
+    },
+    // Botones extra del explorador y del menú ⋯: crear muchas de golpe e importar
+    extraActions: (folderId) => [
+      el('button', { class: 'btn', type: 'button', onclick: () => addManyDrugs(folderId) }, icon('list-plus'), ' Añadir varios'),
+      el('button', { class: 'btn', type: 'button', onclick: () => importDrugs(folderId) }, icon('file-up'), ' Importar')],
+    menuExtra: (folderId) => [
+      { icon: 'list-plus', label: folderId ? 'Añadir varios aquí…' : 'Añadir varios…', onClick: () => addManyDrugs(folderId) },
+      { icon: 'file-up', label: folderId ? 'Importar fichas aquí (JSON)…' : 'Importar fichas (JSON)…', onClick: () => importDrugs(folderId) }],
+    txt: {
+      Many: 'Fármacos', newBtn: '＋ Fármaco', newOne: 'Nuevo fármaco', newHere: 'Nuevo fármaco aquí', folderHint: 'Grupo (p. ej. Analgésicos)',
+      loose: 'Sin carpeta', itemsHere: 'Fármacos', rootDest: '«Vademécum» (sin carpeta)',
+      noFolders: 'Aún no tienes carpetas. Crea grupos terapéuticos con «＋ Carpeta» (p. ej. Analgésicos › AINE).',
+      onlySubs: 'No hay fármacos sueltos en esta carpeta (mira en sus subcarpetas).',
+      emptyFolder: 'Carpeta vacía. Crea un fármaco, «Añadir varios» o una subcarpeta.',
+      searchAll: 'Principio activo o nombre comercial…', searchingAll: 'Buscando en todo el Vademécum', searchAllBtn: 'Buscar en todo',
+      noMatch: 'No hay fármacos que coincidan.'
+    }
   }
 };
 /** Árbol al que pertenece una vista (o null: Inicio) */
 const treeOf = (type) => Object.values(TREES).find((T) => type === T.root || type === T.folder || T.views.includes(type)) || null;
 const isSnipView = (type = S.view.type) => treeOf(type)?.id === 'snippets';
-/** Sección de una vista: 'home' | 'search' | id del árbol ('notes' | 'snippets') — coincide con el id del módulo */
+const isDrugView = (type = S.view.type) => treeOf(type)?.id === 'drugs';
+/** Nuevo fármaco en la carpeta abierta (o en Favoritos si estás ahí) */
+function newDrugHere() {
+  const v = S.view;
+  newDrug({ folderId: v.type === 'dfolder' ? v.id : null, favorite: v.type === 'dfav' });
+}
+/** Sección de una vista: 'home' | 'search' | id del árbol ('notes' | 'snippets' | 'drugs') — coincide con el id del módulo */
 const sectionOf = (type = S.view.type) => (type === 'search' ? 'search' : treeOf(type)?.id || 'home');
 /** Nuevo prerredactado en la carpeta abierta (o en Favoritos si estás ahí) */
 function newSnippetHere() {
@@ -210,7 +263,11 @@ function startApp(user) {
     onDropFiles: (files) => files.forEach((f) => addAttachment(f)),
     tabs: true,
     pickSnippet: pickSnippetText,
-    onCopy: (text, btn) => copyOut(text, btn)
+    onCopy: (text, btn) => copyOut(text, btn),
+    // Vademécum: ＋ → «Fármaco» inserta un enlace a su ficha (data-drug); se guarda en notes.drugs (datos ligeros)
+    pickDrug,
+    onDrugLink: (id) => openDrugInVademecum(id),
+    drugExists: (id) => store.drugs.has(id) && !store.drugs.get(id).trashed
   });
 
   // Editor de prerredactados: el MISMO editor (createEditor) con sus propios elementos y la MISMA barra de formato
@@ -241,8 +298,33 @@ function startApp(user) {
     onCopy: onSnippetSectionCopy
   });
 
+  // «Mis notas» de cada fármaco: el MISMO editor y la MISMA barra de formato
+  const drugBar = el('div', { id: 'drug-toolbar', class: 'toolbar', role: 'toolbar', 'aria-label': 'Formato' });
+  $('#drug-trash').after(drugBar);
+  drugEditor = createEditor({
+    els: {
+      content: $('#drug-content'), toolbar: drugBar, tableTools: $('#drug-table-tools'), bubble: $('#drug-bubble'),
+      box: $('#editor'), scroll: $('#drug-scroll'), fileInput: $('#drug-file-image'), toc: null
+    },
+    tabs: true,
+    onChange: onDrugEditorChange,
+    onNoteLink: (id) => {
+      if (!store.notes.has(id)) { toast('Esa nota ya no existe', 'error'); return; }
+      flushDrug();
+      openNote(id, { push: true });
+    },
+    onImage: (fileId, src) => openViewer({ fileId, src, name: 'Imagen', kind: 'image' }),
+    pickNote: pickNoteForLink,
+    uploadImages: (files) => uploadImages(files, { drugId: drugImageOwner() }),
+    resolveImage: fileUrl,
+    noteExists: (id) => store.notes.has(id) && !store.notes.get(id).trashed,
+    onDropFiles: () => toast('En «Mis notas» solo se pueden añadir imágenes', 'error'),
+    pickSnippet: pickSnippetText,
+    onCopy: (text, btn) => copyOut(text, btn)
+  });
+
   // Deshacer / rehacer en la cabecera (como Evernote); mousedown sin quitar la selección del texto
-  for (const [pre, ed] of [['btn', editor], ['snip', snipEditor]]) {
+  for (const [pre, ed] of [['btn', editor], ['snip', snipEditor], ['drug', drugEditor]]) {
     for (const k of ['undo', 'redo']) {
       const b = $(`#${pre}-${k}`);
       b.addEventListener('mousedown', (e) => e.preventDefault());
@@ -264,8 +346,23 @@ function startApp(user) {
     newFolder: (parentId) => newFolder(parentId, TREES.snippets)
   });
 
+  initDrugs({
+    editor: drugEditor,
+    openMode: () => openMode(),
+    fontStep: (d) => setReadSize(readSize() + d),
+    updateWakeLock: () => updateWakeLock(),
+    purgeDrugFiles,
+    renderList: () => renderList(),
+    renderSidebar: () => renderSidebar(),
+    pushHash: (replace) => pushHash(replace),
+    showList: () => showList(),
+    showPane,
+    newFolder: (parentId) => newFolder(parentId, TREES.drugs),
+    openNote: (id) => openNote(id, { push: true })
+  });
+
   initBackup({
-    beforeRun: () => { saveSoon.flush(); flushSnippet(); },
+    beforeRun: () => { saveSoon.flush(); flushSnippet(); flushDrug(); },
     isPublic: () => getMode() === 'public',
     onChange: () => { if (S.view.type === 'home') renderHomeSoon(); }
   });
@@ -299,8 +396,8 @@ const renderSidebarSoon = debounce(() => renderSidebar(), 60);
 
 function onData(name, changed) {
   updateSync();
-  if (S.view.type === 'home' && ['notes', 'snippets', 'folders', 'tags', 'files', 'snippetFolders'].includes(name)) renderHomeSoon();
-  if (S.view.type === 'search' && ['notes', 'snippets', 'folders', 'snippetFolders', 'tags'].includes(name)) renderFindSoon();
+  if (S.view.type === 'home' && ['notes', 'snippets', 'folders', 'tags', 'files', 'snippetFolders', 'drugs', 'drugFolders'].includes(name)) renderHomeSoon();
+  if (S.view.type === 'search' && ['notes', 'snippets', 'folders', 'snippetFolders', 'tags', 'drugs', 'drugFolders'].includes(name)) renderFindSoon();
   if (['notes', 'snippets'].includes(name)) renderNavSoon();
   if (name === 'snippets' || name === 'snippetFolders') migrateCategories();
   if (name === 'snippets' && !store.fromCache.snippets) maybeMigrateSnippets();
@@ -312,6 +409,7 @@ function onData(name, changed) {
     renderSidebarSoon();
     if (S.noteId && changed.has(S.noteId)) onCurrentNoteRemoteChange();
     else if (S.noteId) { renderBacklinks(); editor.markLinks(); }
+    refreshDrugBacklinks(); // «Aparece en estas notas» de la ficha abierta
   } else if (name === 'folders' || name === 'tags') {
     renderSidebarSoon();
     renderListSoon();
@@ -325,6 +423,15 @@ function onData(name, changed) {
   } else if (name === 'snippetFolders') {
     onSnippetsChange(null);
     if (isSnipView()) renderListSoon();
+  } else if (name === 'drugs') {
+    onDrugsChange(changed);
+    renderSidebarSoon();
+    if (isDrugView()) renderListSoon();
+    if (S.noteId) editor.markLinks(); // enlaces a fármacos eliminados
+  } else if (name === 'drugFolders') {
+    onDrugsChange(null);
+    renderSidebarSoon();
+    if (isDrugView()) renderListSoon();
   }
 }
 
@@ -448,7 +555,7 @@ function bindUi() {
   $('#rail-side').addEventListener('click', toggleSide);
   $('#btn-side-close').addEventListener('click', toggleSide);
   $('#app').classList.toggle('side-closed', S.sideClosed);
-  ['#btn-new-note', '#btn-new-note-empty'].forEach((s) => $(s).addEventListener('click', () => (isSnipView() ? newSnippetHere() : newNote())));
+  ['#btn-new-note', '#btn-new-note-empty'].forEach((s) => $(s).addEventListener('click', () => (isDrugView() ? newDrugHere() : isSnipView() ? newSnippetHere() : newNote())));
   $('#btn-layout').addEventListener('click', () => {
     S.layout = S.layout === 'grid' ? 'list' : 'grid';
     localStorage.setItem('drfolio.layout', S.layout);
@@ -522,16 +629,16 @@ function bindUi() {
   // Atajos de teclado
   document.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
-    if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveSoon.flush(); flushSnippet(); setSaveStatus('Guardado ✓'); }
+    if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveSoon.flush(); flushSnippet(); flushDrug(); setSaveStatus('Guardado ✓'); }
     else if (mod && e.key.toLowerCase() === 'k' && !editor.isFocused()) { e.preventDefault(); if (!treeOf(S.view.type)) openFind(); else { showList(); $('#search').focus(); } }
-    else if (mod && e.altKey && e.key.toLowerCase() === 'n') { e.preventDefault(); if (isSnipView()) newSnippetHere(); else newNote(); }
+    else if (mod && e.altKey && e.key.toLowerCase() === 'n') { e.preventDefault(); if (isDrugView()) newDrugHere(); else if (isSnipView()) newSnippetHere(); else newNote(); }
     else if (e.key === 'Escape' && !modalOpen()) closeDrawer();
   });
 
   // Guardar antes de salir
-  window.addEventListener('beforeunload', () => { saveSoon.flush(); flushSnippet(); });
+  window.addEventListener('beforeunload', () => { saveSoon.flush(); flushSnippet(); flushDrug(); });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') { saveSoon.flush(); flushSnippet(); }
+    if (document.visibilityState === 'hidden') { saveSoon.flush(); flushSnippet(); flushDrug(); }
     updateWakeLock(); // el sistema suelta el bloqueo al ocultar la pestaña: lo pedimos otra vez al volver
   });
   window.addEventListener('popstate', onPopState);
@@ -556,6 +663,7 @@ function hashFor(view, noteId) {
   let h = T && view.type === T.root ? T.rootHash : `#/${view.type}${view.id ? `/${view.id}` : ''}`;
   if (noteId) h += `/n/${noteId}`;
   else if (isSnipView(view.type) && currentSnippet()) h += `/s/${currentSnippet()}`;
+  else if (isDrugView(view.type) && currentDrug()) h += `/f/${currentDrug()}`;
   return h;
 }
 /** Cadena de rutas desde la raíz del árbol («Notas» o «Prerredactados») hasta la vista (historial y ruta de navegación). */
@@ -575,7 +683,7 @@ function pushHash(replace = false) {
   const h = hashFor(S.view, S.noteId);
   if (location.hash === h) return;
   const d = history.state?.d || 0;
-  const st = { lv: lvFor(S.view), nt: S.noteId || (isSnipView() && currentSnippet()) ? 1 : 0 };
+  const st = { lv: lvFor(S.view), nt: S.noteId || (isSnipView() && currentSnippet()) || (isDrugView() && currentDrug()) ? 1 : 0 };
   if (replace) history.replaceState({ d, ...st }, '', h); else history.pushState({ d: d + 1, ...st }, '', h);
 }
 function pushChain(chain, from, d) {
@@ -585,20 +693,30 @@ function pushChain(chain, from, d) {
 function initHistory() {
   if (typeof history.state?.d === 'number') return; // recarga: el historial ya está montado
   const h = location.hash;
-  const { view, noteId, snipId } = parseHash(h);
+  const { view, noteId, snipId, drugId } = parseHash(h);
   history.replaceState({ d: 0 }, '', '#/inicio');
-  if (view.type === 'home' && !noteId && !snipId) return;
+  if (view.type === 'home' && !noteId && !snipId && !drugId) return;
   const chain = chainFor(view);
   if (chain.length) pushChain(chain, 0, 0);
   else history.pushState({ d: 1, lv: 0, nt: 0 }, '', hashFor(view));
-  if (noteId || snipId) history.pushState({ d: (history.state?.d || 0) + 1, lv: lvFor(view), nt: 1 }, '', h);
+  if (noteId || snipId || drugId) history.pushState({ d: (history.state?.d || 0) + 1, lv: lvFor(view), nt: 1 }, '', h);
 }
 function parseHash(hash) {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   let view = { type: 'home', id: null };
   let noteId = null;
   let snipId = null;
+  let drugId = null;
   if (parts[0] === 'nota' && parts[1]) { noteId = parts[1]; view = { type: 'all', id: null }; }
+  else if (parts[0] === 'farmaco' && parts[1]) { drugId = parts[1]; view = { type: 'drugs', id: null }; }
+  else if (['vademecum', 'daz', 'dfav', 'drecent', 'dreview', 'dtrash'].includes(parts[0])) {
+    view = { type: parts[0] === 'vademecum' ? 'drugs' : parts[0], id: null };
+    if (parts[1] === 'f') drugId = parts[2];
+  }
+  else if (parts[0] === 'dfolder' && parts[1]) {
+    view = { type: 'dfolder', id: parts[1] };
+    if (parts[2] === 'f') drugId = parts[3];
+  }
   else if (parts[0] === 'buscar') view = { type: 'search', id: null };
   else if (['snippets', 'sall', 'sfav', 'sused', 'srecent'].includes(parts[0])) {
     view = { type: parts[0], id: null };
@@ -619,10 +737,10 @@ function parseHash(hash) {
     view = { type: parts[0], id: parts[1] };
     if (parts[2] === 'n') noteId = parts[3];
   }
-  return { view, noteId, snipId };
+  return { view, noteId, snipId, drugId };
 }
 function applyHash() {
-  const { view, noteId, snipId } = parseHash(location.hash);
+  const { view, noteId, snipId, drugId } = parseHash(location.hash);
   if (view.type !== S.view.type || view.id !== S.view.id) {
     S.search = ''; $('#search').value = ''; S.searchAll = false;
     $('#note-list').scrollTop = 0; // cada carpeta empieza arriba
@@ -631,9 +749,10 @@ function applyHash() {
   closeDrawer();
   renderSection();
   renderSidebar(); renderList();
-  if (noteId) openNote(noteId, { fromHash: true });
-  else if (snipId) { S.noteId = null; openSnippet(snipId, { fromHash: true }); }
-  else { closeSnippet({ fromHash: true }); closeEditor({ fromHash: true }); }
+  if (noteId) { if (currentDrug()) closeDrug({ fromHash: true }); openNote(noteId, { fromHash: true }); }
+  else if (snipId) { S.noteId = null; if (currentDrug()) closeDrug({ fromHash: true }); openSnippet(snipId, { fromHash: true }); }
+  else if (drugId) { if (S.noteId) saveSoon.flush(); S.noteId = null; closeSnippet({ fromHash: true }); openDrug(drugId, { fromHash: true }); }
+  else { closeSnippet({ fromHash: true }); if (currentDrug()) closeDrug({ fromHash: true }); closeEditor({ fromHash: true }); }
 }
 
 // Retroceso por varias entradas (subir varios niveles de carpeta de golpe)
@@ -678,7 +797,7 @@ async function goView(view) {
 }
 
 function goHome() {
-  saveSoon.flush(); flushSnippet();
+  saveSoon.flush(); flushSnippet(); flushDrug();
   closeDrawer();
   const d = history.state?.d || 0;
   if (d > 0) {
@@ -783,6 +902,7 @@ function createMenu(anchor) {
   const sec = sectionOf();
   const nf = v.type === 'folder' ? store.folders.get(v.id) : null;
   const sf = v.type === 'sfolder' ? store.snippetFolders.get(v.id) : null;
+  const df = v.type === 'dfolder' ? store.drugFolders.get(v.id) : null;
   const inF = (f) => (f ? ` en «${f.name}»` : '');
   const folderItem = (T, f) => ({
     icon: 'folder-plus', label: f ? `Subcarpeta${inF(f)}` : `Carpeta de ${T.many}`,
@@ -794,9 +914,10 @@ function createMenu(anchor) {
   menu(anchor, [
     { icon: 'notebook-text', label: `Nota${inF(nf)}`, onClick: () => newNote() },
     { icon: 'clipboard-list', label: `Prerredactado${inF(sf)}`, onClick: () => (sec === 'snippets' ? newSnippetHere() : setView({ type: 'snippets', id: null }).then(() => newSnippet())) },
+    { icon: 'pill', label: `Fármaco${inF(df)}`, onClick: () => (sec === 'drugs' ? newDrugHere() : setView({ type: 'drugs', id: null }).then(() => newDrug())) },
     '-',
-    ...(sec === 'notes' ? [folderItem(TREES.notes, nf)] : sec === 'snippets' ? [folderItem(TREES.snippets, sf)]
-      : [folderItem(TREES.notes, null), folderItem(TREES.snippets, null)])
+    ...(sec === 'notes' ? [folderItem(TREES.notes, nf)] : sec === 'snippets' ? [folderItem(TREES.snippets, sf)] : sec === 'drugs' ? [folderItem(TREES.drugs, df)]
+      : [folderItem(TREES.notes, null), folderItem(TREES.snippets, null), folderItem(TREES.drugs, null)])
   ]);
 }
 
@@ -815,14 +936,21 @@ const SEARCH_SOURCES = [
     loaded: () => store.loaded.snippets,
     run: (words) => allSnippets().filter((s) => snippetMatches(s, words)).sort(byUpdated),
     card: (s, q) => snippetCard(s, { search: q, showPath: true, onLongPress: longPressed, onOpen: openSnippetFromSearch })
+  },
+  {
+    // Vademécum: principio activo, nombres comerciales, presentaciones e indicaciones (sin tildes ni mayúsculas)
+    id: 'drugs', name: 'Vademécum', icon: 'pill', all: 'Ver todos los fármacos', none: 'No hay fármacos que coincidan.',
+    loaded: () => store.loaded.drugs,
+    run: (words) => rankDrugs(liveDrugs().filter((d) => drugMatches(d, words)), words),
+    card: (d, q) => drugCard(d, { search: q, showPath: true, onLongPress: longPressed, onOpen: openDrugInVademecum })
   }
 ];
 
 /** Abre Buscar. Es una sección de primer nivel: «atrás» desde ella vuelve a Inicio. */
 async function openFind() {
-  saveSoon.flush(); flushSnippet();
+  saveSoon.flush(); flushSnippet(); flushDrug();
   closeDrawer();
-  if (S.view.type !== 'search' || S.noteId || currentSnippet()) {
+  if (S.view.type !== 'search' || S.noteId || currentSnippet() || currentDrug()) {
     await backTo(-1);
     history.pushState({ d: (history.state?.d || 0) + 1, lv: 0, nt: 0 }, '', NAV_SEARCH.route);
     applyHash();
@@ -836,6 +964,22 @@ function openSnippetFromSearch(id) {
   S.search = ''; $('#search').value = '';
   renderSection(); renderSidebar(); renderList();
   openSnippet(id, { push: true });
+}
+
+/**
+ * Ficha de un fármaco abierta desde Buscar o desde un enlace de una nota: se abre dentro del Vademécum
+ * y «atrás» vuelve a donde estabas (Buscar o la nota).
+ */
+function openDrugInVademecum(id) {
+  const d = store.drugs.get(id);
+  if (!d || d.trashed) { toast(d ? 'Ese fármaco está en la papelera del Vademécum' : 'Ese fármaco ya no existe', 'error'); return; }
+  saveSoon.flush(); flushSnippet();
+  if (S.noteId) { S.noteId = null; S.bodyReady = false; S.reading = false; }
+  closeSnippet({ fromHash: true });
+  S.view = { type: 'drugs', id: null };
+  S.search = ''; $('#search').value = '';
+  renderSection(); renderSidebar(); renderList();
+  openDrug(id, { push: true });
 }
 
 const renderFindSoon = debounce(() => { if (S.view.type === 'search') renderFind(); }, 80);
@@ -854,7 +998,7 @@ function renderFind() {
   const box = $('#find-results');
   if (!words.length) {
     box.replaceChildren(el('div', { class: 'find-hint' }, el('p', { class: 'big' }, icon('search')),
-      el('p', {}, 'Busca a la vez en tus notas y prerredactados.'),
+      el('p', {}, 'Busca a la vez en tus notas, prerredactados y fármacos (también por nombre comercial).'),
       el('p', { class: 'small' }, 'Sin tildes ni mayúsculas: «tension» encuentra «Tensión». Varias palabras = deben aparecer todas.')));
     return;
   }
@@ -867,7 +1011,7 @@ function renderFind() {
     if (S.findFilter === 'all' && !list.length) continue;
     const max = S.findFilter === 'all' ? 5 : 300;
     out.push(el('div', { class: 'find-sec' }, el('span', {}, icon(src.icon), ` ${src.name} · ${list.length}`)));
-    if (!list.length) { out.push(el('div', { class: 'fx-hint' }, `No hay ${src.name.toLowerCase()} que coincidan.`)); continue; }
+    if (!list.length) { out.push(el('div', { class: 'fx-hint' }, src.none || `No hay ${src.name.toLowerCase()} que coincidan.`)); continue; }
     out.push(lazyBlock('home-notes', list.slice(0, max), (it) => src.card(it, q), `find:${src.id}:${S.findFilter}:${q}`));
     if (list.length > max) {
       out.push(el('button', { class: 'btn find-more', type: 'button', onclick: () => { S.findFilter = src.id; renderFind(); $('#find-scroll').scrollTop = 0; } },
@@ -924,6 +1068,14 @@ function renderSidebar() {
       navItem('pin', 'Fijadas', live.filter((n) => n.pinned).length, 'pinned'),
       navItem('clock', 'Recientes', null, 'recent'),
       navItem('trash-2', 'Papelera', [...store.notes.values()].filter((n) => n.trashed).length, 'trash')));
+  } else if (sec === 'drugs') {
+    const all = liveDrugs();
+    body.push(el('nav', { class: 'side-nav' },
+      navItem('arrow-down-a-z', 'A-Z', all.length, 'daz'),
+      navItem('star', 'Favoritos', all.filter((x) => x.favorite).length, 'dfav'),
+      navItem('clock', 'Recientes', null, 'drecent'),
+      navItem('triangle-alert', 'Por revisar', all.filter((x) => x.reviewed === false).length, 'dreview'),
+      navItem('trash-2', 'Papelera', [...store.drugs.values()].filter((x) => x.trashed).length, 'dtrash')));
   } else {
     const all = allSnippets();
     body.push(el('nav', { class: 'side-nav' },
@@ -1074,6 +1226,7 @@ function folderMenu(anchor, f, { here = false, T = TREES.notes } = {}) {
     { icon: 'folder-input', label: 'Mover a…', onClick: () => moveFolder(f, T) },
     i > 0 ? { icon: 'arrow-up', label: 'Subir', onClick: () => shiftFolder(f, -1, T) } : null,
     i >= 0 && i < sibs.length - 1 ? { icon: 'arrow-down', label: 'Bajar', onClick: () => shiftFolder(f, 1, T) } : null,
+    ...(T.menuExtra ? ['-', ...T.menuExtra(f.id)] : []),
     '-',
     { icon: 'trash-2', label: 'Eliminar carpeta', danger: true, onClick: () => deleteFolder(f, T) }
   ].filter(Boolean));
@@ -1085,6 +1238,7 @@ function rootMenu(anchor, T = TREES.notes) {
   menu(anchor, [
     { icon: 'folder-plus', label: 'Nueva carpeta', onClick: () => newFolder(null, T) },
     { icon: 'file-plus', label: T.txt.newOne, onClick: () => T.newItem() },
+    ...(T.menuExtra ? T.menuExtra(null) : []),
     '-',
     ...T.sortOptions.map(([value, label]) => ({ icon: cur === value ? '●' : '○', label: `Ordenar: ${label.toLowerCase()}`, onClick: () => setFolderSort(value, T) }))
   ]);
@@ -1314,6 +1468,13 @@ function viewTitle() {
   if (v.type === 'sfav') return 'Favoritos';
   if (v.type === 'sused') return 'Más usados';
   if (v.type === 'srecent') return 'Recientes';
+  if (v.type === 'drugs') return 'Vademécum';
+  if (v.type === 'daz') return 'Vademécum A-Z';
+  if (v.type === 'dfav') return 'Fármacos favoritos';
+  if (v.type === 'drecent') return 'Consultados recientemente';
+  if (v.type === 'dreview') return 'Pendientes de revisar';
+  if (v.type === 'dtrash') return 'Papelera del Vademécum';
+  if (v.type === 'dfolder') return store.drugFolders.get(v.id)?.name || 'Carpeta';
   if (v.type === 'folder') return store.folders.get(v.id)?.name || 'Carpeta';
   if (v.type === 'sfolder') return store.snippetFolders.get(v.id)?.name || 'Carpeta';
   if (v.type === 'tag') return `#${store.tags.get(v.id)?.name || 'etiqueta'}`;
@@ -1353,16 +1514,17 @@ function renderList() {
   const snip = T?.id === 'snippets';
   $('#list-title').textContent = viewTitle();
   const box = $('#note-list');
-  $('#btn-new-note').title = snip ? 'Nuevo prerredactado' : 'Nueva nota';
-  $('#btn-layout').classList.toggle('hidden', !T || v.type === 'trash');
+  $('#btn-new-note').title = T?.id === 'drugs' ? 'Nuevo fármaco' : snip ? 'Nuevo prerredactado' : 'Nueva nota';
+  $('#btn-layout').classList.toggle('hidden', !T || v.type === 'trash' || v.type === 'dtrash');
   $('#btn-layout').replaceChildren(icon(S.layout === 'grid' ? 'list' : 'layout-grid'));
   $('#btn-layout').title = S.layout === 'grid' ? 'Ver como lista' : 'Ver como cuadrícula';
   $('#btn-list-more').classList.toggle('hidden', !T || !(v.type === T.root || v.type === T.folder));
   syncSortSelect(T);
-  $('#sort').classList.toggle('hidden', ['recent', 'sused', 'srecent'].includes(v.type));
+  $('#sort').classList.toggle('hidden', ['recent', 'sused', 'srecent'].includes(v.type) || T?.id === 'drugs'); // el Vademécum va siempre A-Z
   $('#search').placeholder = T && v.type === T.folder ? `Buscar en «${T.map().get(v.id)?.name || 'carpeta'}»…`
     : T && v.type === T.root ? `${T.txt.searchAll}  (Ctrl+K)` : 'Buscar…  (Ctrl+K)';
   renderCrumbs();
+  if (T?.id === 'drugs') { $('#list-trash-bar').classList.add('hidden'); renderDrugView(box, T); return; }
   if (snip) { $('#list-trash-bar').classList.add('hidden'); renderSnippetView(box, T); return; }
   $('#list-trash-bar').classList.toggle('hidden', v.type !== 'trash' || !notesForView().length);
   if (!store.loaded.notes) { box.replaceChildren(el('div', { class: 'list-empty' }, 'Cargando notas…')); return; }
@@ -1437,6 +1599,61 @@ function renderSnippetView(box, T) {
   box.replaceChildren(el('div', { class: `fx ${S.layout === 'grid' ? 'grid' : ''}` }, snippetsBlock(list, { showPath: true })));
 }
 
+/** Vademécum: explorador de carpetas o una vista fija (A-Z, Favoritos, Recientes, Por revisar, Papelera) */
+function renderDrugView(box, T) {
+  const v = S.view;
+  if (!store.loaded.drugs) { box.replaceChildren(el('div', { class: 'list-empty' }, 'Cargando el Vademécum…')); return; }
+  if (v.type === T.folder && !T.map().has(v.id)) {
+    box.replaceChildren(el('div', { class: 'list-empty' }, store.loaded.drugFolders ? 'Esta carpeta ya no existe.' : 'Cargando carpetas…'));
+    return;
+  }
+  if (v.type === T.root || v.type === T.folder) { renderExplorer(box, T); return; }
+  let list = drugsForView(v.type);
+  const q = norm(S.search.trim());
+  const words = q ? q.split(/\s+/) : [];
+  if (q) list = list.filter((d) => drugMatches(d, words));
+  if (q && v.type !== 'drecent') rankDrugs(list, words);
+  const head = [];
+  if (v.type === 'dtrash' && list.length) {
+    head.push(el('div', { class: 'trash-bar' }, el('span', {}, 'Las fichas de la papelera no aparecen en las búsquedas.'),
+      el('button', { class: 'btn sm danger', type: 'button', onclick: emptyDrugTrash }, 'Vaciar papelera')));
+  }
+  if (v.type === 'dreview' && list.length) head.push(el('div', { class: 'fx-hint' }, 'Fichas importadas o completadas automáticamente. Ábrelas, comprueba las dosis y pulsa «✓ Revisada».'));
+  if (!list.length) {
+    box.replaceChildren(el('div', { class: 'list-empty' }, q ? 'No hay fármacos que coincidan.'
+      : v.type === 'dfav' ? 'Aún no tienes favoritos. Toca ☆ en un fármaco para añadirlo.'
+        : v.type === 'drecent' ? 'Todavía no has consultado ninguna ficha.'
+          : v.type === 'dreview' ? 'No hay fichas pendientes de revisar ✓'
+            : v.type === 'dtrash' ? 'La papelera del Vademécum está vacía.' : 'Aún no hay fármacos. Crea el primero con ＋ o usa «Añadir varios».'));
+    return;
+  }
+  const wrap = el('div', { class: `fx ${S.layout === 'grid' ? 'grid' : ''}` }, ...head);
+  if (v.type === 'daz' && !q) wrap.append(...drugsAZ(list));
+  else wrap.append(drugsBlock(list, { showPath: true }));
+  box.replaceChildren(wrap);
+}
+
+/** A-Z con letras (sin tildes) y una barra para saltar a cada letra */
+function drugsAZ(list) {
+  const groups = new Map();
+  for (const d of list) {
+    const c = norm(d.name || '').trim()[0]?.toUpperCase() || '#';
+    const k = /[A-Z]/.test(c) ? c : c === 'Ñ' ? 'N' : '#';
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(d);
+  }
+  const secs = new Map();
+  const bar = el('nav', { class: 'az-bar', 'aria-label': 'Ir a la letra' }, [...groups.keys()].map((k) =>
+    el('button', { type: 'button', onclick: () => secs.get(k)?.scrollIntoView({ block: 'start', behavior: 'smooth' }) }, k)));
+  const out = [bar];
+  for (const [k, items] of groups) {
+    const h = el('div', { class: 'fx-sec az-letter' }, el('span', {}, `${k} · ${items.length}`));
+    secs.set(k, h);
+    out.push(h, el('div', { class: 'fx-notes' }, items.map((d) => drugCardFor(d, { showPath: true }))));
+  }
+  return out;
+}
+
 /** Ruta de navegación: Notas › Urgencias › Cardio (cada tramo vuelve a ese nivel; también se puede soltar ahí) */
 function renderCrumbs() {
   const v = S.view;
@@ -1489,6 +1706,13 @@ function renderExplorer(box, T) {
       el('button', { class: 'fx-tile', type: 'button', onclick: () => setView({ type, id: null }) },
         el('span', { class: 'fx-tile-ico' }, iconOr(ico)), el('span', { class: 'fx-tile-lbl' }, label),
         count != null ? el('span', { class: 'fx-tile-n' }, count) : null))));
+    // En el móvil no hay barra lateral: Papelera (Vademécum), aquí
+    if (T.id === 'drugs') {
+      const nTrash = [...store.drugs.values()].filter((d) => d.trashed).length;
+      wrap.append(el('div', { class: 'fx-extra' },
+        el('button', { class: 'fx-tile', type: 'button', onclick: () => setView({ type: 'dtrash', id: null }) },
+          el('span', { class: 'fx-tile-ico' }, icon('trash-2')), el('span', { class: 'fx-tile-lbl' }, 'Papelera'), el('span', { class: 'fx-tile-n' }, nTrash || ''))));
+    }
     // En el móvil no hay barra lateral: Papelera y Etiquetas, aquí
     if (T.id === 'notes') {
       const nTrash = [...store.notes.values()].filter((n) => n.trashed).length;
@@ -1500,9 +1724,10 @@ function renderExplorer(box, T) {
     }
   }
 
-  wrap.append(el('div', { class: 'fx-actions' },
+  wrap.append(el('div', { class: `fx-actions ${T.extraActions ? 'n4' : ''}` },
     el('button', { class: 'btn primary', type: 'button', onclick: () => T.newItem() }, T.txt.newBtn),
-    el('button', { class: 'btn', type: 'button', onclick: () => newFolder(folderId, T) }, folderId ? '＋ Subcarpeta' : '＋ Carpeta')));
+    el('button', { class: 'btn', type: 'button', onclick: () => newFolder(folderId, T) }, folderId ? '＋ Subcarpeta' : '＋ Carpeta'),
+    ...(T.extraActions ? T.extraActions(folderId) : [])));
 
   const folders = sortedChildren(folderId, T);
   const items = T.sortItems(T.items().filter((n) => (n.folderId || null) === folderId));
@@ -1574,6 +1799,17 @@ function snippetsBlock(list, { showPath = false } = {}) {
     makeDraggable(card, 'item', s.id, TREES.snippets);
     return card;
   });
+}
+
+function drugCardFor(d, { showPath = false } = {}) {
+  const card = drugCard(d, { search: S.search, showPath, onLongPress: longPressed });
+  // Como las notas: en el móvil se mantiene pulsado para el menú; en ordenador/tablet se arrastra (y clic derecho = menú)
+  bindContext(card, (a) => drugItemMenu(a, d), { touch: !canDrag() });
+  if (!d.trashed) makeDraggable(card, 'item', d.id, TREES.drugs);
+  return card;
+}
+function drugsBlock(list, { showPath = false } = {}) {
+  return lazyBlock('fx-notes', list, (d) => drugCardFor(d, { showPath }));
 }
 
 /** Tarjeta / fila de carpeta: tocar = abrir; mantener pulsado, clic derecho o ⋯ = opciones; soltar = mover */
@@ -1649,7 +1885,7 @@ function renderHome() {
   const saludo = h < 6 ? 'Buenas noches' : h < 14 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
   const fecha = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
   $('#home-hello').textContent = `${saludo} · ${fecha}`;
-  const counts = { notes: liveNotes().length, snippets: store.snippets.size };
+  const counts = { notes: liveNotes().length, snippets: store.snippets.size, drugs: liveDrugs().length };
   $('#home-modules').replaceChildren(...MODULES.map((m) => {
     const soon = m.status !== 'active';
     const n = m.count ? counts[m.count] : null;
@@ -1696,9 +1932,10 @@ function newNote() {
     createdAt: now, updatedAt: now
   };
   writeNote(id, data, { html: '', text: '', refs: [] }); // nota ligera + contenido vacío (visible al instante)
-  if (v.type === 'trash' || !treeOf(v.type) || isSnipView(v.type)) {
-    // Desde Inicio, Buscar, Prerredactados o la Papelera: la nota se crea en la raíz de Notas
+  if (v.type === 'trash' || !treeOf(v.type) || isSnipView(v.type) || isDrugView(v.type)) {
+    // Desde Inicio, Buscar, Prerredactados, el Vademécum o la Papelera: la nota se crea en la raíz de Notas
     if (isSnipView(v.type)) closeSnippet({ fromHash: true });
+    if (isDrugView(v.type)) closeDrug({ fromHash: true });
     S.view = { type: 'notes', id: null };
     S.search = ''; $('#search').value = '';
     renderSection();
@@ -1719,6 +1956,7 @@ function openNote(id, { push = false, focusTitle = false, fromHash = false } = {
   }
   if (S.noteId !== id) saveSoon.flush();
   if (isSnipView()) { closeSnippet({ fromHash: true }); S.view = { type: 'all', id: null }; renderSidebar(); }
+  if (isDrugView()) { closeDrug({ fromHash: true }); S.view = { type: 'all', id: null }; renderSection(); renderSidebar(); } // desde una ficha del Vademécum
   if (!treeOf(S.view.type)) { S.view = { type: 'all', id: null }; renderSection(); renderSidebar(); } // desde Inicio o Buscar
   S.noteId = id;
   S.dirty = false;
@@ -1788,14 +2026,17 @@ function showEditorEmpty() { showPane('empty'); }
 function showPane(which) {
   $('#editor-wrap').classList.toggle('hidden', which !== 'note');
   $('#snip-wrap').classList.toggle('hidden', which !== 'snip');
+  $('#drug-wrap').classList.toggle('hidden', which !== 'drug');
   $('#editor-empty').classList.toggle('hidden', which !== 'empty');
   if (which !== 'note') editor?.hideFloating();
   if (which !== 'snip') snipEditor?.hideFloating();
+  if (which !== 'drug') drugEditor?.hideFloating();
   setTimeout(updateWakeLock);
   if (which !== 'empty') $('#app').dataset.view = 'editor';
   const snip = isSnipView();
-  $('#btn-new-note-empty').textContent = snip ? '＋ Nuevo prerredactado' : '＋ Nueva nota';
-  $('#editor-empty-msg').textContent = snip ? 'Selecciona un prerredactado o crea uno nuevo.' : 'Selecciona una nota o crea una nueva.';
+  const drug = isDrugView();
+  $('#btn-new-note-empty').textContent = drug ? '＋ Nuevo fármaco' : snip ? '＋ Nuevo prerredactado' : '＋ Nueva nota';
+  $('#editor-empty-msg').textContent = drug ? 'Selecciona un fármaco o crea uno nuevo.' : snip ? 'Selecciona un prerredactado o crea uno nuevo.' : 'Selecciona una nota o crea una nueva.';
 }
 
 function renderNoteChrome() {
@@ -1851,8 +2092,8 @@ function setReadSize(i) {
 function applyReadSize() {
   const i = readSize();
   $('#editor').style.setProperty('--read-size', `${READ_SIZES[i]}px`); // notas y prerredactados
-  ['#btn-font-down', '#snip-font-down'].forEach((b) => { $(b).disabled = i === 0; });
-  ['#btn-font-up', '#snip-font-up'].forEach((b) => { $(b).disabled = i === READ_SIZES.length - 1; });
+  ['#btn-font-down', '#snip-font-down', '#drug-font-down'].forEach((b) => { $(b).disabled = i === 0; });
+  ['#btn-font-up', '#snip-font-up', '#drug-font-up'].forEach((b) => { $(b).disabled = i === READ_SIZES.length - 1; });
 }
 
 function setReading(on) {
@@ -1887,9 +2128,11 @@ async function updateWakeLock() {
   const visible = app.dataset.view === 'editor' && !['home', 'search'].includes(app.dataset.section);
   const nOpen = !!S.noteId && !$('#editor-wrap').classList.contains('hidden') && !$('#editor-wrap').classList.contains('readonly');
   const sOpen = !!currentSnippet() && !isSnippetReading() && !$('#snip-wrap').classList.contains('hidden');
-  app.classList.toggle('editing', visible && (nOpen || sOpen));
+  const dOpen = !!currentDrug() && !isDrugReading() && !$('#drug-wrap').classList.contains('hidden');
+  app.classList.toggle('editing', visible && (nOpen || sOpen || dOpen));
   const reading = (S.reading && !!S.noteId && !$('#editor-wrap').classList.contains('hidden')) ||
-    (isSnippetReading() && !$('#snip-wrap').classList.contains('hidden'));
+    (isSnippetReading() && !$('#snip-wrap').classList.contains('hidden')) ||
+    (isDrugReading() && !$('#drug-wrap').classList.contains('hidden'));
   const want = 'wakeLock' in navigator && wakeLockWanted() && reading && document.visibilityState === 'visible' &&
     !['home', 'search'].includes($('#app').dataset.section);
   if (want && !wakeLock && !wakeBusy) {
@@ -2058,14 +2301,25 @@ function noteFileIds(n) {
   return ids;
 }
 const refsCountOf = (n) => n.refsCount ?? (n.refs || []).length;
-/** Para borrar archivos hay que saber con seguridad qué usa cada nota y cada prerredactado */
-const filesKnown = () => !!store.loaded.snippets && [...store.notes.values()].every((n) => isLegacy(n) || Array.isArray(n.files));
-/** Archivos en uso por notas (papelera incluida) y prerredactados, salvo la nota / el prerredactado indicado */
-function allReferencedFiles(exceptNoteId, exceptSnippetId = null) {
+/** Para borrar archivos hay que saber con seguridad qué usa cada nota, cada prerredactado y cada fármaco */
+const filesKnown = () => !!store.loaded.snippets && !!store.loaded.drugs && [...store.notes.values()].every((n) => isLegacy(n) || Array.isArray(n.files));
+/** Archivos en uso por notas (papelera incluida), prerredactados y fármacos (papelera incluida), salvo el indicado */
+function allReferencedFiles(exceptNoteId, exceptSnippetId = null, exceptDrugId = null) {
   const ids = new Set();
   for (const n of store.notes.values()) if (n.id !== exceptNoteId) noteFileIds(n).forEach((f) => ids.add(f));
   for (const s of store.snippets.values()) if (s.id !== exceptSnippetId) snippetFileIds(s).forEach((f) => ids.add(f));
+  for (const d of store.drugs.values()) if (d.id !== exceptDrugId) (d.files || []).forEach((f) => ids.add(f));
   return ids;
+}
+
+/** Al eliminar un fármaco: borra las imágenes de «Mis notas» si ninguna otra nota, prerredactado o fármaco las usa */
+function purgeDrugFiles(id) {
+  const d = store.drugs.get(id);
+  if (!d || !filesKnown()) return;
+  const mine = new Set(d.files || []);
+  for (const f of store.files.values()) if (f.drugId === id) mine.add(f.id);
+  const others = allReferencedFiles(null, null, id);
+  for (const f of mine) if (!others.has(f) && store.files.has(f)) deleteFile(f);
 }
 
 /** Al eliminar un prerredactado: borra sus imágenes si ninguna nota ni otro prerredactado las usa */
@@ -2312,7 +2566,7 @@ function openSettings() {
           el('option', { value: 'off', selected: !wakeLockWanted() }, 'No'))),
       el('div', {},
         el('div', { class: 'settings-row', style: { borderBottom: 0 } }, el('span', {}, 'Espacio usado'),
-          el('span', {}, `${formatBytes(used)} de 1 GB · ${live} notas · ${store.snippets.size} prerredactados · ${store.files.size} archivos`)),
+          el('span', {}, `${formatBytes(used)} de 1 GB · ${live} notas · ${store.snippets.size} prerredactados · ${liveDrugs().length} fármacos · ${store.files.size} archivos`)),
         el('div', { class: 'meter' }, el('div', { style: { width: `${pct.toFixed(1)}%` } }))),
       el('div', { class: 'settings-row' }, el('span', {}, 'Copia de seguridad',
         publicMode ? [el('br'), el('span', { class: 'muted small' }, backupPublicReason)] : null),
@@ -2335,7 +2589,7 @@ async function cleanOrphans() {
   const orphans = [...store.files.values()].filter((f) => !used.has(f.id) && (f.createdAt || 0) < old);
   if (!orphans.length) { toast('No hay archivos sin usar', 'ok'); return; }
   const size = orphans.reduce((s, f) => s + (f.size || 0), 0);
-  if (!await confirm('Limpiar archivos', `Hay ${orphans.length} archivo(s) que ya no usa ninguna nota ni prerredactado (${formatBytes(size)}). ¿Borrarlos?`, { okLabel: 'Borrar', danger: true })) return;
+  if (!await confirm('Limpiar archivos', `Hay ${orphans.length} archivo(s) que ya no usa ninguna nota, prerredactado ni fármaco (${formatBytes(size)}). ¿Borrarlos?`, { okLabel: 'Borrar', danger: true })) return;
   orphans.forEach((f) => deleteFile(f.id));
   toast('Archivos borrados', 'ok');
 }
@@ -2345,8 +2599,10 @@ async function doLogout(reason) {
   S.loggingOut = true;
   saveSoon.flush();
   flushSnippet();
+  flushDrug();
   stopSync();
   revokeAll();
+  clearDrugBodies();
   await clearBodies(); // copia local del contenido de las notas
   await logout();
   if (reason) sessionStorage.setItem('drfolio.logoutReason', reason);

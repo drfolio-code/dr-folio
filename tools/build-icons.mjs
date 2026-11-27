@@ -8,6 +8,8 @@ const USED = [
   'house', 'search', 'plus', 'settings', 'log-out', 'panel-left', 'notebook-text', 'clipboard-list', 'pill', 'message-circle',
   // Vistas, carpetas y etiquetas
   'pin', 'clock', 'trash-2', 'folder', 'folder-open', 'folder-plus', 'folder-input', 'tag', 'star', 'flame', 'book-marked',
+  // Vademécum (v1.18.0)
+  'arrow-down-a-z', 'triangle-alert', 'file-up', 'list-plus',
   // Acciones y menús
   'pencil', 'check', 'copy', 'copy-plus', 'printer', 'book-open', 'undo-2', 'x', 'file-text', 'file-plus', 'palette',
   'arrow-up', 'arrow-down', 'arrow-left', 'square-pen', 'layout-grid', 'list', 'ellipsis', 'save',

@@ -8,12 +8,12 @@
 //   desc    una línea de descripción
 //   route   ruta (#/...) que abre el módulo
 //   status  'active' | 'soon' (Próximamente: visible pero desactivado)
-//   count   (opcional) clave para mostrar un recuento: 'notes' | 'snippets'
+//   count   (opcional) clave para mostrar un recuento: 'notes' | 'snippets' | 'drugs'
 //   tab     (opcional) true = aparece en la barra inferior del móvil (caben 2–3 junto a Inicio, ＋ y Buscar)
 export const MODULES = [
   { id: 'notes', name: 'Notas', icon: 'notebook-text', desc: 'Carpetas, etiquetas, bibliografía y PDFs', route: '#/notas', status: 'active', count: 'notes', tab: true },
   { id: 'snippets', name: 'Prerredactados', short: 'Prerredact.', icon: 'clipboard-list', desc: 'Textos para copiar con campos a rellenar', route: '#/snippets', status: 'active', count: 'snippets', tab: true },
-  { id: 'vademecum', name: 'Vademécum', icon: 'pill', desc: 'Fármacos, dosis y ajustes de uso habitual', route: '#/vademecum', status: 'soon' },
+  { id: 'drugs', name: 'Vademécum', icon: 'pill', desc: 'Tus fármacos: pautas para copiar al informe', route: '#/vademecum', status: 'active', count: 'drugs', tab: true },
   { id: 'chat', name: 'Chat personal', short: 'Chat', icon: 'message-circle', desc: 'Envíate textos y documentos entre dispositivos', route: '#/chat', status: 'soon' }
 ];
 

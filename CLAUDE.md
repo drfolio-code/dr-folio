@@ -27,6 +27,8 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/js/editor.js` | Editor `contenteditable`: barra de formato, pegado limpio (DOMPurify), tablas, listas de tareas, enlaces entre notas, índice, botones «📋 Copiar sección» en lectura (`allText()`). `createEditor({els})` admite varias instancias (notas y prerredactados), `markFields` (resalta `{campo}` en lectura, `span.fld` solo de vista) y `tabs` (Tab = tabulación, párrafo `class="keep-ws"`) |
 | `public/js/util.js` | Ayudas: `el`, `$`, `debounce`, `norm`, fechas, `htmlToText` (búsqueda) y `nodesToPlain` (texto para pegar en informes: tablas con tabuladores, listas «- »/«1. ») |
 | `public/js/snippets.js` | Prerredactados: tarjetas, favoritos, orden, mover, editor enriquecido con lectura/edición, campos `{campo}` / `{campo:a\|b}`, copiar sin formato / con formato (`copyRich`) / por secciones, selector para insertar en notas (con formato) y migración categoría → carpeta |
+| `public/js/drugs.js` | Vademécum (v1.18.0): ficha (lectura/edición), pautas con línea para el informe y botón Copiar, «Mis notas» (editor `drugEditor`), tarjetas, vistas fijas, «Añadir varios», importar JSON, papelera, selector `pickDrug` (enlaces desde notas) |
+| `public/js/drugbody.js` | Datos del Vademécum: `genLine`/`lineOf`/`regSummary`, búsqueda (`drugMatches`, `rankDrugs`), «Mis notas» (`drugBodyOf`, `loadDrugBody`, `writeDrug`, `deleteDrugDocs`, `ensureAllDrugBodies`, `fullDrug`), lectura del JSON de importación (`parseDrugImport`) |
 | `public/js/snipbody.js` | Contenido de los prerredactados (v1.12.0): `FIELD_RE`, `textToHtml`, `bodyHash`, `htmlFresh`, `htmlOf`, `snippetFileIds` |
 | `public/js/store.js` | Datos en memoria sincronizados con Firestore (`onSnapshot`) + ayudas de carpetas (`childFolders`, `folderPath`, `descendantIds`, `flatFolders`: último parámetro = mapa del árbol, por defecto `store.folders`) |
 | `public/js/files.js` | Imágenes/PDF guardados **en Firestore en trozos base64** (no hay Storage en Spark). Exporta `blobToBase64`/`base64ToBytes` (las usa backup.js) |
@@ -40,9 +42,9 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/sw.js` | Service worker (app offline, red primero). PDF.js va en una caché aparte `PDFJS_CACHE` (caché primero): **si se actualiza pdfjs-dist, cambiar `PDFJS_CACHE`** |
 
 ## Navegación (v1.7.0)
-- **Secciones**: `sectionOf(tipo)` = `home | search | notes | snippets` (= id del módulo/árbol). `#app[data-section]`, `#app[data-side]` (1 si la sección tiene barra lateral).
+- **Secciones**: `sectionOf(tipo)` = `home | search | notes | snippets | drugs` (= id del módulo/árbol). `#app[data-section]`, `#app[data-side]` (1 si la sección tiene barra lateral).
 - **Móvil** (<640 o horizontal ≤520 px alto): `#tabbar` = Inicio · módulos con `tab` · ＋ Crear (en medio) · Buscar. Sin ☰. Notas raíz muestra además Papelera y Etiquetas (`.fx-extra`, solo móvil). Ajustes y Cerrar sesión, en la cabecera de Inicio.
-- **Iconos**: SVG de Lucide (`icons.js`), nunca emojis en la navegación, menús (`menu()` acepta nombre de icono en `icon`) ni barras. Notas = `notebook-text`, Prerredactados = `clipboard-list`, Vademécum = `pill`, Chat personal = `message-circle`.
+- **Iconos**: SVG de Lucide (`icons.js`), nunca emojis en la navegación, menús (`menu()` acepta nombre de icono en `icon`) ni barras. Notas = `notebook-text`, Prerredactados = `clipboard-list`, Vademécum = `pill`, Chat personal = `message-circle`. Módulos con `tab: true`: Notas, Prerredactados y Vademécum (barra inferior: Inicio · Notas · Prerred. · ＋ · Vademécum · Buscar).
 - **Listas largas**: `lazyBlock()` pinta 60 tarjetas y el resto al acercarse al final o con «Mostrar más» (recuerda cuántas por vista); `.note-card` con `content-visibility: auto`.
 - **Tablet/PC**: `#rail` = ＋, Inicio, Buscar, todos los módulos («Próximamente» en gris), Panel, Ajustes, Salir, estado de sincronización.
 - **Barra lateral** (`renderSidebar`, según sección): Notas = Todas/Fijadas/Recientes/Papelera + carpetas + etiquetas; Prerredactados = Todos/Favoritos/Más usados/Recientes + carpetas. Inicio y Buscar sin barra. ≥1100 px se pliega con «Panel»/« y se recuerda (`drfolio.side` = `open|closed`); en tablet se abre encima (`#app.drawer`) y se cierra al elegir.
@@ -70,7 +72,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
   - Lotes ≤ 450 operaciones y ≤ 8 MB. Requiere conexión y datos sincronizados (no de caché).
   - Límite diario: cuenta en `drfolio.quota` (`{day, w, d}`, día de California = reinicio de Firestore) las escrituras/borrados de las restauraciones; para a 20.000 − 1.500 de margen. Lo pendiente se guarda en `drfolio.restoreJob` y se continúa eligiendo el mismo archivo (el plan se recalcula y salta lo ya escrito).
 - Recordatorio (`backupReminder`, en `#home-backup`): si no hay copia o han pasado > 7 días desde `drfolio.lastBackup` (ms, por dispositivo), o si hay una restauración a medias.
-- Probado con Firebase simulado (sustituye `vendor/libs.js` por un Firestore en memoria) con Playwright: no hay tests en el repo.
+- Probado con Firebase simulado (sustituye `vendor/libs.js` por un Firestore en memoria que reexporta DOMPurify del real) con Playwright: no hay tests en el repo. v1.18.0 (Vademécum) se probó así en 390×844, 844×390 y 1366×860.
 - v1.10.0 se probó con el **emulador de Firebase** (`firebase-tools`, firestore + auth, proyecto `drfolio-6af54`, usuario creado con el UID del propietario) y Playwright: se redirige `db.js` a `connectAuthEmulator`/`connectFirestoreEmulator`, se añade `http://127.0.0.1:*` al CSP y se bloquea cualquier petición a Google. Chromium necesita `--disable-features=LocalNetworkAccessChecks`.
 
 ## Ajuste a la pantalla del móvil (v1.11.0)
@@ -96,7 +98,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - **Imágenes**: `files/` con `snippetId`. `allReferencedFiles` cuenta notas y prerredactados; `filesKnown` exige `store.loaded.snippets`. Eliminar un prerredactado borra sus imágenes si nadie más las usa (`purgeSnippetFiles`); «Limpiar» y vaciar papelera respetan las de los prerredactados.
 - **Migración** (`migrateSnippets` en migrate.js, en silencio): con datos del servidor, grupos ≤ 100 en transacciones; escribe solo `html` + `bh` (no toca `body`, así copiar da lo mismo que antes). Idempotente, varios dispositivos, respeta el límite diario.
 - **Índice opcional (v1.12.1)**, en notas y prerredactados: ⋯ → «Añadir índice / Quitar índice» (`editor.toggleTocBlock()`, también en lectura; guarda al momento) o botón ☰ de la barra. Compacto (14 px fijos, no crece con A+), plegable tocando «Índice · N» (`.toc-closed`, solo vista, `drfolio.tocClosed`). El índice automático de arriba en notas (`#toc`) es opcional: Ajustes → «Índice automático» (`drfolio.autoToc` = `on|off`, por defecto no). En lectura los títulos son más contenidos (h1 1.3em, h2 1.15em, h3 1.04em). `menu()` ignora elementos `null`. **v1.12.2**: el índice va siempre a primer nivel (`fixTocPlacement` en `refreshTocBlocks`: si quedó dentro de un título —pasaba en iPhone con ☰ y el cursor en un título— se saca delante; repara lo ya guardado). Texto de los títulos con `hText()` (sin índice ni botones; antes el índice se copiaba a sí mismo y crecía). ☰ con el cursor en un título inserta el índice encima. Numeración del índice: ver «Barra de formato única».
-- **Copia de seguridad**: el JSON lleva `html`/`bh` (se sanea al restaurar); el .zip exporta cada prerredactado como `.html` (con imágenes) y `.txt`.
+- **Copia de seguridad (prerredactados)**: el JSON lleva `html`/`bh` (se sanea al restaurar); el .zip exporta cada prerredactado como `.html` (con imágenes) y `.txt`.
 - Probado con Firebase simulado + Playwright en 390×844 y 1366×860: migración, lectura, edición, índice, copiar (pegado en textarea y en editor con formato), copiar sección, insertar en nota, buscador, borrado de imágenes, compatibilidad con versión antigua, .zip.
 
 ## Barra de formato única, estilo Evernote (v1.13.0 → v1.14.0)
@@ -113,6 +115,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 ## Rutas y navegación
 - `#/inicio` (por defecto tras el login), `#/buscar`, `#/notas[/n/NOTA]` (explorador raíz), `#/all|pinned|recent|trash[/n/NOTA]`, `#/folder/ID[/n/NOTA]`, `#/tag/ID[/n/NOTA]`, `#nota/ID`.
 - Prerredactados: `#/snippets[/s/ID]` (raíz), `#/sfolder/ID[/s/ID]`, `#/sall|sfav|sused|srecent[/s/ID]` (Todos, Favoritos, Más usados, Recientes).
+- Vademécum: `#/vademecum[/f/ID]` (raíz, vista `drugs`), `#/dfolder/ID[/f/ID]`, `#/daz|dfav|drecent|dreview|dtrash[/f/ID]` (A-Z, Favoritos, Recientes, Por revisar, Papelera), `#farmaco/ID`.
 - `history.state`: `d` = nº de entradas por encima de Inicio (el botón 🏠 hace `history.go(-d)`); `lv` = nivel en el explorador (0 = Notas, 1 = carpeta principal…); `nt` = 1 si la entrada es una nota/prerredactado abierto.
 - Al entrar en una carpeta, `goView()` apila también sus carpetas padre (`chainFor`), así «atrás» (Android) sube un nivel: nota → Cardio → Urgencias → Notas → Inicio. Tocar un tramo de la ruta retrocede con `backTo(nivel)`.
 - Al arrancar, `initHistory()` deja `#/inicio` y la cadena de carpetas debajo de la ruta abierta.
@@ -155,10 +158,35 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - Todo HTML pasa por `sanitize()` de `editor.js`. No usar `innerHTML` con datos sin sanear.
 - Datos de pacientes identificables: **no**. La app es para conocimiento clínico personal.
 
+## Vademécum personal (v1.18.0)
+- Fichas propias (sin fuentes externas). **Mismo explorador** que Notas y Prerredactados: `TREES.drugs` (carpetas `drugFolders`, vista raíz `drugs`, carpeta `dfolder`, `extraActions`/`menuExtra` = «Añadir varios» e «Importar»). Accesos fijos: Favoritos, Recientes (`lastViewedAt`, máx. 1 escritura cada 10 min por ficha), A-Z (con letras y barra para saltar) y «Por revisar» si hay. Papelera propia (`dtrash`). Carpetas por nombre por defecto (`drfolio.drugFolderSort`). La lista va siempre A-Z (sin selector «Ordenar»).
+- **Ficha** (`#drug-wrap`): principio activo (`#drug-title`), nombres comerciales (chips), presentaciones (una por línea), pautas y «Mis notas». Lectura/edición de toda la ficha a la vez (`drfolio.noteMode`, A−/A+, Wake Lock). En el móvil la barra de formato solo aparece al escribir en «Mis notas» (`.notes-focus`).
+- **Pauta**: `{id, indication, pres, route, dose, freq, duration, max, line, lineAuto}`. Línea para el informe = `genLine(nombre, r)` → «Dexketoprofeno 25 mg comp: 1 comp VO cada 8 h durante 5 días» («durante» solo si la duración empieza por número). Si se retoca, `lineAuto: false` y `line` se guarda; «↺ Generar de los campos» vuelve a la automática. Copiar = `lineOf()` (botón en cada pauta; en la tarjeta si solo hay una).
+- **Datos**: `drugs/{id}` ligero (`name, brands[], folderId, presentations[], regimens[], favorite, reviewed, reviewedAt, importedAt, lastViewedAt, trashed, trashedAt, createdAt, updatedAt` + calculados `bodyAt, files[], links[], size`) y `drugBodies/{id}` `{html, text, updatedAt}`. Regla: al guardar «Mis notas», `bodyAt` = `drugBodies.updatedAt` en el mismo lote (`writeDrug`). `bodyAt = 0` → sin notas, no se lee nada. Imágenes en `files/` con `drugId`.
+- **Enlaces**: en el editor de notas, ＋ → «Fármaco (Vademécum)» (`pickDrug`, busca también por nombre comercial) inserta `<a href="#farmaco/ID" data-drug="ID" class="drug-link">`. `deriveLight` guarda `notes.drugs[]` (campo calculado, en `DERIVED_FIELDS`). En la ficha, «Aparece en estas notas». Abrir un enlace o un resultado de Buscar: `openDrugInVademecum` (atrás vuelve a la nota / a Buscar).
+- **Buscar**: `SEARCH_SOURCES` tiene la fuente `drugs` (principio activo, marcas, presentaciones e indicaciones, sin tildes ni mayúsculas; primero lo que empieza por lo buscado).
+- **Añadir varios**: pegar lista (líneas, comas o «;», quita viñetas/números) → fichas vacías en la carpeta abierta; no repite las que ya existen (`drugKey` = nombre sin tildes/mayúsculas).
+- **Copia de seguridad**: `drugs` completos (`fullDrug`: ligero + html/text, sin calculados) y `drugFolders` en el JSON (mismo `formatVersion` 1; las copias antiguas se leen con listas vacías). Restaurar escribe `drugs` + `drugBodies` (2 operaciones) y borra los dos en «Reemplazar». El .zip incluye `Vademécum/<carpeta>/<fármaco>.html` (marcas, presentaciones, tabla de pautas, notas) y los enlaces de las notas apuntan ahí. «Limpiar archivos» y borrar fichas respetan las imágenes de los fármacos (`purgeDrugFiles`, `allReferencedFiles`).
+
+### Formato del JSON de importación (Vademécum → ⋯ / «Importar»)
+Ejemplo completo en `ejemplos/vademecum-ejemplo.json`. Se acepta `{ "format": "drfolio-vademecum", "version": 1, "drugs": [ … ] }` o directamente la lista `[ … ]`. Claves en inglés o en español:
+
+| Campo | Alternativas | Tipo | Notas |
+|---|---|---|---|
+| `name` (obligatorio) | `nombre`, `principioActivo` | texto | Principio activo: se usa para fusionar (sin tildes ni mayúsculas) |
+| `brands` | `marcas`, `nombresComerciales` | lista o texto con «;» | |
+| `folder` | `carpeta`, `grupo` | `"Analgésicos › AINE"` (también `>` o `/`) o lista | Se crea si no existe; sin carpeta → la carpeta abierta |
+| `presentations` | `presentaciones` | lista | |
+| `regimens` | `pautas` | lista de pautas | |
+| ↳ `indication` · `presentation` · `route` · `dose` · `frequency` · `duration` · `max` | `indicacion` · `presentacion` · `via` · `dosis` · `frecuencia` · `duracion` · `dosisMaxima`/`maxima` | texto | `line` / `linea` (opcional) = línea para el informe ya escrita |
+| `notes` | `notas` | texto | Va a «Mis notas» (un párrafo por línea) solo si la ficha no tenía notas |
+
+Reglas: fichas nuevas → `reviewed: false` («⚠ Pendiente de revisar» bien visible hasta «✓ Revisada»). Si ya existe: se **añaden** marcas, presentaciones y pautas que falten (pauta igual = misma indicación + vía + dosis + frecuencia), nunca se borra ni cambia lo que hay; si se añadió algo, vuelve a «Pendiente de revisar». Antes de escribir se muestra un resumen (nuevas / se completan / sin cambios). Fármacos repetidos dentro del archivo se juntan.
+
 ## Hoja de ruta
 1. ✅ Notas: carpetas/subcarpetas, etiquetas, editor enriquecido, imágenes, bibliografía con PDF, índice, enlaces entre notas, offline, modo lectura con copiar sección, copia de seguridad y restauración
 2. ✅ Prerredactados (plantillas para copiar, con campos rellenables y texto enriquecido)
-3. Vademécum personal
+3. ✅ Vademécum personal (fichas, pautas para copiar, enlaces desde notas, importar JSON)
 4. Chat personal (enviarse textos y documentos)
 
 ## Probar

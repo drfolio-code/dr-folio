@@ -1,0 +1,35 @@
+{
+  "format": "drfolio-vademecum",
+  "version": 1,
+  "drugs": [
+    {
+      "name": "Dexketoprofeno",
+      "brands": ["Enantyum", "Ketesse"],
+      "folder": "Analgésicos › AINE",
+      "presentations": ["25 mg comp", "25 mg sobres", "50 mg/2 ml amp"],
+      "regimens": [
+        { "indication": "Dolor agudo leve-moderado", "presentation": "25 mg comp", "route": "VO", "dose": "1 comp", "frequency": "cada 8 h", "duration": "5 días", "max": "75 mg/día" }
+      ],
+      "notes": "Ejemplo de ficha importada: revisa las dosis antes de usarla."
+    },
+    {
+      "name": "Metoclopramida",
+      "brands": ["Primperan"],
+      "folder": "Digestivo › Antieméticos",
+      "presentations": ["10 mg comp", "10 mg/2 ml amp"],
+      "regimens": [
+        { "indication": "Náuseas y vómitos", "presentation": "10 mg/2 ml amp", "route": "IV lenta", "dose": "10 mg", "frequency": "cada 8 h", "duration": "máx 5 días", "max": "30 mg/día" }
+      ]
+    },
+    {
+      "nombre": "Omeprazol",
+      "marcas": ["Losec"],
+      "carpeta": ["Digestivo", "IBP"],
+      "presentaciones": ["20 mg cáps", "40 mg vial"],
+      "pautas": [
+        { "indicacion": "Protección gástrica", "presentacion": "20 mg cáps", "via": "VO", "dosis": "1 cáps", "frecuencia": "cada 24 h en ayunas", "duracion": "mientras dure el tratamiento" },
+        { "indicacion": "Hemorragia digestiva alta", "presentacion": "40 mg vial", "via": "IV", "dosis": "80 mg en bolo", "frecuencia": "y después 40 mg cada 12 h", "linea": "Omeprazol 40 mg vial: 80 mg IV en bolo y después 40 mg IV cada 12 h" }
+      ]
+    }
+  ]
+}

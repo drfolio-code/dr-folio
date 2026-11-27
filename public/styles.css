@@ -348,6 +348,10 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-2); 
 .content a.note-link { background: var(--accent-soft); padding: 1px 6px; border-radius: 6px; text-decoration: none; font-weight: 600; }
 .content a.note-link::before { content: "↪ "; }
 .content a.note-link.broken { color: var(--muted); text-decoration: line-through; }
+.content a.drug-link { background: #ecfdf5; color: #047857; padding: 1px 6px; border-radius: 6px; text-decoration: none; font-weight: 600; }
+.content a.drug-link::before { content: "💊 "; }
+.content a.drug-link.broken { color: var(--muted); text-decoration: line-through; }
+@media (prefers-color-scheme: dark) { .content a.drug-link { background: #0f2f26; color: #6ee7b7; } }
 .content mark { background: var(--mark); color: inherit; padding: 0 2px; border-radius: 2px; }
 .content img { max-width: 100%; height: auto; border-radius: 6px; display: inline-block; vertical-align: top; cursor: zoom-in; }
 .content img.loading { min-width: 120px; min-height: 80px; background: var(--panel-2); }
@@ -578,8 +582,8 @@ body.dragging .fx-folder, body.dragging .crumbs button, body.dragging .tree-row 
 
 /* ===================== Responsive ===================== */
 /* Prerredactados */
-#snip-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-#snip-wrap .ed-head .btn { margin-left: 4px; }
+#snip-wrap, #drug-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+#snip-wrap .ed-head .btn, #drug-wrap .ed-head .btn { margin-left: 4px; }
 /* Contenido: el mismo editor que las notas (.content) */
 .snip-content { min-height: 40vh; margin-top: 8px; }
 .content .keep-ws { white-space: pre-wrap; tab-size: 4; }
@@ -660,7 +664,7 @@ body.dragging .fx-folder, body.dragging .crumbs button, body.dragging .tree-row 
   /* La barra inferior ya respeta la zona segura de abajo */
   #app > :is(#home, #find, #list, #editor) { --safe-bottom: 0px; }
   body.kb-open #tabbar, #app.editing #tabbar { display: none; }
-  body:not(.kb-open) #app.editing :is(#editor-wrap, #snip-wrap) > .toolbar { margin-bottom: calc(6px + max(0px, env(safe-area-inset-bottom, 0px) - var(--h-gap, 0px))); }
+  body:not(.kb-open) #app.editing :is(#editor-wrap, #snip-wrap, #drug-wrap) > .toolbar { margin-bottom: calc(6px + max(0px, env(safe-area-inset-bottom, 0px) - var(--h-gap, 0px))); }
   .only-phone { display: inline-flex; }
   #toast-root { bottom: calc(76px + var(--safe-bottom)); }
   body.kb-open #toast-root { bottom: 16px; }
@@ -907,7 +911,7 @@ body.kb-open .ed-inner { padding-bottom: 24px; }
   .edit-btn .lbl { display: none; }
   .edit-btn { padding: 0 9px; }
   .read-size .icon-btn { width: 28px; }
-  #editor-wrap.reading .crumb { max-width: 34%; }
+  #editor-wrap.reading .crumb, #drug-wrap.reading .crumb { max-width: 34%; }
 }
 @media print { .content .sec-copy, .only-reading { display: none !important; } }
 
@@ -1068,11 +1072,12 @@ textarea.ed-title { display: block; resize: none; overflow: hidden; line-height:
 .toolbar .tb-hidekb { display: none; }
 /* Móvil: la barra abajo, encima del teclado, en una «píldora» que se desliza (como Evernote) */
 @media (max-width: 639px), (max-height: 520px) and (orientation: landscape) and (max-width: 1099px) {
-  #editor-wrap > .toolbar, #snip-wrap > .toolbar {
+  #editor-wrap > .toolbar, #snip-wrap > .toolbar, #drug-wrap > .toolbar {
     order: 10; margin: 4px 8px 6px; border: 1px solid var(--border); border-radius: 24px; padding: 4px 6px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, .12); background: var(--panel);
   }
-  #editor-wrap > .ed-scroll, #snip-wrap > .ed-scroll { order: 5; }
+  #editor-wrap > .ed-scroll, #snip-wrap > .ed-scroll, #drug-wrap > .ed-scroll { order: 5; }
+  #drug-wrap:not(.notes-focus) > .toolbar { display: none; } /* la barra de formato solo al escribir en «Mis notas» */
   body.kb-open .toolbar .tb-hidekb { display: inline-flex; align-items: center; justify-content: center; }
   #snip-wrap:not(.reading) #snip-copy .lbl, .ed-head .save-status { display: none; }
 }
@@ -1082,11 +1087,11 @@ textarea.ed-title { display: block; resize: none; overflow: hidden; line-height:
 .toolbar .tb-more { display: none; }
 @media (max-width: 639px), (max-height: 520px) and (orientation: landscape) and (max-width: 1099px) {
   /* Móvil: fila principal sin deslizar; «Más» despliega filas debajo, agrupadas */
-  #editor-wrap > .toolbar, #snip-wrap > .toolbar { flex-wrap: wrap; overflow-x: visible; justify-content: flex-start; column-gap: 0; row-gap: 2px; -webkit-mask-image: none; mask-image: none; }
+  #editor-wrap > .toolbar, #snip-wrap > .toolbar, #drug-wrap > .toolbar { flex-wrap: wrap; overflow-x: visible; justify-content: flex-start; column-gap: 0; row-gap: 2px; -webkit-mask-image: none; mask-image: none; }
   /* Rejilla de 9 columnas: la fila principal y las de «Más» quedan alineadas (10 con el teclado abierto) */
-  #editor-wrap > .toolbar > button, #snip-wrap > .toolbar > button { flex: 0 0 calc(100% / 9 - 0.2px); min-width: 0; padding: 0; }
-  body.kb-open #editor-wrap > .toolbar > button, body.kb-open #snip-wrap > .toolbar > button { flex-basis: calc(10% - 0.2px); }
-  #editor-wrap > .toolbar > .sep, #snip-wrap > .toolbar > .sep { display: none; }
+  #editor-wrap > .toolbar > button, #snip-wrap > .toolbar > button, #drug-wrap > .toolbar > button { flex: 0 0 calc(100% / 9 - 0.2px); min-width: 0; padding: 0; }
+  body.kb-open #editor-wrap > .toolbar > button, body.kb-open #snip-wrap > .toolbar > button, body.kb-open #drug-wrap > .toolbar > button { flex-basis: calc(10% - 0.2px); }
+  #editor-wrap > .toolbar > .sep, #snip-wrap > .toolbar > .sep, #drug-wrap > .toolbar > .sep { display: none; }
   /* El círculo del ＋ lo dibuja el icono: el botón ocupa su columna como los demás */
   .toolbar .tb-plus, .toolbar .tb-plus:hover { background: transparent; border-radius: 6px; width: auto; color: #fff; }
   .toolbar .tb-plus .i { background: var(--accent); border-radius: 50%; padding: 7px; box-sizing: content-box; }
@@ -1099,4 +1104,63 @@ textarea.ed-title { display: block; resize: none; overflow: hidden; line-height:
   /* Editando: los avisos arriba, para no tapar la barra */
   body:has(#app.editing) #toast-root { bottom: auto; top: calc(64px + var(--safe-top, 0px)); }
   .toolbar.expanded .tb-br { border-top: 1px solid var(--border); margin: 2px 6px; }
+}
+
+/* ===================== Vademécum (v1.18.0) ===================== */
+.no-body > .toolbar { display: none; }
+.drug-inner .ed-title { margin-bottom: 2px; }
+.drug-brands { margin: 6px 0 10px; }
+.drug-lbl { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; width: 100%; }
+.drug-sec { margin-top: 18px; }
+.drug-sec h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+.drug-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.drug-sec-head h3 { margin: 0; }
+.drug-pres { width: 100%; min-height: 70px; resize: vertical; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; background: var(--panel); line-height: 1.5; }
+.drug-pres-list { margin: 0; padding-left: 20px; font-size: var(--read-size, 18px); line-height: 1.55; }
+.drug-pres-list .empty { list-style: none; margin-left: -20px; }
+.drug-regs { display: flex; flex-direction: column; gap: 10px; }
+.reg { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--panel); }
+.reg-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.reg-head b { font-size: 16px; }
+.reg-sum { color: var(--muted); font-size: 14px; }
+.reg-line { display: flex; align-items: center; gap: 8px; margin-top: 8px; background: var(--panel-2); border-radius: 10px; padding: 8px 8px 8px 12px; }
+.reg-txt { flex: 1; min-width: 0; font-size: var(--read-size, 18px); line-height: 1.4; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+.reg-copy { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0; min-height: 40px; padding: 6px 14px; }
+.reg-copy.done { background: var(--ok, #16a34a); border-color: transparent; }
+.reg-edit { background: var(--panel); }
+.reg-tools { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; }
+.reg-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.rf { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); min-width: 0; }
+.rf input, .rf textarea { font-size: 15px; color: var(--text); width: 100%; min-width: 0; }
+.rf-indication { grid-column: span 2; }
+.rf-line { margin-top: 8px; }
+.reg-line-edit { resize: vertical; min-height: 48px; }
+.reg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.drug-notes .drug-content { min-height: 120px; }
+.reading .drug-notes .drug-content:empty { min-height: 0; }
+.reading .drug-notes .drug-content:empty::before { content: "Sin notas."; color: var(--muted); font-size: 14px; }
+.review-banner { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 14px; background: #fef3c7; color: #92400e; font-size: 14px; border-bottom: 2px solid #f59e0b; }
+.review-banner span { flex: 1; min-width: 200px; }
+.review-banner .btn { background: #fff; font-weight: 700; }
+@media (prefers-color-scheme: dark) { .review-banner { background: #3a2a07; color: #fcd34d; border-bottom-color: #b45309; } .review-banner .btn { background: var(--panel); } }
+.rev-badge { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 10px; background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 700; vertical-align: middle; white-space: nowrap; }
+@media (prefers-color-scheme: dark) { .rev-badge { background: #3a2a07; color: #fcd34d; } }
+.drug-card .t { display: flex; align-items: center; flex-wrap: wrap; }
+.az-bar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 2px; padding: 4px 0 6px; background: var(--bg); }
+.az-bar button { border: 0; background: var(--panel-2); color: var(--accent); font-weight: 700; border-radius: 6px; min-width: 28px; height: 28px; padding: 0 6px; }
+.fx.grid .az-letter, .fx.grid .az-bar { grid-column: 1 / -1; }
+.imp-list { margin: 4px 0 8px; padding-left: 20px; font-size: 14px; max-height: 160px; overflow: auto; }
+@media (max-width: 639px) {
+  .reg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reg-line { flex-direction: column; align-items: stretch; }
+  .reg-copy { justify-content: center; }
+}
+/* Vademécum: 4 botones (＋ Fármaco, ＋ Carpeta, Añadir varios, Importar) → 2 × 2 */
+.fx-actions.n4 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fx-actions .btn .i { vertical-align: -2px; }
+/* Vademécum en móvil horizontal: aviso compacto y pautas en 2 columnas */
+@media (max-height: 520px) and (orientation: landscape) {
+  .review-banner { padding: 4px 12px; font-size: 12.5px; }
+  .review-banner span { min-width: 0; }
+  .reg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

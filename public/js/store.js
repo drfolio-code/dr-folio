@@ -10,6 +10,8 @@
 //   files/{id}/chunks/{000..}  { d: base64 }
 //   snippets/{id} { title, html (formato, v1.12.0), body (texto plano), bh (huella de body), category (antiguo), folderId|null, favorite, order, uses, lastUsedAt, createdAt, updatedAt }
 //   snippetFolders/{id} { name, parentId|null, color, order, createdAt, updatedAt }  (árbol propio de los prerredactados)
+//   drugs/{id}    Vademécum (v1.18.0), ficha ligera: ver drugs.js     drugBodies/{id} { html, text, updatedAt } («Mis notas», al abrir)
+//   drugFolders/{id} { name, parentId|null, color, order, createdAt, updatedAt }  (árbol propio del Vademécum)
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from '../vendor/libs.js';
 import { db } from './db.js';
 
@@ -21,13 +23,15 @@ export const store = {
   files: new Map(),
   snippets: new Map(),
   snippetFolders: new Map(),
+  drugs: new Map(),
+  drugFolders: new Map(),
   pending: {},     // escrituras pendientes de subir por colección
   loaded: {},      // primera carga completada por colección
   fromCache: {},
   stats: { reads: {}, bodyReads: 0 } // documentos recibidos del servidor (≈ lecturas facturadas) desde que se abrió la app
 };
 
-const COLS = ['folders', 'tags', 'notes', 'files', 'snippets', 'snippetFolders'];
+const COLS = ['folders', 'tags', 'notes', 'files', 'snippets', 'snippetFolders', 'drugs', 'drugFolders'];
 let unsubs = [];
 
 export const col = (name) => collection(db, 'users', store.uid, name);
@@ -136,6 +140,8 @@ export function usageBytes() {
   for (const f of store.folders.values()) b += 200 + (f.name?.length || 0);
   for (const t of store.tags.values()) b += 150 + (t.name?.length || 0);
   for (const f of store.snippetFolders.values()) b += 200 + (f.name?.length || 0);
+  for (const f of store.drugFolders.values()) b += 200 + (f.name?.length || 0);
+  for (const d of store.drugs.values()) b += 400 + JSON.stringify(d).length + (d.size || 0);
   for (const s of store.snippets.values()) b += 300 + (s.body?.length || 0) + (s.html?.length || 0) + (s.title?.length || 0);
   return b;
 }

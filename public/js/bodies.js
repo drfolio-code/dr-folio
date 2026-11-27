@@ -2,7 +2,7 @@
 //
 //   notes/{id}       Datos ligeros para listas, carpetas y búsqueda rápida (se sincronizan siempre):
 //                    title, folderId, tags, pinned, trashed, trashedAt, createdAt, updatedAt,
-//                    preview (≈200 primeros caracteres), words, refsCount, links (ids de notas enlazadas),
+//                    preview (≈200 primeros caracteres), words, refsCount, links (ids de notas enlazadas), drugs (fármacos enlazados),
 //                    files (ids de imágenes y adjuntos), size (bytes aprox. del contenido)
 //   noteBodies/{id}  { html, text, refs, updatedAt } → solo se descarga al ABRIR la nota
 //                    (y en segundo plano en los dispositivos de confianza, para buscar en todo sin conexión)
@@ -18,7 +18,7 @@ import { db } from './db.js';
 import { store, ref, col, commitBatch } from './store.js';
 
 export const LEGACY_FIELDS = ['html', 'text', 'refs'];
-export const DERIVED_FIELDS = ['preview', 'words', 'refsCount', 'links', 'files', 'size'];
+export const DERIVED_FIELDS = ['preview', 'words', 'refsCount', 'links', 'drugs', 'files', 'size'];
 export const isLegacy = (n) => !!n && (n.html !== undefined || n.text !== undefined || n.refs !== undefined);
 
 const str = (x) => (typeof x === 'string' ? x : '');
@@ -26,14 +26,15 @@ const arr = (x) => (Array.isArray(x) ? x : []);
 
 /** Campos ligeros calculados a partir del contenido */
 export function deriveLight({ html = '', text = '', refs = [] }) {
-  const links = new Set(), files = new Set();
+  const links = new Set(), files = new Set(), drugs = new Set();
   for (const m of str(html).matchAll(/data-note="([^"]+)"/g)) links.add(m[1]);
+  for (const m of str(html).matchAll(/data-drug="([^"]+)"/g)) drugs.add(m[1]);
   for (const m of str(html).matchAll(/data-file="([^"]+)"/g)) files.add(m[1]);
   for (const r of arr(refs)) if (r && r.fileId) files.add(r.fileId);
   const t = str(text).replace(/\s+/g, ' ').trim();
   return {
     preview: t.slice(0, 200), words: t ? t.split(' ').length : 0, refsCount: arr(refs).length,
-    links: [...links], files: [...files], size: str(html).length + str(text).length
+    links: [...links], drugs: [...drugs], files: [...files], size: str(html).length + str(text).length
   };
 }
 
