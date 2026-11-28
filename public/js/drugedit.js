@@ -5,8 +5,9 @@ import { store } from './store.js';
 import { el, norm } from './util.js';
 import { toast, modal, confirm, undoToast } from './ui.js';
 import { icon } from './icons.js';
-import { REG_FIELDS, lineOf, hasDetail, mergeList, presBrandsOf } from './drugbody.js';
-import { SCOPES, FLUIDS, regType, typeSlug } from './chuletario.js';
+import { REG_FIELDS, lineOf, hasDetail, mergeList, presBrandsOf, profOf } from './drugbody.js';
+import { FLUIDS, regType, typeSlug } from './chuletario.js';
+import { liveTags, tagChip, newTag, EXAMPLES } from './drugtags.js';
 import { fixRegIds, resFileIds } from './drugres.js';
 
 let api = null; // { ctx, cur, refresh, regId, write, resEditor, cleanResList, purgeNew }
@@ -79,17 +80,21 @@ export async function editHead(id, { isNew = false } = {}) {
   saveFields(id, patch);
 }
 
-// ====================== Ámbito (etiquetas) ======================
-export async function editScopes(id) {
+// ====================== Etiquetas (v1.31.0) ======================
+export async function editTags(id) {
   const d = store.drugs.get(id);
   if (!d) return;
-  const on = new Set(d.scopes || []);
-  const row = el('div', { class: 'chu-scopes' }, ...SCOPES.map(([k, l]) => {
-    const b = el('button', { type: 'button', class: `scope-chip sc-${k} toggle ${on.has(k) ? 'on' : ''}`, onclick: () => { if (on.has(k)) on.delete(k); else on.add(k); b.classList.toggle('on', on.has(k)); } }, l);
-    return b;
-  }));
-  if (await sheet('Ámbito', [el('p', { class: 'muted small' }, 'Toca para marcar o desmarcar.'), row]) !== 'ok') return;
-  saveFields(id, { scopes: SCOPES.map(([k]) => k).filter((k) => on.has(k)) });
+  const on = new Set(d.tags || []);
+  const row = el('div', { class: 'tag-pick' });
+  const render = () => row.replaceChildren(...liveTags(profOf(d)).map((t) => tagChip(t, {
+    class: `toggle ${on.has(t.id) ? 'on' : ''}`, 'aria-pressed': String(on.has(t.id)),
+    onclick: () => { if (on.has(t.id)) on.delete(t.id); else on.add(t.id); render(); }
+  }, on.has(t.id) ? icon('check') : null, t.name)),
+  el('button', { class: 'chip', type: 'button', onclick: async () => { const nid = await newTag(profOf(d)); if (nid) { on.add(nid); render(); } } }, '＋ Nueva'));
+  render();
+  if (await sheet('Etiquetas', [el('p', { class: 'muted small' }, `Toca para poner o quitar. Ejemplos: ${EXAMPLES}. Se gestionan en Vademécum ⋯ → «Etiquetas…».`), row]) !== 'ok') return;
+  const order = liveTags(profOf(d)).map((t) => t.id);
+  saveFields(id, { tags: order.filter((t) => on.has(t)) });
 }
 
 // ====================== Presentaciones ======================

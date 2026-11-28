@@ -29,12 +29,12 @@ import { icon, iconOr } from './icons.js';
 import {
   initDrugs, newDrug, openDrug, closeDrug, currentDrug, flushDrug, onDrugsChange, refreshDrugBacklinks, drugCard, drugItemMenu,
   drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, templatePending, templateState, dismissTemplate, emptyDrugTrash, mergeDuplicates, duplicateCount,
-  pasteChuletario, drugScope, setDrugScope, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading, editFolderResources, TEMPLATE_URL
+  pasteChuletario, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading, editFolderResources, TEMPLATE_URL
 } from './drugs.js';
 import { mergeResources, resFileIds } from './drugres.js';
 import { reorgPending, openReorg, dismissReorg } from './drugreorg.js';
+import { liveTags, tagFilter, setTagFilter, toggleTagFilter, tagChip, manageTags, migrateDrugTags } from './drugtags.js';
 import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies } from './drugbody.js';
-import { SCOPES } from './chuletario.js';
 import {
   startChat, stopChat, chatShown, unreadCount, chatReady, chatSearch, chatCard, chatFileIds, chatFilesInUse, fetchAllChat,
   settingsChanged, refreshChat, consumeShare, ttlDays, setTtl, TTL_OPTIONS
@@ -169,6 +169,7 @@ const TREES = {
       { icon: 'clipboard-paste', label: 'Pegar del Chuletario…', onClick: () => pasteChuletario({ folderId }) },
       { icon: 'folder-plus', label: 'Plantilla de carpetas (AP, urgencias, montaña)…', onClick: () => importTemplate() },
       { icon: 'combine', label: 'Unir fichas repetidas (mismo principio activo)…', onClick: () => mergeDuplicates() },
+      { icon: 'tag', label: 'Etiquetas…', onClick: () => openTagAdmin() },
       !folderId ? { icon: 'folder-input', label: 'Reorganizar carpetas por grupo terapéutico…', onClick: () => runReorg() } : null],
     txt: {
       Many: 'Fármacos', newBtn: '＋ Fármaco', newOne: 'Nuevo fármaco', newHere: 'Nuevo fármaco aquí', folderHint: 'Grupo (p. ej. Analgésicos)',
@@ -181,6 +182,7 @@ const TREES = {
     }
   }
 };
+const openTagAdmin = () => manageTags(() => { renderList(); renderSidebar(); flushDrug(); onDrugsChange(null); });
 /** v1.30.0: asistente «Nueva organización por carpetas» (drugreorg.js) */
 const runReorg = () => openReorg({ templateUrl: TEMPLATE_URL, flush: () => flushDrug(), render: () => { renderList(); renderSidebar(); } });
 /** Árbol al que pertenece una vista (o null: Inicio) */
@@ -464,16 +466,23 @@ function onData(name, changed) {
     onSnippetsChange(null);
     if (isSnipView()) renderListSoon();
   } else if (name === 'drugs') {
+    migrateDrugTags();
     onDrugsChange(changed);
     renderSidebarSoon();
     if (isDrugView()) renderListSoon();
     if (S.noteId) editor.markLinks(); // enlaces a fármacos eliminados
+  } else if (name === 'drugTags') {
+    migrateDrugTags(); // v1.31.0: ámbito → etiquetas (idempotente, solo con datos del servidor)
+    onDrugsChange(null);
+    renderSidebarSoon();
+    if (isDrugView()) renderListSoon();
   } else if (name === 'drugFolders') {
     onDrugsChange(null);
     renderSidebarSoon();
     if (isDrugView()) renderListSoon();
   } else if (name === 'settings') {
     settingsChanged(); // caducidad del chat
+    migrateDrugTags();
     if (isDrugView()) renderListSoon(); // aviso de la plantilla del Vademécum
   }
 }
@@ -1284,6 +1293,19 @@ function renderSidebar() {
         el('button', { class: 'more', 'aria-label': 'Opciones de etiqueta', onclick: (e) => { e.stopPropagation(); tagMenu(e.currentTarget, t); } }, icon('ellipsis'))
       )) : el('div', { class: 'side-empty' }, 'Añade etiquetas desde una nota'))));
   }
+  if (sec === 'drugs') {
+    const f = tagFilter();
+    const cnt = (id) => liveDrugs().filter((d) => (d.tags || []).includes(id)).length;
+    const dt = liveTags();
+    body.push(el('div', { class: 'side-section' },
+      el('div', { class: 'side-title' }, el('span', {}, 'Etiquetas'),
+        el('button', { class: 'icon-btn sm', type: 'button', title: 'Gestionar etiquetas', 'aria-label': 'Gestionar etiquetas', onclick: () => openTagAdmin() }, icon('ellipsis'))),
+      el('div', { class: 'tag-list' }, dt.length ? dt.map((t) => el('div', {
+        class: `tag-item ${f.includes(t.id) ? 'active' : ''}`, role: 'button', tabindex: '0', title: f.includes(t.id) ? 'Quitar del filtro' : 'Filtrar por esta etiqueta',
+        onclick: () => { toggleTagFilter(t.id); if (!treeOf(S.view.type)) setView({ type: 'drugs', id: null }); renderList(); renderSidebar(); }
+      }, el('span', { class: 'hash', style: t.color ? { color: t.color } : {} }, icon(f.includes(t.id) ? 'check' : 'tag')), el('span', { class: 'lbl' }, t.name), el('span', { class: 'count' }, cnt(t.id) || '')))
+        : el('div', { class: 'side-empty' }, 'Crea etiquetas en ⋯ → «Etiquetas…»'))));
+  }
   $('#side-body').replaceChildren(...body);
 }
 
@@ -1768,12 +1790,16 @@ function renderDrugView(box, T) {
     box.replaceChildren(el('div', { class: 'list-empty' }, store.loaded.drugFolders ? 'Esta carpeta ya no existe.' : 'Cargando carpetas…'));
     return;
   }
-  // Filtro por ámbito (Atención Primaria / Urgencias / Rescate de montaña), recordado en el dispositivo
-  const scopeBar = () => el('div', { class: 'scope-bar', role: 'tablist', 'aria-label': 'Filtrar por ámbito' },
-    [['', 'Todos'], ...SCOPES.map(([k, , short]) => [k, short])].map(([k, l]) => el('button', {
-      type: 'button', class: `find-chip ${drugScope() === k ? 'on' : ''}`, role: 'tab', 'aria-selected': String(drugScope() === k),
-      onclick: () => { setDrugScope(k); renderList(); renderSidebar(); }
-    }, l)));
+  // v1.31.0: filtro por etiquetas (varias a la vez: salen las fichas con todas las elegidas), recordado en el dispositivo
+  const scopeBar = () => {
+    const f = tagFilter();
+    const tags = liveTags();
+    return el('div', { class: 'scope-bar tag-bar', role: 'group', 'aria-label': 'Filtrar por etiquetas' },
+      el('button', { type: 'button', class: `find-chip ${f.length ? '' : 'on'}`, 'aria-pressed': String(!f.length), onclick: () => { setTagFilter([]); renderList(); renderSidebar(); } }, 'Todas'),
+      ...tags.map((t) => tagChip(t, { class: `find-chip ${f.includes(t.id) ? 'on' : ''}`, 'aria-pressed': String(f.includes(t.id)),
+        onclick: () => { toggleTagFilter(t.id); renderList(); renderSidebar(); } }, f.includes(t.id) ? icon('check') : null, t.name)),
+      el('button', { type: 'button', class: 'find-chip tag-manage', title: 'Gestionar etiquetas', 'aria-label': 'Gestionar etiquetas', onclick: () => openTagAdmin() }, icon('tag'), tags.length ? null : ' Etiquetas…'));
+  };
   if (v.type === T.root || v.type === T.folder) {
     renderExplorer(box, T);
     box.prepend(scopeBar());
@@ -1828,7 +1854,7 @@ function renderDrugView(box, T) {
         : v.type === 'drecent' ? 'Todavía no has consultado ninguna ficha.'
           : v.type === 'dreview' ? 'No hay fichas pendientes de revisar ✓'
             : v.type === 'dtrash' ? 'La papelera del Vademécum está vacía.' : 'Aún no hay fármacos. Crea el primero con ＋ o usa «Añadir varios».'));
-    if (drugScope() && v.type !== 'dtrash') box.prepend(scopeBar(), el('div', { class: 'fx-hint' }, 'Filtro de ámbito activo: las fichas sin ese ámbito no salen. Toca «Todos».'));
+    if (tagFilter().length && v.type !== 'dtrash') box.prepend(scopeBar(), el('div', { class: 'fx-hint' }, 'Filtro de etiquetas activo: solo salen las fichas con todas las elegidas. Toca «Todas».'));
     return;
   }
   if (v.type !== 'dtrash') head.unshift(scopeBar());

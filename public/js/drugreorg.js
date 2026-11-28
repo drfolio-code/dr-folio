@@ -9,7 +9,7 @@ import { store, put, newId, childFolders, folderPath, ref, commitBatch } from '.
 import { el, norm, download } from './util.js';
 import { toast, modal } from './ui.js';
 import { icon } from './icons.js';
-import { drugKey, baseKey } from './drugbody.js';
+import { drugKey, baseKey, ensureScopeTag } from './drugbody.js';
 import { addQuota, budget, buildBackup } from './backup.js';
 
 export const REORG_VERSION = 1;
@@ -173,6 +173,7 @@ export async function openReorg(ctx) {
   for (const m of plan.moves) {
     const x = { folderId: ids.get(m.to) };
     if (m.mont) x.mountainFolder = true; // estaba en «Montaña y rescate»: tendrá la etiqueta «Montaña»
+    if (m.mont && Array.isArray(m.d.tags)) x.tags = [...new Set([...m.d.tags, ensureScopeTag('mont', 'adult', batch)])]; // ya con etiquetas (v1.31.0)
     batch.set(ref('drugs', m.d.id), x, { merge: true });
     Object.assign(m.d, x);
     n++; flush();

@@ -12,7 +12,7 @@
 //
 // Regla (como en las notas): al cambiar «Mis notas», drugs.bodyAt y drugBodies.updatedAt reciben el mismo valor en el
 // mismo lote. Un cuerpo en memoria está al día si su updatedAt ≥ bodyAt de la ficha.
-import { getDoc, getDocs, query, where, documentId, writeBatch } from '../vendor/libs.js';
+import { getDoc, getDocs, query, where, documentId, writeBatch, doc } from '../vendor/libs.js';
 import { db } from './db.js';
 import { store, ref, col, commitBatch } from './store.js';
 import { norm } from './util.js';
@@ -53,10 +53,11 @@ export function regSummary(r = {}) {
 const searchCache = new Map(); // id → { k, s }
 /** Texto de búsqueda: principio activo, nombres comerciales, presentaciones, indicaciones y enlaces (título, nota, año; v1.27.0) */
 export function drugSearchText(d) {
-  const k = `${d.updatedAt}|${d.name}|${(d.brands || []).length}|${(d.resources || []).length}`;
+  const tagNames = arr(d.tags).map((t) => store.drugTags?.get(t)?.name).filter(Boolean);
+  const k = `${d.updatedAt}|${d.name}|${(d.brands || []).length}|${(d.resources || []).length}|${tagNames.join(',')}`;
   const c = searchCache.get(d.id);
   if (c && c.k === k) return c.s;
-  const s = norm([d.name, ...arr(d.brands), ...arr(d.presentations), ...arr(d.regimens).map((r) => r?.indication), resSearchText(d.resources)].map(str).join('\n'));
+  const s = norm([d.name, ...arr(d.brands), ...arr(d.presentations), ...arr(d.regimens).map((r) => r?.indication), resSearchText(d.resources), ...tagNames].map(str).join('\n'));
   searchCache.set(d.id, { k, s });
   return s;
 }
@@ -125,6 +126,8 @@ export function loadDrugBody(id) {
  */
 export function writeDrug(id, light, body = null, batch = writeBatch(db), { commit = true } = {}) {
   const data = { ...light };
+  // v1.31.0: el ámbito (scopes, de importar/pegar) se guarda como etiquetas; se conservan las etiquetas propias
+  if (Array.isArray(data.scopes) && !('tags' in data)) data.tags = scopesToTags(store.drugs.get(id)?.tags, data.scopes, data.profile || store.drugs.get(id)?.profile, batch);
   if (body) {
     const t = Math.max(Date.now(), (store.drugs.get(id)?.bodyAt || 0) + 1);
     const b = { html: str(body.html), text: str(body.text).slice(0, 30000), updatedAt: t };
@@ -136,6 +139,52 @@ export function writeDrug(id, light, body = null, batch = writeBatch(db), { comm
   const d = store.drugs.get(id);
   if (d) Object.assign(d, data); else store.drugs.set(id, { id, ...data }); // reflejo inmediato
   return commit ? commitBatch(batch) : batch;
+}
+
+// ====================== Etiquetas (v1.31.0) ======================
+// drugTags/{id} {name, color, order, profile, createdAt}; en cada ficha tags[] (ids). Las del ámbito antiguo tienen id fijo
+// (así varios dispositivos crean la misma y no se duplican): tag-ap, tag-urg, tag-mont (pediátrico: ptag-…).
+export const DEFAULT_TAGS = [['ap', 'Atención Primaria', '#16a34a'], ['urg', 'Urgencias', '#dc2626'], ['mont', 'Montaña', '#2563eb']];
+export const profOf = (x) => (x?.profile === 'ped' ? 'ped' : 'adult');
+export const scopeTagId = (k, profile) => `${profile === 'ped' ? 'ptag' : 'tag'}-${k}`;
+/** Crea (en el lote) la etiqueta por defecto si no existe. Devuelve su id. */
+export function ensureScopeTag(k, profile, batch) {
+  const id = scopeTagId(k, profile);
+  if (!store.drugTags.has(id)) {
+    const [, name, color] = DEFAULT_TAGS.find((t) => t[0] === k) || [k, k, null];
+    const data = { name, color, order: DEFAULT_TAGS.findIndex((t) => t[0] === k), profile: profile === 'ped' ? 'ped' : 'adult', createdAt: Date.now() };
+    store.drugTags.set(id, { id, ...data });
+    batch.set(ref('drugTags', id), data);
+  }
+  return id;
+}
+/** Etiquetas de una ficha a partir del ámbito: las propias se quedan; las del ámbito siguen a `scopes` */
+export function scopesToTags(cur, scopes, profile, batch) {
+  const auto = new Set(DEFAULT_TAGS.map(([k]) => scopeTagId(k, profile)));
+  const keep = arr(cur).filter((t) => !auto.has(t));
+  return [...keep, ...arr(scopes).filter((k) => DEFAULT_TAGS.some((t) => t[0] === k)).map((k) => ensureScopeTag(k, profile, batch))];
+}
+
+/** Ids de las etiquetas con esos nombres (sin tildes/mayúsculas); las que no existen se crean en el lote */
+export function tagIdsByName(names, profile, batch) {
+  const p = profile === 'ped' ? 'ped' : 'adult';
+  const out = [];
+  for (const name of arr(names)) {
+    const k = norm(name).trim();
+    if (!k) continue;
+    let t = [...store.drugTags.values()].find((x) => profOf(x) === p && norm(x.name).trim() === k);
+    if (!t) {
+      const sk = DEFAULT_TAGS.find(([, n]) => norm(n) === k || (k === 'rescate' || k === 'rescate de montana' ? n === 'Montaña' : false));
+      if (sk) { out.push(ensureScopeTag(sk[0], p, batch)); continue; }
+      const id = doc(col('drugTags')).id;
+      const data = { name: str(name).slice(0, 40), color: null, order: 100 + store.drugTags.size, profile: p, createdAt: Date.now() };
+      store.drugTags.set(id, { id, ...data });
+      batch.set(ref('drugTags', id), data);
+      t = { id };
+    }
+    if (!out.includes(t.id)) out.push(t.id);
+  }
+  return out;
 }
 
 /** Borra una ficha y sus notas */
@@ -261,7 +310,8 @@ function extraFields(it) {
     contraindications: lst(pick(it, 'contraindications', 'contraindicaciones')),
     compat: lst(pick(it, 'compat', 'compatibility', 'compatibilidad', 'ySite', 'compatibilidadY')),
     scopes: [...new Set(list(pick(it, 'scopes', 'scope', 'ambito', 'ámbito', 'ambitos', 'ámbitos')).map(scopeKey).filter(Boolean))],
-    source: normSource(pick(it, 'source', 'fuente'))
+    source: normSource(pick(it, 'source', 'fuente')),
+    tagNames: [...new Set(list(pick(it, 'tags', 'etiquetas')).map((x) => str(x).replace(/\s+/g, ' ').trim().slice(0, 40)).filter(Boolean))] // v1.31.0
   };
 }
 /** Campos de lista ampliados (para unir sin repetir) */
@@ -346,6 +396,7 @@ export function mergeGroupLight(g, newRegId) {
   const light = {
     name: g.name, brands: [...arr(keep.brands)], presentations: [...arr(keep.presentations)], regimens: [...arr(keep.regimens)],
     presBrands: arr(keep.presBrands).map((e) => ({ p: e.p, b: [...arr(e.b)] })), favorite: g.items.some((d) => d.favorite),
+    ...(g.items.some((d) => Array.isArray(d.tags)) ? { tags: [...new Set(g.items.flatMap((d) => arr(d.tags)))] } : {}),
     reviewed: g.items.every((d) => d.reviewed !== false), source: keep.source || null,
     resources: arr(keep.resources).map((r) => ({ ...r }))
   };

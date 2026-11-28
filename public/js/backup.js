@@ -27,11 +27,11 @@ import { normResources, folderResources, byKind, domainOf } from './drugres.js';
 
 export const BACKUP_FORMAT = 'drfolio-backup';
 export const BACKUP_VERSION = 1;
-const COLS = ['folders', 'tags', 'files', 'notes', 'snippetFolders', 'snippets', 'drugFolders', 'drugs', 'settings', 'chat']; // orden de escritura
-const OPTIONAL = ['settings', 'chat']; // si la copia no los trae, no se borran al reemplazar
+const COLS = ['folders', 'tags', 'files', 'notes', 'snippetFolders', 'snippets', 'drugFolders', 'drugTags', 'drugs', 'settings', 'chat']; // orden de escritura
+const OPTIONAL = ['settings', 'chat', 'drugTags']; // si la copia no los trae, no se borran al reemplazar
 const COL_NAMES = {
   notes: 'Notas', folders: 'Carpetas', tags: 'Etiquetas', snippets: 'Prerredactados',
-  snippetFolders: 'Carpetas de prerredactados', drugs: 'Fármacos (Vademécum)', drugFolders: 'Carpetas del Vademécum',
+  snippetFolders: 'Carpetas de prerredactados', drugs: 'Fármacos (Vademécum)', drugFolders: 'Carpetas del Vademécum', drugTags: 'Etiquetas del Vademécum',
   files: 'Archivos (imágenes y PDF)', chat: 'Mensajes del chat', settings: 'Ajustes comunes'
 };
 /** Colecciones que se guardan como dos documentos (ligero + contenido) */
@@ -199,7 +199,7 @@ async function runExportJson(p, withFiles) {
 function summaryTable(counts, extra = {}) {
   const rows = [
     ['notes', 'notebook-text'], ['folders', 'folder'], ['tags', 'tag'], ['snippets', 'clipboard-list'], ['snippetFolders', 'folder'],
-    ['drugs', 'pill'], ['drugFolders', 'folder'], ['chat', 'message-circle'], ['files', 'image']
+    ['drugs', 'pill'], ['drugFolders', 'folder'], ['drugTags', 'tag'], ['chat', 'message-circle'], ['files', 'image']
   ];
   return el('table', { class: 'bk-table' }, el('tbody', {},
     rows.map(([c, ico]) => el('tr', {}, el('td', {}, icon(ico), ` ${COL_NAMES[c]}`), el('td', {}, (counts[c] || 0).toLocaleString('es-ES'),
@@ -301,7 +301,8 @@ function drugPageHtml(d) {
   const e = escapeHtml;
   const parts = [];
   if (d.brands?.length) parts.push(`<p><strong>Nombres comerciales:</strong> ${e(d.brands.join(', '))}</p>`);
-  if (d.scopes?.length) parts.push(`<p><strong>Ámbito:</strong> ${e(d.scopes.map((k) => ({ ap: 'Atención Primaria', urg: 'Urgencias', mont: 'Rescate de montaña' }[k] || k)).join(', '))}</p>`);
+  const tagNames = (d.tags || []).map((t) => store.drugTags.get(t)?.name).filter(Boolean);
+  if (tagNames.length) parts.push(`<p><strong>Etiquetas:</strong> ${e(tagNames.join(', '))}</p>`);
   if (d.fluids?.length) parts.push(`<p><strong>Sueros:</strong> ${e(d.fluids.join(', '))}</p>`);
   if (d.presentations?.length) parts.push(`<h2>Presentaciones</h2><ul>${d.presentations.map((p) => { const b = presBrandsOf(d, p); return `<li>${e(p)}${b.length ? ` <span class="muted">(${e(b.join(', '))})</span>` : ''}</li>`; }).join('')}</ul>`);
   if (d.regimens?.length) {
@@ -601,13 +602,14 @@ function fixDoc(c, d) {
     x.brands = strs(x.brands);
     x.presentations = strs(x.presentations);
     x.regimens = Array.isArray(x.regimens) ? x.regimens.filter(isObj) : [];
-    for (const f of ['fluids', 'observations', 'contraindications', 'compat', 'scopes']) if (f in x) x[f] = strs(x[f]); // v1.22.0
+    for (const f of ['fluids', 'observations', 'contraindications', 'compat', 'scopes', 'tags']) if (f in x) x[f] = strs(x[f]); // v1.22.0 · tags v1.31.0
     if ('presBrands' in x) x.presBrands = Array.isArray(x.presBrands) ? x.presBrands.filter((v) => isObj(v) && typeof v.p === 'string').map((v) => ({ p: v.p, b: strs(v.b) })) : [];
     if ('mergedInto' in x) x.mergedInto = typeof x.mergedInto === 'string' && ID_RE.test(x.mergedInto) ? x.mergedInto : null; // v1.24.0
     if ('pregnancy' in x) x.pregnancy = isObj(x.pregnancy) ? { cat: String(x.pregnancy.cat || ''), note: String(x.pregnancy.note || '') } : { cat: '', note: '' };
     if ('source' in x) x.source = isObj(x.source) ? { text: String(x.source.text || ''), url: /^https?:\/\//i.test(String(x.source.url || '')) ? String(x.source.url) : '' } : { text: '', url: '' };
     if ('resources' in x) x.resources = normResources(x.resources, resId); // v1.27.0: solo http/https, texto plano
   }
+  if (c === 'drugTags') { x.name = typeof x.name === 'string' ? x.name.slice(0, 40) : 'Etiqueta'; x.color = typeof x.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(x.color) ? x.color : null; }
   if (c === 'drugFolders' && 'resources' in x) x.resources = normResources(x.resources, resId, { withReg: false });
   if (c === 'chat') {
     x.text = typeof x.text === 'string' ? x.text : '';
