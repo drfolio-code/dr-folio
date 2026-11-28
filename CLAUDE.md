@@ -344,6 +344,13 @@ Reglas (ver también v1.24.0: une por principio activo y opción Reemplazar): fi
 - Ordenador público: funciona (memoria, sin caché); no hace la limpieza; `devId`/visto en sessionStorage.
 - Probado con el **emulador de Firebase** + Playwright (56 comprobaciones): dos sesiones (ordenador público 1366×860 → móvil iPhone 13), tiempo real, imagen y PDF, fijar, convertir, editar, sin conexión, caducidad con fechas antiguas, buscar, Compartir, 230 mensajes (200 + anteriores al subir), copia, horizontal 844×390 y ordenador de confianza. De paso: `pdfviewer.js` cerraba con `doc.destroy()`, que en PDF.js 6 ya no existe → `loadingTask.destroy()`.
 
+## Volver siempre al estado inicial (v1.38.0, app.js)
+- **Al abrir la app** (`resetOnOpen`, antes de `initHistory`) y **al volver a ella** tras ≥ N min en segundo plano (`visibilitychange` → `resumeCheck`; también `pageshow` desde la caché del navegador): Inicio (`#/inicio`), Vademécum **adulto**, sin filtro de etiquetas, sin búsquedas (`S.search`, `S.find`, `S.findFilter`, `S.searchAll`, `S.drugBoth`, `S.contentSearch`), sin peso ni elecciones en la calculadora (`resetDrugCalc`) y sin nota/prerredactado/ficha abierta (se guarda antes; `goHome`). `clearTransient()` = lo que se olvida.
+- **Si estás editando** (`busyEditing`: nota o prerredactado en edición, ficha en «Editar todo» o «Mis notas», un modal o menú abierto, un mensaje del chat a medio escribir o con archivos preparados — `chatDraft()` en chat.js) no se hace nada y queda pendiente (`resetPending`) para la próxima vez que vuelvas.
+- Excepciones al abrir: «Compartir» de Android (`?share=1`) y la recarga de «Actualizar» (`update.js` deja `sessionStorage['drfolio.keepRoute']`).
+- **Ajustes** → «Al volver a la app: empezar en Inicio»: `drfolio.resume` = `0` (siempre, al momento) · `5` (por defecto) · `30` · `off` (seguir donde estaba; tampoco al abrir).
+- **Se conservan** (preferencias): `readSize`, `noteMode`, `wakeLock`, `tabFixed`, `layout`, `drugSecs`, `sort`, `folderSort`, `drugFolderSort`, `snipSort`, `side`, `expanded`, `tocClosed`, `tbMore`, `autoToc`, `idle`, `resume`. **Se reinician**: `drugProfile` → adulto, `drugTagFilter` → vacío. Internos que no son navegación (no se tocan): `mode`, `devId`, `chatSeen`, `chatClean`, `lastBackup`, `restoreJob`, `quota`, `migrated`, `recentColors`, `logoutReason`.
+
 ## Hoja de ruta
 1. ✅ Notas: carpetas/subcarpetas, etiquetas, editor enriquecido, imágenes, bibliografía con PDF, índice, enlaces entre notas, offline, modo lectura con copiar sección, copia de seguridad y restauración
 2. ✅ Prerredactados (plantillas para copiar, con campos rellenables y texto enriquecido)

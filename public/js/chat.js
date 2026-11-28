@@ -541,6 +541,8 @@ export function stageShared({ text = '', files = [] }) {
   if (text) { input.value = input.value ? `${input.value}\n${text}` : text; input.dispatchEvent(new Event('input')); }
   if (files.length) stage(files); else input.focus();
 }
+/** v1.38.0: ¿hay un mensaje a medio escribir o archivos preparados? (no se vuelve a Inicio) */
+export const chatDraft = () => !!($('#chat-input')?.value.trim() || V.staged.length);
 export function focusComposer() { setTimeout(() => $('#chat-input').focus(), 60); }
 
 // ---------- Pintar ----------

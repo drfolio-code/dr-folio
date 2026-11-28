@@ -37,7 +37,7 @@ import { liveTags, tagFilter, setTagFilter, toggleTagFilter, tagChip, manageTags
 import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies, drugProfile, setDrugProfile, profileView, profOf } from './drugbody.js';
 import {
   startChat, stopChat, chatShown, unreadCount, chatReady, chatSearch, chatCard, chatFileIds, chatFilesInUse, fetchAllChat,
-  settingsChanged, refreshChat, consumeShare, ttlDays, setTtl, TTL_OPTIONS
+  settingsChanged, refreshChat, consumeShare, ttlDays, setTtl, TTL_OPTIONS, chatDraft
 } from './chat.js';
 
 // ====================== Estado ======================
@@ -400,6 +400,7 @@ function startApp(user) {
   });
 
   bindUi();
+  resetOnOpen(); // v1.38.0: al abrir la app, Inicio y adulto (salvo «Compartir» o tras «Actualizar»)
   initHistory();
   applyHash();
   setScreen('app');
@@ -705,9 +706,11 @@ function bindUi() {
   // Guardar antes de salir
   window.addEventListener('beforeunload', () => { saveSoon.flush(); flushSnippet(); flushDrug(); });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') { saveSoon.flush(); flushSnippet(); flushDrug(); }
+    if (document.visibilityState === 'hidden') { saveSoon.flush(); flushSnippet(); flushDrug(); hiddenAt = Date.now(); }
+    else resumeCheck();
     updateWakeLock(); // el sistema suelta el bloqueo al ocultar la pestaña: lo pedimos otra vez al volver
   });
+  window.addEventListener('pageshow', (e) => { if (e.persisted) resumeCheck(); });
   window.addEventListener('popstate', onPopState);
 }
 
@@ -2860,6 +2863,62 @@ async function openViewer({ fileId, src, name, kind, mime, full = false }) {
   });
 }
 
+// ====================== Volver al estado inicial (v1.38.0) ======================
+// Al abrir la app y al volver a ella tras un rato en segundo plano: Inicio, Vademécum adulto, sin filtros ni búsquedas,
+// sin peso en la calculadora y sin nota/ficha abierta (se guarda antes). Si estás editando algo, se deja para la próxima vez.
+// Preferencias de verdad (letra, lectura/edición, pantalla encendida, barra inferior, lista/cuadrícula, secciones plegadas,
+// orden, panel lateral, carpetas desplegadas) no se tocan. Ajustes: drfolio.resume = '0' | '5' | '30' (minutos) | 'off'.
+const RESUME_KEY = 'drfolio.resume';
+const resumeSetting = () => { const v = localStorage.getItem(RESUME_KEY); return ['0', '5', '30', 'off'].includes(v) ? v : '5'; };
+let hiddenAt = 0;
+let resetPending = false;
+/** ¿Hay algo a medio editar? (nota o prerredactado en edición, ficha en «Editar todo» o «Mis notas», un modal abierto, un mensaje del chat a medio escribir) */
+function busyEditing() {
+  const nEdit = !!S.noteId && !$('#editor-wrap').classList.contains('hidden') && !$('#editor-wrap').classList.contains('readonly');
+  const sEdit = !!currentSnippet() && !isSnippetReading();
+  const dEdit = !!currentDrug() && !isDrugReading();
+  return nEdit || sEdit || dEdit || modalOpen() || chatDraft() || !!document.querySelector('.menu, .ctx-menu');
+}
+/** Lo que se olvida (memoria y localStorage de navegación). No toca la ruta. */
+function clearTransient() {
+  S.search = ''; S.searchAll = false; S.find = ''; S.findFilter = 'all'; S.drugBoth = false; S.contentSearch = false;
+  const si = $('#search'), fi = $('#find-input');
+  if (si) si.value = '';
+  if (fi) fi.value = '';
+  setTagFilter([]);
+  setDrugProfile('adult');
+  resetDrugCalc();
+}
+/** Arranque: la ruta guardada en la dirección se cambia por Inicio */
+function resetOnOpen() {
+  let keep = false;
+  try { keep = sessionStorage.getItem('drfolio.keepRoute') === '1'; sessionStorage.removeItem('drfolio.keepRoute'); } catch { /* nada */ }
+  if (resumeSetting() === 'off' || keep || /[?&]share=1/.test(location.search)) return;
+  clearTransient();
+  if (location.hash && location.hash !== '#/inicio') history.replaceState(null, '', '#/inicio');
+}
+/** Al volver a la app (pestaña visible otra vez) */
+function resumeCheck() {
+  const set = resumeSetting();
+  if (set === 'off' || !S.started || !store.uid) return;
+  const away = hiddenAt ? Date.now() - hiddenAt : 0;
+  hiddenAt = 0;
+  if (!resetPending && (!away || away < Number(set) * 60000)) return;
+  resetToStart();
+}
+function resetToStart() {
+  if (busyEditing()) { resetPending = true; return false; } // se hará la próxima vez que vuelvas a la app
+  resetPending = false;
+  saveSoon.flush(); flushSnippet(); flushDrug();
+  const wasPed = drugProfile() === 'ped';
+  clearTransient();
+  if (wasPed) onDrugProfile(false);
+  closeDrawer();
+  if (S.view.type !== 'home' || S.noteId || currentSnippet() || currentDrug()) goHome();
+  else { renderSection(); renderSidebar(); renderList(); }
+  return true;
+}
+
 // ====================== Ajustes ======================
 function openSettings() {
   closeDrawer();
@@ -2884,6 +2943,9 @@ function openSettings() {
       el('div', { class: 'settings-row' }, el('span', {}, 'Barra inferior del móvil', el('br'), el('span', { class: 'muted small' }, 'Sección fija entre Inicio y ＋ · solo en este dispositivo')),
         el('select', { onchange: (e) => { setTabFixed(e.target.value); toast('Guardado', 'ok'); } },
           tabChoices().map((m) => el('option', { value: m.id, selected: m.id === tabFixed() }, m.name)))),
+      el('div', { class: 'settings-row' }, el('span', {}, 'Al volver a la app: empezar en Inicio', el('br'), el('span', { class: 'muted small' }, 'Y el Vademécum en adulto, sin filtros ni peso · nunca si estás editando · solo en este dispositivo')),
+        el('select', { 'aria-label': 'Al volver a la app', onchange: (e) => { localStorage.setItem(RESUME_KEY, e.target.value); toast('Guardado', 'ok'); } },
+          [['0', 'Siempre (al momento)'], ['5', 'Tras 5 min fuera'], ['30', 'Tras 30 min fuera'], ['off', 'No: seguir donde estaba']].map(([v, l]) => el('option', { value: v, selected: v === resumeSetting() }, l)))),
       el('div', { class: 'settings-row' }, el('span', {}, 'Chat: borrar los mensajes no fijados a los', el('br'), el('span', { class: 'muted small' }, 'En todos tus dispositivos · con sus archivos')),
         el('select', { onchange: (e) => { setTtl(Number(e.target.value)); localStorage.removeItem('drfolio.chatClean'); toast('Guardado', 'ok'); } },
           TTL_OPTIONS.map(([d, l]) => el('option', { value: d, selected: d === ttlDays() }, l)))),

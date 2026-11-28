@@ -63,6 +63,7 @@ export async function applyUpdate(btn) {
       }
     }
   } catch { /* si falla, la recarga ya pide la red primero */ }
+  try { sessionStorage.setItem('drfolio.keepRoute', '1'); } catch { /* nada */ } // v1.38.0: tras actualizar, seguir donde estaba
   location.reload();
 }
 
