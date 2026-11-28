@@ -32,7 +32,7 @@ import {
   pasteChuletario, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading, editFolderResources, TEMPLATE_URL
 } from './drugs.js';
 import { mergeResources, resFileIds } from './drugres.js';
-import { reorgPending, openReorg, dismissReorg, createPedFolders } from './drugreorg.js';
+import { reorgPending, openReorg, dismissReorg, createPedFolders, createStdFolders, pickFolderName } from './drugreorg.js';
 import { liveTags, tagFilter, setTagFilter, toggleTagFilter, tagChip, manageTags, migrateDrugTags } from './drugtags.js';
 import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies, drugProfile, setDrugProfile, profileView, profOf } from './drugbody.js';
 import {
@@ -168,8 +168,8 @@ const TREES = {
       { icon: 'list-plus', label: folderId ? 'Añadir varios aquí…' : 'Añadir varios…', onClick: () => addManyDrugs(folderId) },
       { icon: 'file-up', label: folderId ? 'Importar fichas aquí (JSON)…' : 'Importar fichas (JSON)…', onClick: () => importDrugs(folderId) },
       { icon: 'clipboard-paste', label: 'Pegar del Chuletario…', onClick: () => pasteChuletario({ folderId }) },
-      drugProfile() === 'ped' ? { icon: 'folder-plus', label: 'Crear carpetas pediátricas…', onClick: () => createPedFolders({ render: () => { renderList(); renderSidebar(); } }) }
-        : { icon: 'folder-plus', label: 'Plantilla de carpetas (AP, urgencias, montaña)…', onClick: () => importTemplate() },
+      !folderId ? { icon: 'folder-plus', label: 'Carpetas estándar (iguales en adulto y pediátrico)…', onClick: () => createStdFolders({ render: () => { renderList(); renderSidebar(); } }, drugProfile()) } : null,
+      drugProfile() === 'ped' ? null : { icon: 'folder-plus', label: 'Plantilla de carpetas (AP, urgencias, montaña)…', onClick: () => importTemplate() },
       drugProfile() === 'ped' ? null : { icon: 'combine', label: 'Unir fichas repetidas (mismo principio activo)…', onClick: () => mergeDuplicates() },
       { icon: 'tag', label: 'Etiquetas…', onClick: () => openTagAdmin() },
       !folderId && drugProfile() !== 'ped' ? { icon: 'folder-input', label: 'Reorganizar carpetas por grupo terapéutico…', onClick: () => runReorg() } : null],
@@ -1381,7 +1381,9 @@ function shiftFolder(f, dir, T = TREES.notes) {
 }
 
 async function newFolder(parentId, T = TREES.notes) {
-  const name = await prompt(parentId ? 'Nueva subcarpeta' : 'Nueva carpeta', '', { placeholder: T.txt.folderHint });
+  // v1.34.0: en el Vademécum, carpetas estándar sugeridas (las mismas en adulto y pediátrico) o un nombre libre
+  const name = T.id === 'drugs' ? await pickFolderName(parentId, drugProfile())
+    : await prompt(parentId ? 'Nueva subcarpeta' : 'Nueva carpeta', '', { placeholder: T.txt.folderHint });
   if (!name) return;
   const id = newId(T.col);
   const now = Date.now();

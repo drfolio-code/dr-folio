@@ -198,29 +198,108 @@ export const GROUPS = [
   'Endocrino y metabolismo', 'Sangre y anticoagulación', 'Alergia e inmunología', 'Dermatología', 'Oftalmología y ORL',
   'Urología y ginecología', 'Aparato locomotor', 'Sueros y electrolitos', 'Antídotos'
 ];
-/** Vademécum pediátrico → «Crear carpetas pediátricas»: elige qué grupos (y subcarpetas) crear */
-export async function createPedFolders(ctx) {
-  const tops = [];
-  for (const p of GROUPS) { const [t, sub] = p.split(SEP); let g = tops.find((x) => x.name === t); if (!g) tops.push(g = { name: t, subs: [] }); if (sub) g.subs.push(sub); }
-  const pedChild = (parent, name) => [...DF().values()].find((x) => x.profile === 'ped' && (x.parentId || null) === parent && nk(x.name) === nk(name));
+// ====================== Carpetas estándar (v1.34.0): las mismas en adulto y pediátrico ======================
+/**
+ * Catálogo de carpetas del Vademécum. `subs` = subcarpetas de la plantilla (se crean con «Carpetas estándar»);
+ * `extra` = subcarpetas sugeridas al crear una carpeta a mano (no se crean solas). Los nombres de la plantilla v5
+ * no cambian (las fichas y la reorganización los usan).
+ */
+export const CATALOG = [
+  { name: 'Analgesia y anestesia', subs: ['Analgésicos', 'AINE', 'Opioides', 'Anestésicos locales y sedación'], extra: ['Relajantes neuromusculares'] },
+  { name: 'Cardiovascular', subs: ['Antihipertensivos y diuréticos', 'Antiarrítmicos y vasoactivos', 'Cardiopatía isquémica e insuficiencia cardiaca', 'Hipolipemiantes'] },
+  { name: 'Respiratorio', subs: [], extra: ['Broncodilatadores', 'Corticoides inhalados y combinaciones', 'Antitusivos y mucolíticos', 'Rinitis y descongestivos', 'Oxigenoterapia'] },
+  { name: 'Digestivo', subs: [], extra: ['Antiácidos e IBP', 'Antieméticos', 'Laxantes', 'Antidiarreicos y rehidratación', 'Espasmolíticos y antiflatulentos', 'Probióticos'] },
+  { name: 'Antiinfecciosos', subs: ['Antibacterianos', 'Antivirales, antifúngicos y antiparasitarios', 'Vacunas e inmunoglobulinas'], extra: ['Antituberculosos', 'Antipalúdicos'] },
+  { name: 'Neurología y psiquiatría', subs: ['Neurología', 'Psiquiatría'], extra: ['Anticonvulsivantes', 'Migraña', 'Vértigo', 'TDAH', 'Sueño'] },
+  { name: 'Endocrino y metabolismo', subs: [], extra: ['Antidiabéticos', 'Insulinas', 'Corticoides sistémicos', 'Tiroides', 'Vitaminas y minerales'] },
+  { name: 'Sangre y anticoagulación', subs: [], extra: ['Antiagregantes', 'Anticoagulantes', 'Antianémicos', 'Hemostáticos y reversores'] },
+  { name: 'Alergia e inmunología', subs: [], extra: ['Antihistamínicos', 'Anafilaxia'] },
+  { name: 'Dermatología', subs: [], extra: ['Corticoides tópicos', 'Antiinfecciosos tópicos', 'Acné', 'Pediculicidas y escabicidas', 'Heridas y quemaduras'] },
+  { name: 'Oftalmología y ORL', subs: [], extra: ['Oftalmológicos', 'Óticos', 'Nasales', 'Boca y garganta'] },
+  { name: 'Urología y ginecología', subs: [], extra: ['Urología', 'Anticoncepción', 'Embarazo y obstetricia', 'Enuresis'] },
+  { name: 'Aparato locomotor', subs: [], extra: ['Gota', 'Osteoporosis', 'Relajantes musculares', 'Infiltraciones'] },
+  { name: 'Sueros y electrolitos', subs: [] },
+  { name: 'Antídotos', subs: [] },
+  // v1.34.0: grupos nuevos (no estaban en la plantilla)
+  { name: 'Nutrición y fórmulas', subs: [], extra: ['Fórmulas infantiles', 'Suplementos'], nuevo: true },
+  { name: 'Cuidados paliativos', subs: [], extra: ['Dolor', 'Síntomas digestivos', 'Disnea', 'Sedación paliativa'], nuevo: true },
+  { name: 'Productos sanitarios', subs: [], extra: ['Cámaras de inhalación', 'Material de curas'], nuevo: true }
+];
+const otherProf = (p) => (p === 'ped' ? 'adult' : 'ped');
+const profFolders = (p) => [...DF().values()].filter((f) => (f.profile === 'ped' ? 'ped' : 'adult') === p);
+const childOf = (p, parent, name) => profFolders(p).find((x) => (x.parentId || null) === parent && nk(x.name) === nk(name));
+const pathNames = (id) => folderPath(id, DF()).map((f) => f.name);
+
+/**
+ * Nombre para una carpeta nueva del Vademécum (sustituye al cuadro de texto): sugerencias de la lista estándar y de
+ * las carpetas del otro perfil en el mismo sitio (para que adulto y pediátrico sean iguales), o un nombre libre.
+ * Devuelve el nombre o null.
+ */
+export async function pickFolderName(parentId, profile) {
+  const path = parentId ? pathNames(parentId) : [];
+  const g = path.length === 1 ? CATALOG.find((c) => nk(c.name) === nk(path[0])) : null;
+  let sugg = !parentId ? CATALOG.map((c) => c.name) : g ? [...g.subs, ...(g.extra || [])] : [];
+  // las del otro perfil en la misma ruta
+  let op = null;
+  for (const n of path) { op = childOf(otherProf(profile), op ? op.id : null, n); if (!op) break; }
+  const other = !parentId || op ? profFolders(otherProf(profile)).filter((f) => (f.parentId || null) === (parentId ? op?.id || '§' : null)).map((f) => f.name) : [];
+  const seen = new Set();
+  sugg = [...sugg, ...other].filter((n) => { const k = nk(n); if (seen.has(k)) return false; seen.add(k); return true; });
+  const exists = (n) => !!childOf(profile, parentId || null, n);
+  const input = el('input', { type: 'text', maxlength: 100, placeholder: parentId ? 'Nombre de la subcarpeta' : 'Nombre de la carpeta', autocomplete: 'off' });
+  let chosen = null;
+  const otherSet = new Set(other.map(nk));
+  const chips = el('div', { class: 'fname-sugg' }, ...sugg.map((n) => {
+    const has = exists(n);
+    return el('button', { type: 'button', class: `chip ${has ? 'done' : ''}`, disabled: has, title: has ? 'Ya existe' : otherSet.has(nk(n)) ? `Existe en el ${profile === 'ped' ? 'adulto' : 'pediátrico'}` : '',
+      onclick: (e) => { chosen = n; input.value = n; e.currentTarget.closest('.modal').querySelector('.modal-foot .btn.primary').click(); } },
+    has ? icon('check') : null, n, !has && otherSet.has(nk(n)) && !CATALOG.some((c) => nk(c.name) === nk(n)) ? el('span', { class: 'muted small' }, ` · ${profile === 'ped' ? 'adulto' : 'pediátrico'}`) : null);
+  }));
+  const res = await modal({
+    title: parentId ? `Nueva subcarpeta en «${path[path.length - 1]}»` : 'Nueva carpeta del Vademécum',
+    body: [
+      sugg.length ? el('p', { class: 'muted small' }, 'Elige una carpeta estándar (la misma organización en adulto y pediátrico) o escribe otro nombre.') : null,
+      sugg.length ? chips : null,
+      el('label', { class: 'rf' }, sugg.length ? 'Otro nombre' : 'Nombre', input)
+    ],
+    actions: [{ label: 'Cancelar' }, { label: 'Crear', primary: true, value: 'ok', onClick: () => { if (!input.value.trim()) { toast('Elige o escribe un nombre', 'error'); return false; } return true; } }],
+    autofocus: !sugg.length && !matchMedia('(pointer: coarse)').matches
+  });
+  if (res !== 'ok') return null;
+  const name = (chosen || input.value).replace(/[\/>›]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 100);
+  if (exists(name)) { toast(`Ya tienes «${name}» aquí`, 'error'); return null; }
+  return name;
+}
+
+/** «Carpetas estándar…» (adulto o pediátrico): elige qué grupos y subcarpetas crear; las del otro perfil también se ofrecen */
+export async function createStdFolders(ctx, profile) {
+  const tops = CATALOG.map((c) => ({ name: c.name, subs: [...c.subs], nuevo: !!c.nuevo }));
+  // carpetas del otro perfil que no están en el catálogo (para igualar los dos perfiles)
+  for (const f of profFolders(otherProf(profile)).filter((x) => !x.parentId)) {
+    let g = tops.find((t) => nk(t.name) === nk(f.name));
+    if (!g) tops.push(g = { name: f.name, subs: [], fromOther: true });
+    for (const c of profFolders(otherProf(profile)).filter((x) => x.parentId === f.id)) if (!g.subs.some((s) => nk(s) === nk(c.name))) g.subs.push(c.name);
+  }
   const checks = [];
   const box = el('div', { class: 'ped-groups' });
   for (const g of tops) {
-    const exists = !!pedChild(null, g.name);
-    const c = el('input', { type: 'checkbox', checked: false, disabled: exists });
+    const top = childOf(profile, null, g.name);
+    const c = el('input', { type: 'checkbox', checked: false, disabled: !!top });
     const subs = g.subs.map((sname) => {
-      const sx = exists && pedChild(pedChild(null, g.name).id, sname);
+      const sx = top && childOf(profile, top.id, sname);
       const sc = el('input', { type: 'checkbox', checked: false, disabled: !!sx });
       checks.push({ top: g.name, sub: sname, c: sc, parent: c });
       return el('label', { class: 'sub' }, sc, ` ${sname}${sx ? ' (ya está)' : ''}`);
     });
     c.addEventListener('change', () => { for (const x of checks) if (x.parent === c && !x.c.disabled) x.c.checked = c.checked; });
     checks.push({ top: g.name, c });
-    box.append(el('label', {}, c, el('b', {}, ` ${g.name}`), exists ? el('span', { class: 'muted small' }, ' (ya está)') : null), ...subs);
+    box.append(el('label', {}, c, el('b', {}, ` ${g.name}`), top ? el('span', { class: 'muted small' }, ' (ya está)') : null,
+      g.nuevo ? el('span', { class: 'prof-badge' }, 'nuevo') : null, g.fromOther ? el('span', { class: 'muted small' }, ` · del ${profile === 'ped' ? 'adulto' : 'pediátrico'}`) : null), ...subs);
   }
+  const all = el('button', { class: 'btn sm', type: 'button', onclick: () => { for (const x of checks) if (!x.c.disabled) x.c.checked = true; } }, 'Marcar todas las que faltan');
   const ok = await modal({
-    title: 'Crear carpetas pediátricas',
-    body: [el('p', { class: 'muted small' }, 'La misma organización por grupo terapéutico que el adulto. Marca solo las que vayas a usar (puedes crear más luego).'), box],
+    title: `Carpetas estándar · ${profile === 'ped' ? 'Pediátrico' : 'Adulto'}`,
+    body: [el('p', { class: 'muted small' }, 'La misma organización por grupo terapéutico en adulto y pediátrico. Las que ya tienes salen marcadas «ya está». Las subcarpetas son opcionales: al crear una carpeta a mano se sugieren más.'), all, box],
     actions: [{ label: 'Cancelar' }, { label: 'Crear', primary: true, value: true }]
   });
   if (!ok) return;
@@ -231,20 +310,22 @@ export async function createPedFolders(ctx) {
   const now = Date.now();
   const make = (name, parentId, order) => {
     const id = newId('drugFolders');
-    const data = { name, parentId, color: null, order, profile: 'ped', createdAt: now, updatedAt: now };
+    const data = { name, parentId, color: null, order, createdAt: now, updatedAt: now, ...(profile === 'ped' ? { profile: 'ped' } : {}) };
     DF().set(id, { id, ...data });
     batch.set(ref('drugFolders', id), data);
     n++;
     return id;
   };
   for (const x of want) {
-    const gi = GROUPS.findIndex((p) => p.startsWith(x.top));
-    let top = pedChild(null, x.top);
+    const gi = Math.max(0, tops.findIndex((t) => t.name === x.top));
+    const top = childOf(profile, null, x.top);
     const topId = top ? top.id : make(x.top, null, gi * 1000);
-    if (x.sub && !pedChild(topId, x.sub)) make(x.sub, topId, GROUPS.indexOf(`${x.top}${SEP}${x.sub}`) * 1000);
+    if (x.sub && !childOf(profile, topId, x.sub)) make(x.sub, topId, gi * 1000 + (tops[gi].subs.indexOf(x.sub) + 1));
   }
   await commitBatch(batch);
   addQuota(n, 0);
-  toast(`${n} carpeta(s) pediátrica(s) creada(s)`, 'ok');
+  toast(`${n} carpeta(s) creada(s)`, 'ok');
   ctx.render();
 }
+/** Compatibilidad: el pediátrico usa las mismas carpetas estándar */
+export const createPedFolders = (ctx) => createStdFolders(ctx, 'ped');
