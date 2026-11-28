@@ -629,8 +629,8 @@ export function presAmount(p) {
   return v;
 }
 const variantOf = (p) => { const t = norm(str(p).split(',')[0]); const i = VARIANTS.findIndex((re) => re.test(t)); return i < 0 ? 0 : i + 1; };
-/** Presentaciones de una vía en subgrupos por forma, cada uno de menor a mayor dosis (las normales antes que
- *  bucodispersables, efervescentes, masticables o de liberación prolongada): [{ label, items }] */
+/** Presentaciones de una vía en subgrupos por forma, cada uno de menor a mayor dosis (a igual dosis, la normal antes
+ *  que bucodispersable, efervescente, masticable o de liberación prolongada): [{ label, items }] */
 export function presSubgroups(items, d = null) {
   const m = new Map();
   for (const p of arr(items)) {
@@ -641,7 +641,7 @@ export function presSubgroups(items, d = null) {
   }
   const out = [...m.values()].sort((a, b) => a.order - b.order);
   for (const g of out) g.items = g.items.map((p, i) => ({ p, i, v: variantOf(p), a: presAmount(p) }))
-    .sort((x, y) => x.v - y.v || x.a - y.a || x.i - y.i).map((x) => x.p);
+    .sort((x, y) => x.a - y.a || x.v - y.v || x.i - y.i).map((x) => x.p); // v1.39.5: de menor a mayor dosis (a igual dosis, la normal primero)
   return out.map(({ label, items }) => ({ label, items }));
 }
 /** Presentaciones agrupadas por vía: [{ group, items: [texto] }] en el orden de PRES_GROUPS */

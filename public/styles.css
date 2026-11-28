@@ -1559,6 +1559,12 @@ details.dsec[open] > summary { border-bottom: 1px solid var(--border); }
 #drug-wrap { --dtxt: calc(var(--read-size, 18px) * .88); }
 #drug-wrap .pres-chip { font-size: var(--dtxt); font-weight: 600; padding: 2px 11px; line-height: 1.35; border-width: 1px; }
 #drug-wrap .pres-chip.has-brands { padding: 3px 11px; }
+/* v1.39.5: en el móvil, una presentación por línea (de menor a mayor dosis), con sus marcas a la derecha */
+@media (max-width: 639px) {
+  #drug-wrap .pres-gitems { flex-direction: column; flex-wrap: nowrap; gap: 4px; }
+  #drug-wrap .pres-chip, #drug-wrap .pres-chip.has-brands { display: flex; flex-direction: row; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 10px; width: 100%; border-radius: 10px; padding: 5px 11px; }
+  #drug-wrap .pres-chip .pres-brands { text-align: right; margin-left: auto; }
+}
 #drug-wrap .reading-regs .reg-text { font-size: var(--dtxt); }
 #drug-wrap .dlist { font-size: var(--dtxt); line-height: 1.45; }
 #drug-wrap .pres-glabel { font-size: 11px; }
