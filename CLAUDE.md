@@ -31,7 +31,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/js/drugedit.js` | Editores por sección del Vademécum (v1.29.0): `saveFields` (guarda + «Deshacer»), `editHead`, `editScopes`/etiquetas, `editPres`, `editReg`/`editRegs`, `editList`, `editRes` |
 | `public/js/drugreorg.js` | Asistente «Nueva organización por carpetas» (v1.30.0): `reorgPending`, `planReorg`, `openReorg` |
 | `public/js/drugtags.js` | Etiquetas libres del Vademécum (v1.31.0): `liveTags`, `tagsOf`, filtro (`tagFilter`/`tagOk`), `tagChip`, `migrateDrugTags`, `newTag`, `manageTags` |
-| `public/js/drugped.js` | Dosis pediátricas por peso (v1.32.0): `parseNum`, `concOf`, `pedCalc`, `doseText`, `pedLine`, `fmt` (sin DOM ni Firebase: se prueba con node) |
+| `public/js/drugped.js` | Dosis por peso (v1.32.0; calculadora v1.37.0): `parseNum`, `concOf`, `pedCalc`, `pedLine`, `fmt`, `normCalc`, `calcFromText`, `calcOf`, `presOptions`, `doseCalc`, `calcLine` (sin DOM ni Firebase: pruebas en `tools/tests/drugped.test.mjs`) |
 | `public/js/drugs.js` | Vademécum (v1.18.0; plantilla v4 y «Actualizar» en v1.25.0): ficha (lectura/edición), pautas con línea para el informe y botón Copiar, «Mis notas» (editor `drugEditor`), tarjetas, vistas fijas, «Añadir varios», importar JSON, papelera, selector `pickDrug` (enlaces desde notas) |
 | `public/js/chuletario.js` | Ficha ampliada (v1.22.0): constantes (`PREG_CATS`, `SCOPES`, `FLUIDS`, `REG_TYPES`, `regType`, `typeSlug`) y `parseChuletario(texto)` = lector del texto copiado de una ficha del Chuletario de Urgencias (sin DOM ni Firebase: se prueba con node) |
 | `public/js/drugbody.js` | Datos del Vademécum: `genLine`/`lineOf`/`regSummary`, búsqueda (`drugMatches`, `rankDrugs`), «Mis notas» (`drugBodyOf`, `loadDrugBody`, `writeDrug`, `deleteDrugDocs`, `ensureAllDrugBodies`, `fullDrug`), lectura del JSON de importación (`parseDrugImport`) |
@@ -293,6 +293,16 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - **Nada depende del perfil** salvo la etiqueta «Pediátrico» de la cabecera: el peso (`#drug-calc`, al principio de «Indicaciones y dosis») sale en cualquier ficha con alguna pauta por peso (`weightRegs`: `perKg` o mg/kg en el texto), `regView` calcula igual en adulto y pediátrico, «Dosis por kg» sale en el editor de la pauta de las dos.
 - Arreglo: en fichas adultas salía «null» delante de las etiquetas (`replaceChildren(null…)`).
 
+### Calculadora de dosis por toma (v1.37.0, fase 2)
+- **Datos**: campo opcional `calc` en cada pauta (cada pauta = una indicación/patología): `{amount: {lo, hi}, unit (mg|mcg|g|UI|mEq|ml), per ('kg/día'|'kg/dosis'|'kg/h'|'dosis fija'), freqs: [h…] (permitidas), freq (habitual), maxDose ('1 g'), maxDay, duration}` + `calcAuto: true` si salió del texto («revísalo»). `calcAuto: false` sin `calc` = quitado a mano (la migración no lo repone). Importar: `calc`/`calculo` (se sanea con `normCalc`).
+- **Motor sin DOM** (`drugped.js`, pruebas: `node tools/tests/drugped.test.mjs`, solo aritmética): `normCalc`, `freqHours` («cada 6-8 h» → [6, 8]), `calcFromText(texto)` → `{calc, sure}` (sure = una sola dosis por kg, máximas que dicen «/dosis» o «/día», y frecuencia si es por día; **nunca se suponen máximas**), `calcOf(r)` = `calc` › `perKg`/`max` (v1.32.0) › texto (`perKgInText`), `presOptions` (líquidos con concentración y comp/cáps/sobres/sup con dosis por unidad; medios solo en comprimidos normales), `doseCalc(c, {kg, level: min|mid|max|número, freq, pres})` (kg/día ÷ tomas, topes por toma y por día, ml redondeados a 0,1 y a 0,5 si cambia ≤ 5 %, unidades enteras/medias que nunca pasan el tope y, si no cuadran ±10 %, se da la dosis en mg y se avisa), `doseMain`, `calcLine` (línea para el informe), `regCalcLine` (botón Copiar de la pauta y `lineOf(name, r, kg, pres)`), `calcDesc`.
+- **Calculadora** (`renderCalc` en drugs.js, `#drug-calc` al principio de «Indicaciones y dosis», en cualquier ficha con alguna pauta calculable): Peso con −/+ 0,5 kg · Indicación (chips) · Frecuencia (solo las permitidas, la habitual con borde discontinuo y «habitual») · Dosis Mínima/Media/Máxima si hay rango · Presentación (las que encajan con la unidad) · resultado grande (ml o comprimidos + mg, cada N h y total al día), jeringa oral, «no cuadra», tope en rojo con el valor sin tope, «Sin dosis máxima en la ficha: consulta la tabla», cálculo paso a paso, duración, tablas de esa indicación, aviso «Calculado desde el texto» y **Copiar**. «Comprueba la dosis calculada» siempre visible. Estado `kg` y `calcSel = {regId, freq, level, pres}`: no se guardan; se olvidan al abrir otra ficha (`resetDrugCalc()` para la fase 3).
+- En cada pauta, botón corto `= 5,3 ml (533 mg) cada 8 h` (o «Calcular por peso») que la elige en la calculadora (`pickReg`).
+- **Editor de la pauta** (`calcFields`, vía `api.extraFields`; sustituye a «Dosis por kg» de v1.32.0): «Cálculo por peso (calculadora)» con dosis o rango, unidad, por, frecuencias (chips), habitual, máx. por toma/día, duración, «↧ Rellenar desde el texto», «Quitar cálculo» y vista previa con un peso de ejemplo. Al guardar (`finishCalc`): si se tocó → `calc` revisado (se quitan `perKg`/`calcAuto`); si era automático y cambió el texto → se vuelve a leer.
+- **Tablas por peso de una indicación**: `regId` en `tables[]` (selector «Indicación» en `editTables`; se limpia si la pauta ya no existe). Sale en el pie de la tabla, como icono junto a esa pauta y como botón en la calculadora.
+- **Migración silenciosa** (`migrateDrugCalc`, al llegar `drugs` del servidor, con conexión): pautas sin `calc`, sin `perKg` y sin `calcAuto: false` cuyo texto se entiende sin duda → `calc` + `calcAuto: true`. Escribe solo `regimens` (sin `updatedAt`), lotes ≤ 400, `budget()`/`addQuota()`.
+- Copia: el JSON lleva `calc` tal cual; el .zip pone «Cálculo por peso: …» en la tabla de pautas.
+
 ### Formato del JSON de importación (Vademécum → ⋯ / «Importar»)
 Ejemplo completo en `ejemplos/vademecum-ejemplo.json`. Se acepta `{ "format": "drfolio-vademecum", "version": 1, "drugs": [ … ] }` o directamente la lista `[ … ]`. Claves en inglés o en español:
 
@@ -313,6 +323,7 @@ Ejemplo completo en `ejemplos/vademecum-ejemplo.json`. Se acepta `{ "format": "d
 | `tables` (v1.33.0) | `tablas` | lista de `{title, key, image: 'data:image/…;base64,…', source}` | Tablas por peso (imágenes); no se repiten por `key` |
 | `notesHtml` (v1.33.0) | `notasHtml` | HTML | «Mis notas» con formato (se sanea) |
 | `profile` (v1.32.0) | `perfil` | `ped` | Si todas lo traen, se importa en el pediátrico |
+| ↳ `calc` (v1.37.0) | `calculo` | `{amount: {lo, hi}, unit, per, freqs, freq, maxDose, maxDay, duration}` | Cálculo por peso de la pauta (ver «Calculadora de dosis por toma») |
 | `source` | `fuente` | texto (con URL dentro) o `{text, url}` | |
 | `resources` (v1.27.0) | `enlaces`, `bibliografia` | lista de `{title\|titulo, url, kind\|tipo, note\|nota, year\|año\|version}` o de URL sueltas | `kind`: `calc`/calculadora, `biblio`/guía/artículo, `ft`/ficha técnica, `web`. Solo http/https; se añaden los que falten (por URL); sin título → dominio; CIMA → `ft` |
 
@@ -346,5 +357,5 @@ Reglas (ver también v1.24.0: une por principio activo y opción Reemplazar): fi
 - Por eso es imprescindible seguir subiendo `APP_VERSION` en cada cambio. Probado con Playwright (390×844 y 1366×860): sin versión nueva no sale; con otra versión sale y recarga.
 
 ## Probar
-No hay tests automáticos en el repo. Antes de publicar, al menos `node --experimental-default-type=module --check` en cada `public/js/*.js` (sin la opción, `node --check` trata los archivos como CommonJS y **no detecta** algunos errores de sintaxis).
+Solo hay pruebas de la calculadora (`node tools/tests/drugped.test.mjs`). Antes de publicar, al menos `node --experimental-default-type=module --check` en cada `public/js/*.js` (sin la opción, `node --check` trata los archivos como CommonJS y **no detecta** algunos errores de sintaxis).
 Límites del plan gratuito: 1 GB, 50.000 lecturas y 20.000 escrituras al día.

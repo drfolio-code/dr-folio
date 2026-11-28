@@ -12,7 +12,7 @@ export const firebaseConfig = {
 export const OWNER_UID = "KCrZacB1H1ZdrxeBbiPuzd7Cp0N2";
 
 // Súbela en cada cambio (y la de sw.js) para forzar la actualización en los dispositivos.
-export const APP_VERSION = "1.36.0";
+export const APP_VERSION = "1.37.0";
 
 // Límites
 export const LIMITS = {

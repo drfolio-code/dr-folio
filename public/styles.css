@@ -1787,3 +1787,51 @@ button.dtag { cursor: pointer; }
 #drug-wrap .dsec .sec-add { min-width: 34px; justify-content: center; }
 #drug-wrap .drug-calcs { margin-top: 10px; }
 #drug-wrap .dcalc .drug-weight { margin: 0 0 4px; }
+/* Calculadora de dosis por toma (v1.36.0) */
+.dcalc { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; border: 1.5px solid #f59e0b; border-radius: 12px; background: #fffbeb; }
+@media (prefers-color-scheme: dark) { .dcalc { background: #2e2210; border-color: #a16207; } }
+.dcalc .dc-weight { margin: 0; padding: 0; border: 0; background: none; }
+.w-step { width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit; font-size: 22px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+.w-step:active { transform: scale(.95); }
+.dcalc .w-in input { width: 78px; }
+.dc-row { display: flex; align-items: baseline; gap: 6px 10px; flex-wrap: wrap; }
+.dc-lbl { flex: none; width: 92px; font-size: 12px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; color: var(--muted); }
+.dc-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+.dcalc .chip.toggle { min-height: 34px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; padding: 3px 12px; background: var(--panel); }
+.dcalc .chip.toggle small { font-size: 11px; font-weight: 600; opacity: .8; }
+.dcalc .chip.toggle.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.dcalc .chip.hab:not(.on) { border-style: dashed; border-color: var(--accent); }
+@media (max-width: 639px) { .dc-lbl { width: 100%; } }
+.dc-result { border-radius: 12px; background: var(--panel); border: 1px solid var(--border); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.dc-result.empty { color: var(--muted); font-size: 14px; }
+.dc-main { display: flex; align-items: center; gap: 10px; }
+.dc-dose { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.dc-big { font-size: calc(var(--dtxt, 16px) * 1.75); font-weight: 850; line-height: 1.1; color: #047857; }
+@media (prefers-color-scheme: dark) { .dc-big { color: #6ee7b7; } }
+.dc-sub { font-size: calc(var(--dtxt, 16px) * 1.05); font-weight: 750; }
+.dc-when { flex-basis: 100%; font-size: 14px; font-weight: 650; color: var(--muted); }
+.dc-result.capped .dc-big { color: #b91c1c; }
+@media (prefers-color-scheme: dark) { .dc-result.capped .dc-big { color: #fca5a5; } }
+.dc-cap, .dc-warn { color: #b91c1c; font-weight: 750; font-size: 13.5px; }
+@media (prefers-color-scheme: dark) { .dc-cap, .dc-warn { color: #fca5a5; } }
+.dc-note { font-size: 13.5px; }
+.dc-steps { font-size: 13px; color: var(--muted); line-height: 1.4; }
+.dc-auto { display: flex; align-items: center; gap: 4px; }
+.dc-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+#drug-wrap .dcalc .reg-copy.big { flex: none; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 64px; height: 56px; margin: 0; padding: 0;
+  border: 1px solid var(--accent); border-radius: 12px; background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
+#drug-wrap .dcalc .reg-copy.big .i { font-size: 22px; }
+#drug-wrap .dcalc .reg-copy.big.done { background: var(--ok, #16a34a); border-color: transparent; color: #fff; }
+button.reg-calc { display: inline-flex; align-items: center; gap: 2px; flex-wrap: wrap; border: 0; background: none; padding: 2px 0; font: inherit; font-size: 14px; color: var(--text); cursor: pointer; text-align: left; }
+button.reg-calc.nokg { color: var(--accent); font-weight: 650; }
+button.reg-calc .i { font-size: 14px; color: var(--muted); }
+#drug-wrap .reading-regs .reg.calc-on { background: var(--accent-soft); border-radius: 8px; }
+.dtable-reg { color: var(--text); font-weight: 700; }
+/* Editor: «Cálculo por peso» */
+.calc-ed { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+.calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.calc-prev { display: flex; flex-direction: column; gap: 2px; border: 1px dashed var(--accent); border-radius: 10px; padding: 8px 10px; }
+.calc-prev .ex-kg { width: 64px; display: inline-block; padding: 2px 6px; min-height: 0; text-align: center; }
+.calc-ed .chip.hab { box-shadow: 0 0 0 2px var(--accent); }
+.calc-ed .chip.toggle.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.te-main select { width: 100%; }

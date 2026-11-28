@@ -11,6 +11,7 @@
 // `drugFolders`. Las copias anteriores no los traen y se leen igual (listas vacías).
 // Chat personal (v1.19.0): `chat` (todos los mensajes, se leen del servidor al exportar) y `settings` (caducidad).
 // Si una copia no los trae (anterior a v1.19.0), «Reemplazar» no borra el chat ni los ajustes.
+import { calcDesc, normCalc } from './drugped.js';
 import { writeBatch, doc, collection } from '../vendor/libs.js';
 import { db } from './db.js';
 import { store, ref, allLoaded } from './store.js';
@@ -306,7 +307,7 @@ function drugPageHtml(d) {
   if (d.fluids?.length) parts.push(`<p><strong>Sueros:</strong> ${e(d.fluids.join(', '))}</p>`);
   if (d.presentations?.length) parts.push(`<h2>Presentaciones</h2><ul>${d.presentations.map((p) => { const b = presBrandsOf(d, p); return `<li>${e(p)}${b.length ? ` <span class="muted">(${e(b.join(', '))})</span>` : ''}</li>`; }).join('')}</ul>`);
   if (d.regimens?.length) {
-    parts.push(`<h2>Indicaciones</h2><table><thead><tr><th>Indicación</th><th>Tipo</th><th>Dosis</th><th>Para el informe</th></tr></thead><tbody>${d.regimens.map((r) => `<tr><td>${e(r.indication || '')}</td><td>${e(r.type || '')}</td><td>${e([r.text || '', r.perKg ? `${r.perKg} ${r.perKgUnit || 'mg'}/kg` : '', regSummary(r)].filter(Boolean).join(' · '))}</td><td>${e(lineOf(d.name, r))}</td></tr>`).join('')}</tbody></table>`);
+    parts.push(`<h2>Indicaciones</h2><table><thead><tr><th>Indicación</th><th>Tipo</th><th>Dosis</th><th>Para el informe</th></tr></thead><tbody>${d.regimens.map((r) => `<tr><td>${e(r.indication || '')}</td><td>${e(r.type || '')}</td><td>${e([r.text || '', r.perKg ? `${r.perKg} ${r.perKgUnit || 'mg'}/kg` : '', calcDesc(normCalc(r.calc)) ? `Cálculo por peso: ${calcDesc(normCalc(r.calc))}` : '', regSummary(r)].filter(Boolean).join(' · '))}</td><td>${e(lineOf(d.name, r))}</td></tr>`).join('')}</tbody></table>`);
   }
   for (const [k, t] of [['observations', 'Observaciones'], ['contraindications', 'Contraindicaciones'], ['compat', 'Compatibilidad en Y']]) {
     if (d[k]?.length) parts.push(`<h2>${t}</h2><ul>${d[k].map((x) => `<li>${e(x)}</li>`).join('')}</ul>`);

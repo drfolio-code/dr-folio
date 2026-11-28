@@ -162,7 +162,7 @@ export async function editReg(id, regIdx = null) {
   const lineBox = el('textarea', { class: 'reg-line-edit hidden', rows: 2, placeholder: 'Línea para el informe' });
   const auto = el('button', { class: 'btn sm', type: 'button' });
   const typeRow = el('div', { class: 'type-quick' });
-  const extra = api.extraFields?.(r, () => sync()) || null; // pediátrico (fase 5)
+  const extra = api.extraFields?.(r, () => sync(), d) || null; // v1.36.0: «Cálculo por peso»
   const sync = () => {
     const custom = r.lineAuto === false;
     const line = custom ? str(r.line) : api.genLine(name, r);
@@ -200,7 +200,7 @@ export async function editReg(id, regIdx = null) {
     el('label', { class: 'rf' }, hasDetail(r) && !str(r.text).trim() ? 'Dosis (texto; esta pauta usa los campos detallados de abajo)' : 'Dosis', textIn),
     extra,
     mk(presF, { list: 'dedit-pres-dl' }), dl,
-    el('details', { class: 'reg-more', open: hasDetail(r) || !!extra }, el('summary', {}, 'Campos detallados (opcional): vía, dosis, frecuencia, máx…'),
+    el('details', { class: 'reg-more', open: hasDetail(r) }, el('summary', {}, 'Campos detallados (opcional): vía, dosis, frecuencia, máx…'),
       el('div', { class: 'reg-grid' }, rest.map((f) => mk(f, f[0] === 'route' ? { list: 'drug-route-dl' } : f[0] === 'freq' ? { list: 'drug-freq-dl' } : {}))))
   ], {
     autofocus: isNew ? undefined : false,
@@ -220,6 +220,7 @@ export async function editReg(id, regIdx = null) {
   }
   if (res !== 'ok') return;
   const out = { ...r, indication: one(r.indication), text: str(r.text).trim(), line: r.lineAuto === false ? str(r.line) : '' };
+  api.finishCalc?.(out, isNew ? null : d.regimens[regIdx]); // v1.36.0: cálculo por peso
   const i = regs.findIndex((x) => x.id === r.id);
   if (i >= 0) regs[i] = out; else regs.push(out);
   saveFields(id, { regimens: regs }, isNew ? 'Indicación añadida ✓' : 'Guardado ✓');
@@ -312,8 +313,13 @@ export async function editTables(id) {
     fileUrl(t.fileId).then((u) => { img.src = u; }, () => {});
     const title = el('input', { type: 'text', value: t.title || '', maxlength: 150, placeholder: 'Título (p. ej. Tabla por peso · suspensión 100 mg/5 ml)', 'aria-label': 'Título' });
     title.addEventListener('input', () => { t.title = title.value; });
+    // v1.36.0: tabla de una indicación concreta (sale junto a esa pauta y en la calculadora al elegirla)
+    const regs = d.regimens || [];
+    const sel = regs.length ? el('select', { 'aria-label': 'Indicación de la tabla' }, el('option', { value: '' }, 'Todas las indicaciones'),
+      ...regs.map((r, k) => el('option', { value: r.id }, r.indication || `Indicación ${k + 1}`))) : null;
+    if (sel) { sel.value = regs.some((r) => r.id === t.regId) ? t.regId : ''; sel.addEventListener('change', () => { if (sel.value) t.regId = sel.value; else delete t.regId; }); }
     const mv = (dir) => { [list[i], list[i + dir]] = [list[i + dir], list[i]]; render(); };
-    return el('div', { class: 'te-row' }, el('div', { class: 'te-thumb' }, img), el('div', { class: 'te-main' }, title,
+    return el('div', { class: 'te-row' }, el('div', { class: 'te-thumb' }, img), el('div', { class: 'te-main' }, title, sel,
       el('div', { class: 'te-btns' },
         i > 0 ? el('button', { class: 'icon-btn', type: 'button', title: 'Subir', 'aria-label': 'Subir', onclick: () => mv(-1) }, icon('arrow-up')) : null,
         i < list.length - 1 ? el('button', { class: 'icon-btn', type: 'button', title: 'Bajar', 'aria-label': 'Bajar', onclick: () => mv(1) }, icon('arrow-down')) : null,
@@ -335,7 +341,8 @@ export async function editTables(id) {
   render();
   const r = await sheet('Tablas por peso', [box, fileIn, el('button', { class: 'btn sm', type: 'button', onclick: () => fileIn.click() }, '＋ Añadir imagen')]);
   if (r !== 'ok') { api.ctx.dropFiles(added); return; }
-  const out = list.map((t) => ({ ...t, title: one(t.title) }));
+  const ids = new Set((store.drugs.get(id)?.regimens || []).map((r) => r.id));
+  const out = list.map((t) => { const x = { ...t, title: one(t.title) }; if (!ids.has(x.regId)) delete x.regId; return x; });
   const keep = new Set(out.map((t) => t.fileId));
   saveFields(id, { tables: out }, 'Guardado ✓', { dropLater: [...before.map((t) => t.fileId), ...added].filter((x) => !keep.has(x)) });
 }

@@ -18,7 +18,7 @@ import { store, ref, col, commitBatch } from './store.js';
 import { norm } from './util.js';
 import { regType, scopeKey } from './chuletario.js';
 import { normResources, mergeResources, resSearchText } from './drugres.js';
-import { pedLine } from './drugped.js';
+import { pedLine, normCalc, regCalcLine, calcDesc } from './drugped.js';
 
 const str = (x) => (typeof x === 'string' ? x : x == null ? '' : String(x));
 const arr = (x) => (Array.isArray(x) ? x : []);
@@ -35,6 +35,8 @@ export const DRUG_DERIVED = ['files', 'links', 'size', 'bodyAt'];
 /** ¿La pauta tiene campos detallados (vía, dosis, frecuencia…)? Si no, la línea sale del texto de la dosis (v1.22.0) */
 export const hasDetail = (r = {}) => ['pres', 'route', 'dose', 'freq', 'duration', 'max', 'perKg'].some((k) => str(r[k]).trim());
 export function genLine(name, r = {}) {
+  // v1.36.0: pauta solo con «Cálculo por peso» → «Amoxicilina: 80 mg/kg/día cada 8 h»
+  if (!hasDetail(r) && !str(r.text).trim() && normCalc(r.calc)) return `${str(name).trim()}${str(name).trim() ? ': ' : ''}${calcDesc(normCalc(r.calc))}`;
   if (!hasDetail(r) && str(r.text).trim()) return `${str(name).trim()}${str(name).trim() ? ': ' : ''}${str(r.text).trim().replace(/\s*\n\s*/g, ' ')}`;
   const head = [str(name).trim(), str(r.pres).trim()].filter(Boolean).join(' ');
   const dur = str(r.duration).trim();
@@ -46,7 +48,7 @@ export function genLine(name, r = {}) {
 }
 /** Texto que se copia (el retocado a mano, o el generado) */
 /** kg (v1.32.0, pediátrico): con peso y pauta por kg, la línea lleva la dosis calculada */
-export const lineOf = (name, r, kg = 0) => (kg && pedLine(name, r, kg)) || (r && r.lineAuto === false && str(r.line).trim() ? str(r.line).trim() : genLine(name, r));
+export const lineOf = (name, r, kg = 0, pres = []) => (kg && (regCalcLine(name, r, kg, pres) || pedLine(name, r, kg))) || (r && r.lineAuto === false && str(r.line).trim() ? str(r.line).trim() : genLine(name, r));
 /** Resumen de una pauta: «Dolor agudo · IV · 50 mg · cada 8 h · máx 150 mg/día» */
 export function regSummary(r = {}) {
   return [r.route, r.dose, r.freq, r.duration, r.max ? `máx ${str(r.max).replace(/^m[aá]x(\.|imo|ima)?\s*/i, '')}` : '']
@@ -268,6 +270,9 @@ export function normRegimen(r, id) {
   // v1.32.0: pauta pediátrica por kg (opcional)
   const pk = cut(pick(r, 'perKg', 'porKg', 'dosisKg', 'dosisPorKg'), 20);
   if (pk) { out.perKg = pk; out.perKgUnit = cut(pick(r, 'perKgUnit', 'unidadKg', 'unidad'), 10) || 'mg'; }
+  // v1.36.0: cálculo por peso (calc / calculo)
+  const cc = normCalc(r.calc || r.calculo);
+  if (cc) out.calc = cc;
   const line = cut(pick(r, 'line', 'linea', 'línea', 'informe'), 500);
   out.lineAuto = !line;
   out.line = line;

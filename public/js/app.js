@@ -30,8 +30,7 @@ import { icon, iconOr } from './icons.js';
 import {
   initDrugs, newDrug, openDrug, closeDrug, currentDrug, flushDrug, onDrugsChange, refreshDrugBacklinks, drugCard, drugItemMenu,
   drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, templatePending, templateState, dismissTemplate, emptyDrugTrash, mergeDuplicates, duplicateCount,
-  pasteChuletario, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading, editFolderResources, TEMPLATE_URL
-} from './drugs.js';
+  pasteChuletario, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading, editFolderResources, TEMPLATE_URL, migrateDrugCalc, resetDrugCalc } from './drugs.js';
 import { mergeResources, resFileIds } from './drugres.js';
 import { reorgPending, openReorg, dismissReorg, createPedFolders, createStdFolders, pickFolderName } from './drugreorg.js';
 import { liveTags, tagFilter, setTagFilter, toggleTagFilter, tagChip, manageTags, migrateDrugTags } from './drugtags.js';
@@ -475,6 +474,7 @@ function onData(name, changed) {
     if (isSnipView()) renderListSoon();
   } else if (name === 'drugs') {
     migrateDrugTags();
+    migrateDrugCalc(); // v1.36.0: cálculo por peso desde el texto (solo si se entiende sin duda)
     onDrugsChange(changed);
     renderSidebarSoon();
     if (isDrugView()) renderListSoon();
