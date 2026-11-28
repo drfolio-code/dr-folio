@@ -385,6 +385,7 @@ function startApp(user) {
     onProfile: () => onDrugProfile(false),
     openNote: (id) => openNote(id, { push: true }),
     openFile: (fileId, name) => openViewer({ fileId, name, mime: 'application/pdf' }),
+    openImage: (fileId, name) => openViewer({ fileId, name, kind: 'image', full: true }),
     dropFiles: (ids) => dropUnusedFiles(ids)
   });
 
@@ -2590,7 +2591,7 @@ function allReferencedFiles(exceptNoteId, exceptSnippetId = null, exceptDrugId =
   const ids = chat ? chatFileIds() : new Set();
   for (const n of store.notes.values()) if (n.id !== exceptNoteId) noteFileIds(n).forEach((f) => ids.add(f));
   for (const s of store.snippets.values()) if (s.id !== exceptSnippetId) snippetFileIds(s).forEach((f) => ids.add(f));
-  for (const d of store.drugs.values()) if (d.id !== exceptDrugId) [...(d.files || []), ...resFileIds(d.resources)].forEach((f) => ids.add(f));
+  for (const d of store.drugs.values()) if (d.id !== exceptDrugId) [...(d.files || []), ...resFileIds(d.resources), ...(d.tables || []).map((t) => t?.fileId)].filter(Boolean).forEach((f) => ids.add(f)); // + tablas por peso (v1.33.0)
   for (const f of store.drugFolders.values()) resFileIds(f.resources).forEach((x) => ids.add(x)); // PDF de «Enlaces y bibliografía» de las carpetas
   return ids;
 }
@@ -2605,7 +2606,7 @@ function dropUnusedFiles(fileIds) {
 function purgeDrugFiles(id) {
   const d = store.drugs.get(id);
   if (!d || !filesKnown()) return;
-  const mine = new Set([...(d.files || []), ...resFileIds(d.resources)]);
+  const mine = new Set([...(d.files || []), ...resFileIds(d.resources), ...(d.tables || []).map((t) => t?.fileId).filter(Boolean)]);
   for (const f of store.files.values()) if (f.drugId === id) mine.add(f.id);
   const others = allReferencedFiles(null, null, id);
   for (const f of mine) if (!others.has(f) && store.files.has(f)) deleteFile(f);

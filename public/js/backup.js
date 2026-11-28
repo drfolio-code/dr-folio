@@ -319,6 +319,8 @@ function drugPageHtml(d) {
     }${r.year ? ` <span class="muted">· ${e(r.year)}</span>` : ''}${r.url ? ` <span class="muted">· ${e(domainOf(r.url))}</span>` : ''}${r.note ? `<br><span class="muted">${e(r.note)}</span>` : ''}${from ? ` <span class="muted">· De la carpeta ${e(from)}</span>` : ''}</li>`).join('')}</ul>`).join('')}`);
   }
   if (d.source?.text || d.source?.url) parts.push(`<p class="muted">Fuente: ${d.source.url && /^https?:\/\//i.test(d.source.url) ? `<a href="${e(d.source.url)}">${e(d.source.text || d.source.url)}</a>` : e(d.source.text)}</p>`);
+  // v1.33.0: tablas por peso (imágenes del .zip, en la carpeta «(archivos)» de la ficha)
+  if ((d.tables || []).length) parts.push(`<h2>Tablas por peso</h2>${d.tables.map((t) => `<figure><img data-file="${e(t.fileId)}" alt="${e(t.title || '')}"><figcaption>${e(t.title || '')}${t.source?.text ? ` <span class="muted">· ${e(t.source.text)}</span>` : ''}</figcaption></figure>`).join('')}`);
   if (String(d.html || '').trim()) parts.push(`<h2>Mis notas</h2>${d.html}`);
   return parts.join('');
 }
@@ -609,6 +611,8 @@ function fixDoc(c, d) {
     if ('pregnancy' in x) x.pregnancy = isObj(x.pregnancy) ? { cat: String(x.pregnancy.cat || ''), note: String(x.pregnancy.note || '') } : { cat: '', note: '' };
     if ('source' in x) x.source = isObj(x.source) ? { text: String(x.source.text || ''), url: /^https?:\/\//i.test(String(x.source.url || '')) ? String(x.source.url) : '' } : { text: '', url: '' };
     if ('resources' in x) x.resources = normResources(x.resources, resId); // v1.27.0: solo http/https, texto plano
+    if ('tables' in x) x.tables = Array.isArray(x.tables) ? x.tables.filter((t) => isObj(t) && typeof t.fileId === 'string' && ID_RE.test(t.fileId)) // v1.33.0
+      .map((t) => ({ id: String(t.id || resId()), fileId: t.fileId, title: String(t.title || ''), key: String(t.key || ''), ...(isObj(t.source) ? { source: { text: String(t.source.text || ''), url: /^https?:\/\//i.test(String(t.source.url || '')) ? String(t.source.url) : '' } } : {}) })) : [];
   }
   if (c === 'drugTags') { x.name = typeof x.name === 'string' ? x.name.slice(0, 40) : 'Etiqueta'; x.color = typeof x.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(x.color) ? x.color : null; }
   if (c === 'drugFolders' && 'resources' in x) x.resources = normResources(x.resources, resId, { withReg: false });

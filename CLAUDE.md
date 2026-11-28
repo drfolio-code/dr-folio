@@ -256,6 +256,11 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - **Copia**: el JSON ya lleva `profile`; el .zip pone las pediátricas en `Vademécum pediátrico/` (y su papelera), con «15 mg/kg» en la tabla de pautas.
 - Probado con el Firebase simulado + Playwright en 390×844, 844×390 y 1366×860 (57 comprobaciones de la fase 5, más las de las fases 1–4).
 
+### Tablas por peso · Guía pediátrica de Aragón (v1.33.0)
+- **Campo `tables`** en `drugs/{id}`: `[{id, fileId, title, key, source{text,url}}]` (imágenes en `files/` con `drugId`; `tablesOf(d)`). En la ficha, sección `details[data-sec=tables]` (`#drug-tables-sec`, abierta por defecto: `SEC_OPEN.tables`) en la columna de las indicaciones: cada imagen a todo el ancho, tocar = visor con zoom (`ctx.openImage` → `openViewer({full: true})`). Lápiz → `editTables` (título, orden, quitar, «＋ Añadir imagen»; solo se reduce si pasa de 4 MB). `allReferencedFiles` y `purgeDrugFiles` cuentan sus `fileId`. Copia: JSON (saneado en `fixDoc`) y .zip (`<figure>` en la página de la ficha).
+- **Importar**: `tables`/`tablas` = `[{title, key, image: 'data:image/png;base64,…', source}]` → `importTables` tras el lote (sube cada imagen con `saveFile`, no repite las de la misma `key`). `notesHtml` = «Mis notas» con formato (saneado con `sanitize`; solo si la ficha no tenía notas). `profile: 'ped'` en todas las fichas → la importación cambia sola al perfil pediátrico. Las etiquetas se crean en el perfil activo.
+- **Guía de dosificación pediátrica de Aragón** (sites.google.com/view/guia-pediatrica-aragon, 2021, ISBN 978-84-09-35105-3): `tools/guia_aragon/scrape.js` (Playwright: abre los desplegables, guarda el texto y descarga las imágenes de las tablas desde la propia página) + `build.py` → `guia-pediatrica-aragon.json` (132 fichas pediátricas, 108 tablas, ≈28 MB). **No se sube al repositorio ni a `public/`** (contenido de terceros, uso personal; `.gitignore`): se le pasa a Adrián para importarlo. Por ficha: nombre (`NAMES`, páginas del mismo fármaco juntas: adrenalina IM/nebulizada, midazolam, diazepam rectal…), carpeta pediátrica con la estructura de `GROUPS` (`folder_of`), dosis de la guía tal cual como indicación «Dosis (Guía de Aragón)» (sin `perKg` automático), presentaciones y marcas (®), la página entera en «Mis notas» (títulos y enlaces), tablas, fuente y etiquetas «Guía Aragón» (+ «Urgencias» en la sección 10). Todo «Pendiente de revisar».
+
 ### Formato del JSON de importación (Vademécum → ⋯ / «Importar»)
 Ejemplo completo en `ejemplos/vademecum-ejemplo.json`. Se acepta `{ "format": "drfolio-vademecum", "version": 1, "drugs": [ … ] }` o directamente la lista `[ … ]`. Claves en inglés o en español:
 
@@ -273,6 +278,9 @@ Ejemplo completo en `ejemplos/vademecum-ejemplo.json`. Se acepta `{ "format": "d
 | `observations` · `contraindications` · `compat` | `observaciones` · `contraindicaciones` · `compatibilidad`/`ySite` | lista o texto con «;» | |
 | `scopes` | `ambito`/`ámbito`/`ambitos` | lista: `AP`/`Atención Primaria`, `Urgencias`, `Montaña`/`Rescate` | Se guardan como etiquetas (v1.31.0) |
 | `tags` (v1.31.0) | `etiquetas` | lista de nombres | Se crean las que no existan (sin tildes/mayúsculas) |
+| `tables` (v1.33.0) | `tablas` | lista de `{title, key, image: 'data:image/…;base64,…', source}` | Tablas por peso (imágenes); no se repiten por `key` |
+| `notesHtml` (v1.33.0) | `notasHtml` | HTML | «Mis notas» con formato (se sanea) |
+| `profile` (v1.32.0) | `perfil` | `ped` | Si todas lo traen, se importa en el pediátrico |
 | `source` | `fuente` | texto (con URL dentro) o `{text, url}` | |
 | `resources` (v1.27.0) | `enlaces`, `bibliografia` | lista de `{title\|titulo, url, kind\|tipo, note\|nota, year\|año\|version}` o de URL sueltas | `kind`: `calc`/calculadora, `biblio`/guía/artículo, `ft`/ficha técnica, `web`. Solo http/https; se añaden los que falten (por URL); sin título → dominio; CIMA → `ft` |
 

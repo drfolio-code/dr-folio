@@ -4,3 +4,8 @@ tools/node_modules/
 *service-account*.json
 .firebase/
 .DS_Store
+
+# Guía pediátrica de Aragón: descargas y archivo de importación (contenido de terceros, uso personal: no se publica)
+tools/guia_aragon/out/
+tools/guia_aragon/g.html
+tools/guia_aragon/*.json

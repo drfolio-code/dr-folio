@@ -279,6 +279,24 @@ export const regKey = (r) => norm([r.indication, r.route, r.dose, r.freq, r.text
  * Lee el archivo de importación. Devuelve [{ name, brands, folder: [nombres], presentations, regimens, notes }]
  * o lanza un Error con el motivo. Acepta { format: 'drfolio-vademecum', drugs: [...] } o directamente una lista.
  */
+/** Texto plano de un HTML sencillo (sin DOM): para buscar y para «Mis notas» importadas con formato */
+function htmlPlain(h) {
+  return str(h).replace(/<\/(p|h[1-6]|li|div)>/gi, '\n').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&amp;/g, '&').replace(/\n{2,}/g, '\n').trim();
+}
+/** Tablas (imágenes) del JSON de importación: [{title, key, image: 'data:image/png;base64,…'}] */
+function normImportTables(x) {
+  return arr(x).filter((t) => t && typeof t === 'object').map((t) => {
+    const data = str(t.image || t.imagen || t.data);
+    const m = data.match(/^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/=\s]+)$/);
+    if (!m) return null;
+    const title = cut(t.title || t.titulo || t.título || 'Tabla por peso', 150);
+    return { title, key: cut(t.key || t.clave || title, 200), mime: m[1], b64: m[2].replace(/\s+/g, ''), source: normSource(t.source || t.fuente) };
+  }).filter(Boolean).slice(0, 12);
+}
+/** Tablas guardadas de una ficha: [{id, fileId, title, key, source, w, h}] */
+export const tablesOf = (d) => arr(d?.tables).filter((t) => t && typeof t.fileId === 'string');
+
 export function parseDrugImport(text, newRegId) {
   let raw;
   try { raw = JSON.parse(text); } catch { throw new Error('El archivo no es un JSON válido.'); }
@@ -299,7 +317,10 @@ export function parseDrugImport(text, newRegId) {
       folder,
       ...presFields(pick(it, 'presentations', 'presentaciones')),
       regimens: regs,
-      notes: str(pick(it, 'notes', 'notas', 'misNotas', 'mis_notas')).slice(0, 50000),
+      notes: str(pick(it, 'notes', 'notas', 'misNotas', 'mis_notas')).slice(0, 50000)
+        || htmlPlain(pick(it, 'notesHtml', 'notasHtml')).slice(0, 50000),
+      notesHtml: str(pick(it, 'notesHtml', 'notasHtml')).slice(0, 400000), // v1.33.0: «Mis notas» con formato (se sanea al escribir)
+      profile: /^p(ed|edi[aá]trico)$/i.test(str(pick(it, 'profile', 'perfil')).trim()) ? 'ped' : '',
       ...extraFields(it),
       // v1.27.0: enlaces y bibliografía (objetos o URL sueltas; sin indicación: regId no se importa)
       resources: normResources(pick(it, 'resources', 'enlaces', 'bibliografia', 'bibliografía', 'links'), () => `r${newRegId()}`, { withReg: false })
@@ -335,6 +356,7 @@ function extraFields(it) {
     compat: lst(pick(it, 'compat', 'compatibility', 'compatibilidad', 'ySite', 'compatibilidadY')),
     scopes: [...new Set(list(pick(it, 'scopes', 'scope', 'ambito', 'ámbito', 'ambitos', 'ámbitos')).map(scopeKey).filter(Boolean))],
     source: normSource(pick(it, 'source', 'fuente')),
+    tables: normImportTables(pick(it, 'tables', 'tablas')), // v1.33.0: imágenes (tablas por peso) en data:image/…;base64
     tagNames: [...new Set(list(pick(it, 'tags', 'etiquetas')).map((x) => str(x).replace(/\s+/g, ' ').trim().slice(0, 40)).filter(Boolean))] // v1.31.0
   };
 }

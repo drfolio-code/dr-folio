@@ -5,7 +5,8 @@ import { store } from './store.js';
 import { el, norm } from './util.js';
 import { toast, modal, confirm, undoToast } from './ui.js';
 import { icon } from './icons.js';
-import { REG_FIELDS, lineOf, hasDetail, mergeList, presBrandsOf, profOf } from './drugbody.js';
+import { REG_FIELDS, lineOf, hasDetail, mergeList, presBrandsOf, profOf, tablesOf } from './drugbody.js';
+import { saveFile, compressImage, fileUrl } from './files.js';
 import { FLUIDS, regType, typeSlug } from './chuletario.js';
 import { liveTags, tagChip, newTag, EXAMPLES } from './drugtags.js';
 import { fixRegIds, resFileIds } from './drugres.js';
@@ -276,3 +277,46 @@ export async function editRes(id) {
 
 export const sameText = (a, b) => norm(a).trim() === norm(b).trim();
 export { lineOf };
+
+// ====================== Tablas por peso (v1.33.0) ======================
+/** Lápiz de «Tablas por peso»: título, orden, quitar y «＋ Añadir imagen» (foto o captura de la tabla) */
+export async function editTables(id) {
+  const d = store.drugs.get(id);
+  if (!d) return;
+  const before = tablesOf(d);
+  const list = clone(before);
+  const added = [];
+  const box = el('div', { class: 'tables-edit' });
+  const fileIn = el('input', { type: 'file', accept: 'image/*', hidden: true });
+  const render = () => box.replaceChildren(...(list.length ? list.map((t, i) => {
+    const img = el('img', { alt: '' });
+    fileUrl(t.fileId).then((u) => { img.src = u; }, () => {});
+    const title = el('input', { type: 'text', value: t.title || '', maxlength: 150, placeholder: 'Título (p. ej. Tabla por peso · suspensión 100 mg/5 ml)', 'aria-label': 'Título' });
+    title.addEventListener('input', () => { t.title = title.value; });
+    const mv = (dir) => { [list[i], list[i + dir]] = [list[i + dir], list[i]]; render(); };
+    return el('div', { class: 'te-row' }, el('div', { class: 'te-thumb' }, img), el('div', { class: 'te-main' }, title,
+      el('div', { class: 'te-btns' },
+        i > 0 ? el('button', { class: 'icon-btn', type: 'button', title: 'Subir', 'aria-label': 'Subir', onclick: () => mv(-1) }, icon('arrow-up')) : null,
+        i < list.length - 1 ? el('button', { class: 'icon-btn', type: 'button', title: 'Bajar', 'aria-label': 'Bajar', onclick: () => mv(1) }, icon('arrow-down')) : null,
+        el('button', { class: 'icon-btn', type: 'button', title: 'Quitar', 'aria-label': 'Quitar esta tabla', onclick: () => { list.splice(i, 1); render(); } }, icon('trash-2')))));
+  }) : [el('p', { class: 'muted small' }, 'Añade una foto o captura de la tabla de dosis por peso. Se ve en la ficha y se amplía al tocarla.')]));
+  fileIn.addEventListener('change', async () => {
+    const f = fileIn.files[0];
+    fileIn.value = '';
+    if (!f) return;
+    try {
+      toast('Subiendo imagen…');
+      const blob = f.size > 4 * 1024 * 1024 ? await compressImage(f) : f; // las tablas necesitan nitidez: solo se reduce si es muy grande
+      const fileId = await saveFile(blob, { drugId: id, name: f.name, kind: 'image' });
+      added.push(fileId);
+      list.push({ id: `t${api.regId()}`, fileId, title: f.name.replace(/\.[a-z0-9]+$/i, ''), key: `u-${fileId}` });
+      render();
+    } catch (e) { toast(e.message, 'error', 5000); }
+  });
+  render();
+  const r = await sheet('Tablas por peso', [box, fileIn, el('button', { class: 'btn sm', type: 'button', onclick: () => fileIn.click() }, '＋ Añadir imagen')]);
+  if (r !== 'ok') { api.ctx.dropFiles(added); return; }
+  const out = list.map((t) => ({ ...t, title: one(t.title) }));
+  const keep = new Set(out.map((t) => t.fileId));
+  saveFields(id, { tables: out }, 'Guardado ✓', { dropLater: [...before.map((t) => t.fileId), ...added].filter((x) => !keep.has(x)) });
+}
