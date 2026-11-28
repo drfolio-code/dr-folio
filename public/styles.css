@@ -1887,6 +1887,14 @@ button.reg-calc .i { font-size: 14px; color: var(--muted); }
 .dc-select { width: 100%; min-height: 38px; font: inherit; font-size: 14px; }
 .dc-dose-ctl { display: flex; flex-direction: column; gap: 4px; }
 .dc-range { width: 100%; accent-color: var(--accent); margin: 0; }
+/* v1.39.7: dosis editable + tu predeterminada */
+.dc-amt-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.dc-amt-box { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
+#drug-calc .dc-amt { width: 84px; flex: none; min-height: 36px; font-size: 17px; font-weight: 800; text-align: center; padding: 3px 6px; }
+.dc-def.on { border-color: #f59e0b; color: #b45309; }
+.dc-guide { line-height: 1.3; }
+.dc-amt-note.warn { color: #b45309; font-weight: 700; }
+@media (prefers-color-scheme: dark) { .dc-amt-note.warn, .dc-def.on { color: #fcd34d; } }
 .dcalc .chip.toggle { min-height: 32px; padding: 2px 10px; }
 .dc-cl { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dc-brackets { display: flex; flex-wrap: wrap; gap: 4px; }

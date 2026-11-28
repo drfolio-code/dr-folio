@@ -163,7 +163,7 @@ export function normCalc(c) {
   const out = { amount: per === 'tramos' ? { lo: 0, hi: 0 } : { lo: Math.min(lo, hi), hi: Math.max(lo, hi) }, unit, per, freqs, freq: freqs.includes(f) ? f : (freqs.length === 1 ? freqs[0] : null) };
   if (!out.freq && f > 0 && f <= 48) { out.freqs = [...new Set([...freqs, f])].sort((a, b) => a - b); out.freq = f; }
   const us = parseNum(c.amount?.usual ?? c.usual);
-  if (us > 0 && per !== 'tramos' && us >= out.amount.lo && us <= out.amount.hi) out.amount.usual = us;
+  if (us > 0 && per !== 'tramos') out.amount.usual = us; // v1.39.7: la habitual puede ser tuya, aunque salga del rango de la guía
   if (c.once) { out.once = true; out.freqs = []; out.freq = null; }
   for (const k of ['maxDose', 'maxDay', 'duration']) { const v = str(c[k]).replace(/\s+/g, ' ').trim().slice(0, 60); if (v) out[k] = v; }
   const route = str(c.route).replace(/\s+/g, ' ').trim().slice(0, 30); if (route) out.route = route;
@@ -367,17 +367,26 @@ export function calcListOf(r) {
   if (!r) return [];
   const id = r.id || 'r';
   const c = normCalc(r.calc);
-  if (c) return [{ key: id, label: '', c: { ...c, src: 'calc', auto: !!r.calcAuto } }];
+  if (c) return [{ key: id, label: '', c: withDef({ ...c, src: 'calc', auto: !!r.calcAuto }, r, 0) }];
   const pk = parseNum(r.perKg);
   if (pk > 0) {
     const freqs = freqHours(`${str(r.freq)} ${str(r.text)}`);
     const mx = parseAmount(r.max);
     const x = normCalc({ amount: { lo: pk, hi: pk }, unit: r.perKgUnit || 'mg', per: 'kg/dosis', freqs, freq: freqs.length === 1 ? freqs[0] : null,
       maxDose: mx ? `${mx.v} ${mx.unit}` : '', duration: r.duration });
-    return x ? [{ key: id, label: '', c: { ...x, src: 'perKg', auto: false } }] : [];
+    return x ? [{ key: id, label: '', c: withDef({ ...x, src: 'perKg', auto: false }, r, 0) }] : [];
   }
   if (r.calcAuto === false) return []; // quitado a mano en el editor
-  return calcsFromText(regText(r), regOpts(r)).map((x, i) => ({ key: i ? `${id}~${i}` : id, label: x.label, c: { ...x.calc, src: 'text', auto: true } }));
+  return calcsFromText(regText(r), regOpts(r)).map((x, i) => ({ key: i ? `${id}~${i}` : id, label: x.label, c: withDef({ ...x.calc, src: 'text', auto: true }, r, i) }));
+}
+/** v1.39.7: dosis predeterminada tuya (r.calcDef = { "0": 15, "1": 20 }, por nº de cálculo de la pauta): pasa a ser la
+ *  habitual. c.guideUsual = la habitual de la guía o del editor (para «Volver a la de la guía»). */
+function withDef(c, r, i) {
+  if (c.per === 'tramos') return c;
+  c.guideUsual = c.amount.usual || null;
+  const v = parseNum(r?.calcDef?.[i]);
+  if (v > 0) { c.amount = { ...c.amount, usual: v }; c.userDef = true; }
+  return c;
 }
 /** Cálculo efectivo de una pauta (el primero). null si no es por peso. */
 export function calcOf(r) { return calcListOf(r)[0]?.c || null; }
@@ -421,7 +430,7 @@ export function presOptions(list) {
 /** Cantidad por kg elegida: 'min' | 'usual' | 'mid' | 'max' o un número */
 export function pickAmount(c, level = 'usual') {
   const { lo, hi, usual } = c.amount;
-  if (typeof level === 'number' && level >= lo && level <= hi) return level;
+  if (typeof level === 'number' && level > 0) return level; // v1.39.7: dosis escrita a mano (puede salir del rango)
   if (level === 'min') return lo;
   if (level === 'max') return hi;
   if (level === 'usual' && usual) return usual;
@@ -458,6 +467,7 @@ export function doseCalc(c, { kg = 0, level = null, freq = null, pres = null } =
     out.steps.push(`Tramo ${bracketTxt(br)}: ${fmt(br.dose)} ${unit}`);
   } else amt = pickAmount(c, level || defaultLevel(c));
   out.amt = amt; out.per = per;
+  if (!br && c.per !== 'tramos') out.outRange = amt < c.amount.lo - 1e-9 || amt > c.amount.hi + 1e-9; // fuera del rango de la guía
   const f = out.freq;
   const nDoses = f ? 24 / f : null;
   out.nDoses = nDoses;

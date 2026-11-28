@@ -26,7 +26,7 @@ import {
   RES_KINDS, kindIcon, cleanUrl, domainOf, guessKind, normResource, mergeResources, fixRegIds, folderResources, byKind, resLine, isPdfRes, resFileIds
 } from './drugres.js';
 import { saveFile } from './files.js';
-import { initDrugEdit, editHead, editTags, editPres, editReg, editRegs, editList, editRes, editTables } from './drugedit.js';
+import { initDrugEdit, editHead, editTags, editPres, editReg, editRegs, editList, editRes, editTables, saveFields } from './drugedit.js';
 import { fileUrl } from './files.js';
 import { tagOk, tagsOf, tagChip, setProfileFn } from './drugtags.js';
 import {
@@ -1419,26 +1419,53 @@ function renderCalc(d) {
   // 1 · Indicación
   rows.push(stepRow(++n, 'Indicación', list.length > 1 ? '' : cur.label,
     list.length > 1 ? choose(list.map((y) => ({ v: y.key, label: y.label, on: y.key === cur.key })), (k) => { calcSel = { key: k }; refreshCalc(d); }, 'Indicación') : null));
-  // 2 · Dosis (rango: Mín · Habitual/Media · Máx y deslizador; tramos de peso: el tramo; fija: no sale)
+  // 2 · Dosis (v1.39.7): editable como en el Chuletario. Viene la de la guía (o tu predeterminada); se puede escribir
+  // otra, usar Mín · Habitual · Máx o el deslizador si hay rango, guardarla como tu predeterminada para esta indicación
+  // (★) o volver a la de la guía (↺). Tramos de peso: el tramo; sin edición.
   const perU = `${c.unit}${c.per === 'dosis fija' ? '' : `/${c.per}`}`;
-  const amtNow = c.per === 'tramos' ? 0 : (st.x?.amt ?? (typeof st.level === 'number' ? st.level : null));
   if (c.per === 'tramos') {
     const b = bracketFor(c, kg);
     rows.push(stepRow(++n, 'Dosis', b ? `${bracketTxt(b)} → ${fmt(b.dose)} ${b.unit}` : 'por tramos de peso',
       el('div', { class: 'dc-brackets small' }, ...c.brackets.map((y) => el('span', { class: `dc-br ${y === b ? 'on' : ''}` }, `${bracketTxt(y)}: ${fmt(y.dose)} ${y.unit}${y.freq ? ` c/${fmt(y.freq)} h` : ''}`)))));
-  } else if (c.amount.hi > c.amount.lo) {
-    const lv = [['min', 'Mín.'], [c.amount.usual ? 'usual' : 'mid', c.amount.usual ? 'Habitual' : 'Media'], ['max', 'Máx.']];
-    const val = el('span', { class: 'dc-val' }, `${fmt(pickAmount(c, st.level))} ${perU}`);
-    const lo = c.amount.lo, hi = c.amount.hi;
-    const stp = (() => { const raw = (hi - lo) / 40; const p = 10 ** Math.floor(Math.log10(raw)); return [1, 2, 2.5, 5, 10].map((k) => k * p).find((k) => k >= raw) || raw; })();
-    const slider = el('input', { type: 'range', class: 'dc-range', min: String(lo), max: String(hi), step: String(stp), value: String(pickAmount(c, st.level)), 'aria-label': `Dosis en ${perU}` });
-    slider.addEventListener('input', () => { calcSel.level = Number(slider.value); val.textContent = `${fmt(Number(slider.value))} ${perU}`; renderOut(d, cur); });
-    slider.addEventListener('change', () => { calcSel.level = Number(slider.value); refreshCalc(d); });
-    const row = stepRow(++n, 'Dosis', '', el('div', { class: 'dc-dose-ctl' },
-      choose(lv.map(([k, l]) => ({ v: k, label: l, sub: fmt(pickAmount(c, k)), on: st.level === k, title: `${fmt(pickAmount(c, k))} ${perU}` })), (k) => set('level', k), 'Dosis'), slider));
+  } else {
+    const lo = c.amount.lo, hi = c.amount.hi, range = hi > lo;
+    const now = pickAmount(c, st.level);
+    const guideTxt = `${range ? `${fmt(lo)}–${fmt(hi)}` : fmt(lo)} ${perU}`;
+    const val = el('span', { class: 'dc-val' }, `${fmt(now)} ${perU}`);
+    const inp = el('input', { type: 'text', inputmode: 'decimal', class: 'dc-amt', value: fmt(now), maxlength: 8, autocomplete: 'off', 'aria-label': `Dosis en ${perU}` });
+    const note = el('span', { class: 'dc-amt-note small' });
+    const slider = range ? el('input', { type: 'range', class: 'dc-range', min: String(lo), max: String(hi), step: String((() => { const raw = (hi - lo) / 40; const p = 10 ** Math.floor(Math.log10(raw)); return [1, 2, 2.5, 5, 10].map((k) => k * p).find((k) => k >= raw) || raw; })()), value: String(Math.min(hi, Math.max(lo, now))), 'aria-label': `Dosis en ${perU}` }) : null;
+    const outTxt = (v) => (v < lo - 1e-9 || v > hi + 1e-9 ? `Fuera de la guía (${guideTxt})` : '');
+    const live = (v, from) => {
+      calcSel.level = v;
+      val.textContent = `${fmt(v)} ${perU}`;
+      if (from !== 'inp') inp.value = fmt(v);
+      if (slider && from !== 'sl') slider.value = String(Math.min(hi, Math.max(lo, v)));
+      note.textContent = outTxt(v); note.classList.toggle('warn', !!outTxt(v));
+      renderOut(d, cur);
+    };
+    inp.addEventListener('input', () => { const v = parseNum(inp.value); if (v > 0) live(v, 'inp'); });
+    // al salir del campo se repinta un poco después, para que el toque en «☆ Predeterminada» llegue a su botón
+    inp.addEventListener('change', () => setTimeout(() => { if (curId === d.id && document.activeElement !== inp) refreshCalc(store.drugs.get(d.id) || d); }, 400));
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); });
+    slider?.addEventListener('input', () => live(Number(slider.value), 'sl'));
+    slider?.addEventListener('change', () => refreshCalc(d));
+    note.textContent = outTxt(now); note.classList.toggle('warn', !!outTxt(now));
+    const isDef = c.amount.usual && Math.abs(now - c.amount.usual) < 1e-9;
+    const tools = el('div', { class: 'dc-amt-row' },
+      el('span', { class: 'dc-amt-box' }, inp, el('span', { class: 'small' }, perU)),
+      el('button', { class: `btn sm dc-def ${c.userDef && isDef ? 'on' : ''}`, type: 'button', title: 'Usar esta dosis por defecto en esta indicación (se guarda en la ficha)', disabled: isDef && c.userDef ? '' : null,
+        onclick: () => saveDoseDefault(cur, pickAmount(c, calcSel.level ?? st.level)) }, c.userDef && isDef ? '★ Tu predeterminada' : '☆ Predeterminada'),
+      c.userDef ? el('button', { class: 'btn sm', type: 'button', title: `Volver a la dosis de la guía (${guideTxt})`, onclick: () => saveDoseDefault(cur, null) }, '↺ Guía') : null);
+    const ctl = el('div', { class: 'dc-dose-ctl' },
+      range ? choose([['min', 'Mín.'], ['usual', c.amount.usual ? (c.userDef ? 'Tuya' : 'Habitual') : 'Media'], ['max', 'Máx.']].map(([k, l]) => ({ v: k === 'usual' && !c.amount.usual ? 'mid' : k, label: l, sub: fmt(pickAmount(c, k === 'usual' && !c.amount.usual ? 'mid' : k)),
+        on: st.level === k || (k === 'usual' && st.level === 'mid' && !c.amount.usual), title: `${fmt(pickAmount(c, k))} ${perU}` })), (k) => set('level', k), 'Dosis') : null,
+      slider, tools,
+      el('div', { class: 'dc-guide small muted' }, `Guía: ${guideTxt}`, c.userDef ? ` · tuya: ${fmt(c.amount.usual)} ${perU}` : '', ' ', note));
+    const row = stepRow(++n, 'Dosis', '', ctl);
     row.querySelector('.dc-sh').append(val);
     rows.push(row);
-  } else if (c.per !== 'dosis fija') rows.push(stepRow(++n, 'Dosis', `${fmt(c.amount.lo)} ${perU}`, null, 'dc-fixed'));
+  }
   // 3 · Frecuencia (solo las permitidas; la habitual marcada; si la pauta no dice ninguna, se ofrecen todas sin marcar)
   const fo = freqOptions(c);
   if (fo.length) {
@@ -1452,6 +1479,23 @@ function renderCalc(d) {
     st.opts.length > 1 ? choose(st.opts.map((o) => ({ v: o.p, label: o.p, on: st.pres?.p === o.p, cls: c.presPref && norm(o.p) === norm(c.presPref) ? 'hab' : '' })), (p) => set('pres', p), 'Presentación') : null));
   box.querySelector('.dc-steps-box').replaceChildren(...rows);
   renderOut(d, cur);
+}
+/** v1.39.7: guarda (o quita, con null) tu dosis predeterminada de una indicación: r.calcDef[nº de cálculo] */
+function saveDoseDefault(cur, v) {
+  const d = store.drugs.get(curId);
+  if (!d) return;
+  const i = cur.key.includes('~') ? Number(cur.key.split('~')[1]) : 0;
+  const regs = (d.regimens || []).map((r) => {
+    if (r.id !== cur.r.id) return r;
+    const def = { ...(r.calcDef || {}) };
+    if (v > 0) def[i] = Math.round(v * 1000) / 1000; else delete def[i];
+    const out = { ...r, calcDef: def };
+    if (!Object.keys(def).length) delete out.calcDef;
+    return out;
+  });
+  calcSel.level = v > 0 ? 'usual' : undefined;
+  if (calcSel.level === undefined) delete calcSel.level;
+  saveFields(d.id, { regimens: regs }, v > 0 ? `Dosis predeterminada: ${fmt(v)} ✓` : 'Vuelve a la dosis de la guía ✓');
 }
 /** Resultado del asistente (aparte, para que el deslizador no rehaga los pasos) */
 function renderOut(d, cur) {
