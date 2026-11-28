@@ -567,7 +567,7 @@ export function presGroup(d, pres) {
 // La primera forma que aparece en el texto manda («1 g comp., comp. efervescentes, sobres» → Comprimidos).
 const FORM_KINDS = [
   ['Gotas', /\bgotas\b/],
-  ['Jarabe, solución y suspensión', /jarabe|\bsol\b|solucion|\bsusp\b|suspension|elixir|\d\s*(mg|mcg|µg|g|ui)\s*\/\s*\d*\s*ml|ampollas? bebibles?|viales? bebibles?|bebible/],
+  ['Jarabe, solución y suspensión', /jarabe|\bsol\b|solucion|\bsusp\b|suspension|elixir|ampollas? bebibles?|viales? bebibles?|bebible/],
   ['Comprimidos', /\bcomp\b|comprimid|tableta|gragea|liotab|\bbucodispers/],
   ['Cápsulas', /\bcaps\b|capsula|perla/],
   ['Sobres y granulado', /\bsobres?\b|granulado|polvo para|\bstick/],
@@ -591,6 +591,19 @@ export function presInfoOf(d, pres) {
   const x = arr(d?.presInfo).find((e) => norm(str(e?.p)).replace(/\s+/g, ' ').trim() === k);
   return { g: PRES_GROUPS.includes(x?.g) ? x.g : '', f: FORM_LABELS.includes(x?.f) || x?.f === 'Otras' ? x.f : '' };
 }
+/**
+ * v1.39.3: una presentación que junta varias formas con la misma dosis se separa para verla:
+ * «1 g comp., comp. efervescentes, sobres» → «1 g comp.» · «1 g comp. efervescentes» · «1 g sobres».
+ * Solo si todos los trozos son formas conocidas; si no, se deja como está. Solo vista: los datos no cambian.
+ */
+export function presSplit(p) {
+  const t = str(p).replace(/\s+/g, ' ').trim();
+  const m = t.match(/^(.*?\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?\s*(?:mg|mcg|µg|μg|g|UI|ml|mEq|%)(?:\s*\/\s*\d*(?:[.,]\d+)?\s*ml)?)\s+(.+)$/i);
+  if (!m) return [t];
+  const segs = m[2].split(/\s*(?:,|;|\s+y\s+|\s+o\s+)\s*/).map((x) => x.replace(/\.$/, '').trim()).filter(Boolean);
+  if (segs.length < 2 || segs.some((x) => presKind(x).order === 99)) return [t];
+  return segs.map((x) => `${m[1]} ${x}`);
+}
 /** Forma de una presentación: { label, order } (order = posición en FORM_KINDS; 99 si no se sabe) */
 export function presKind(p) {
   const t = norm(str(p));
@@ -599,7 +612,10 @@ export function presKind(p) {
     const m = t.match(re);
     if (m && (!best || m.index < best.at)) best = { label, order: i, at: m.index };
   }
-  return best ? { label: best.label, order: best.order } : { label: 'Otras', order: 99 };
+  if (best) return { label: best.label, order: best.order };
+  // solo una concentración («100 mg/ml») sin forma: líquido oral (las inyectables dicen amp/vial/jeringa/bolsa)
+  if (/\d\s*(mg|mcg|µg|g|ui)\s*\/\s*\d*\s*ml/.test(t)) return { label: FORM_KINDS[1][0], order: 1 };
+  return { label: 'Otras', order: 99 };
 }
 /** Dosis de una presentación en mg (o en su unidad) para ordenar: «1 g comp» → 1000 · «100 mg/ml» → 100 · «250 mg/5 ml» → 50 */
 export function presAmount(p) {

@@ -17,7 +17,7 @@ import {
   REG_FIELDS, genLine, lineOf, regSummary, drugMatches, byName, liveDrugs, drugKey, drugByName,
   drugBodyOf, loadDrugBody, writeDrug, deleteDrugDocs, parseDrugImport, mergeList, regKey, hasDetail, EXTRA_LISTS, presBrandsOf,
   baseKey, drugByBase, withForm, duplicateGroups, mergeGroupLight, mergePres, presByGroup,
-  DEFAULT_TAGS, scopeTagId, profOf, scopesToTags, tagIdsByName, drugProfile, setDrugProfile, profileView, tablesOf, presGroup, presSubgroups
+  DEFAULT_TAGS, scopeTagId, profOf, scopesToTags, tagIdsByName, drugProfile, setDrugProfile, profileView, tablesOf, presGroup, presSubgroups, presSplit, presInfoOf
 } from './drugbody.js';
 import {
   SCOPES, scopeName, FLUIDS, REG_TYPES, regType, typeSlug, parseChuletario, CHULETARIO_SOURCE
@@ -1007,26 +1007,36 @@ function renderPres() {
   const chip = (x) => el('span', { class: `pres-chip ${x.b.length ? 'has-brands' : ''}`, title: x.full.join('\n') }, el('span', {}, x.p),
     x.b.length ? el('span', { class: 'pres-brands' }, x.b.join(' · ')) : null);
   /** v1.34.2: «Apiretal 100 mg/ml sol. oral» con la marca Apiretal → «100 mg/ml sol. oral» + Apiretal debajo; las iguales se juntan */
+  // v1.39.3: las que juntan varias formas («1 g comp., comp. efervescentes, sobres») se ven separadas, cada una en su
+  // forma, con las marcas de la original (salvo que tenga una forma elegida a mano)
+  const origOf = new Map(), parts = [], partInfo = [];
+  for (const p of d.presentations || []) {
+    const ov = presInfoOf(d, p);
+    const ps = ov.f ? [p] : presSplit(p);
+    for (const x of ps) { parts.push(x); origOf.set(x, p); if (x !== p && ov.g) partInfo.push({ p: x, g: ov.g }); }
+  }
+  const view = { ...d, presentations: parts, presInfo: [...(d.presInfo || []), ...partInfo] };
   const chips = (items) => {
     const out = [];
-    for (const p of items) {
-      const b = presBrandsOf(d, p);
+    for (const x0 of items) {
+      const p = x0, o = origOf.get(x0) || x0;
+      const b = presBrandsOf(d, o);
       const shown = presShort(p, d.name, b);
       const k = norm(shown).replace(/[.,;:]/g, ' ').replace(/\s+/g, ' ').trim(); // «200 mg, sobres» = «200 mg sobres»
       const prev = out.find((x) => x.k === k);
-      if (prev) { for (const x of b) if (!prev.b.includes(x)) prev.b.push(x); prev.full.push(p); continue; }
-      out.push({ k, p: shown, b: [...b], full: [p] });
+      if (prev) { for (const x of b) if (!prev.b.includes(x)) prev.b.push(x); if (!prev.full.includes(o)) prev.full.push(o); continue; }
+      out.push({ k, p: shown, b: [...b], full: [o] });
     }
     return out.map(chip);
   };
   if (rd) {
-    const groups = presByGroup(d);
+    const groups = presByGroup(view);
     list.classList.toggle('grouped', groups.length > 0);
     // La vía se indica siempre, también si solo hay una (v1.26.1)
     // v1.39.1: dentro de cada vía, por forma (jarabes, comprimidos, sobres…) y de menor a mayor dosis; el subtítulo
     // de la forma solo sale si en esa vía hay más de una
     list.replaceChildren(...groups.map((g) => {
-      const subs = presSubgroups(g.items, d);
+      const subs = presSubgroups(g.items, view);
       return el('div', { class: 'pres-group' }, el('div', { class: 'pres-glabel' }, g.group),
         // v1.39.2: el subtítulo de la forma sale siempre que se sabe (p. ej. Rectal → Supositorios)
         ...(subs.length > 1 || (subs[0] && subs[0].label !== 'Otras')
