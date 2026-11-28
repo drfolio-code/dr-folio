@@ -29,9 +29,10 @@ import { icon, iconOr } from './icons.js';
 import {
   initDrugs, newDrug, openDrug, closeDrug, currentDrug, flushDrug, onDrugsChange, refreshDrugBacklinks, drugCard, drugItemMenu,
   drugsForView, moveDrugTo, addManyDrugs, importDrugs, importTemplate, templatePending, templateState, dismissTemplate, emptyDrugTrash, mergeDuplicates, duplicateCount,
-  pasteChuletario, drugScope, setDrugScope, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading, editFolderResources
+  pasteChuletario, drugScope, setDrugScope, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading, editFolderResources, TEMPLATE_URL
 } from './drugs.js';
 import { mergeResources, resFileIds } from './drugres.js';
+import { reorgPending, openReorg, dismissReorg } from './drugreorg.js';
 import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies } from './drugbody.js';
 import { SCOPES } from './chuletario.js';
 import {
@@ -167,7 +168,8 @@ const TREES = {
       { icon: 'file-up', label: folderId ? 'Importar fichas aquí (JSON)…' : 'Importar fichas (JSON)…', onClick: () => importDrugs(folderId) },
       { icon: 'clipboard-paste', label: 'Pegar del Chuletario…', onClick: () => pasteChuletario({ folderId }) },
       { icon: 'folder-plus', label: 'Plantilla de carpetas (AP, urgencias, montaña)…', onClick: () => importTemplate() },
-      { icon: 'combine', label: 'Unir fichas repetidas (mismo principio activo)…', onClick: () => mergeDuplicates() }],
+      { icon: 'combine', label: 'Unir fichas repetidas (mismo principio activo)…', onClick: () => mergeDuplicates() },
+      !folderId ? { icon: 'folder-input', label: 'Reorganizar carpetas por grupo terapéutico…', onClick: () => runReorg() } : null],
     txt: {
       Many: 'Fármacos', newBtn: '＋ Fármaco', newOne: 'Nuevo fármaco', newHere: 'Nuevo fármaco aquí', folderHint: 'Grupo (p. ej. Analgésicos)',
       loose: 'Sin carpeta', itemsHere: 'Fármacos', rootDest: '«Vademécum» (sin carpeta)',
@@ -179,6 +181,8 @@ const TREES = {
     }
   }
 };
+/** v1.30.0: asistente «Nueva organización por carpetas» (drugreorg.js) */
+const runReorg = () => openReorg({ templateUrl: TEMPLATE_URL, flush: () => flushDrug(), render: () => { renderList(); renderSidebar(); } });
 /** Árbol al que pertenece una vista (o null: Inicio) */
 const treeOf = (type) => Object.values(TREES).find((T) => type === T.root || type === T.folder || T.views.includes(type)) || null;
 const isSnipView = (type = S.view.type) => treeOf(type)?.id === 'snippets';
@@ -1781,6 +1785,16 @@ function renderDrugView(box, T) {
         el('div', { class: 'tpl-txt' }, el('b', {}, `${dups} fármaco${dups > 1 ? 's' : ''} repetido${dups > 1 ? 's' : ''}`),
           el('span', {}, 'Mismo principio activo en varias fichas (p. ej. «Fentanilo» y «Fentanilo transdérmico»). Únelas en una sola.')),
         el('div', { class: 'tpl-btns' }, el('button', { class: 'btn primary', type: 'button', onclick: () => mergeDuplicates() }, 'Revisar y unir'))));
+    }
+    // v1.30.0: organización antigua (carpetas por contexto) → aviso para pasar a la de grupos terapéuticos
+    if (v.type === T.root && reorgPending()) {
+      box.prepend(el('div', { class: 'tpl-banner' },
+        el('span', { class: 'tpl-ico' }, icon('folder-input')),
+        el('div', { class: 'tpl-txt' }, el('b', {}, 'Nueva organización por carpetas'),
+          el('span', {}, 'Por grupo terapéutico, una carpeta por fármaco y pocas subcarpetas. Solo cambia la carpeta de cada ficha, nunca su contenido; las carpetas tuyas se quedan.')),
+        el('div', { class: 'tpl-btns' },
+          el('button', { class: 'btn primary', type: 'button', onclick: () => runReorg() }, 'Revisar'),
+          el('button', { class: 'btn', type: 'button', onclick: () => { dismissReorg(); renderList(); } }, 'Ahora no'))));
     }
     // Aviso bien visible arriba mientras no se haya cargado (o descartado) la versión actual de la plantilla
     if (v.type === T.root && templatePending()) {
