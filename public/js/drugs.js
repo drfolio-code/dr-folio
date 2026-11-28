@@ -17,7 +17,7 @@ import {
   REG_FIELDS, genLine, lineOf, regSummary, drugMatches, byName, liveDrugs, drugKey, drugByName,
   drugBodyOf, loadDrugBody, writeDrug, deleteDrugDocs, parseDrugImport, mergeList, regKey, hasDetail, EXTRA_LISTS, presBrandsOf,
   baseKey, drugByBase, withForm, duplicateGroups, mergeGroupLight, mergePres, presByGroup,
-  DEFAULT_TAGS, scopeTagId, profOf, scopesToTags, tagIdsByName, drugProfile, setDrugProfile, profileView, tablesOf
+  DEFAULT_TAGS, scopeTagId, profOf, scopesToTags, tagIdsByName, drugProfile, setDrugProfile, profileView, tablesOf, presGroup
 } from './drugbody.js';
 import {
   SCOPES, scopeName, FLUIDS, REG_TYPES, regType, typeSlug, parseChuletario, CHULETARIO_SOURCE
@@ -30,8 +30,8 @@ import { initDrugEdit, editHead, editTags, editPres, editReg, editRegs, editList
 import { fileUrl } from './files.js';
 import { tagOk, tagsOf, tagChip, setProfileFn } from './drugtags.js';
 import {
-  parseNum, hasPerKg, fmt, validKg, CALC_UNITS, CALC_PER, CALC_FREQS, normCalc, calcFromText, calcOf, needsKg, presOptions, pickAmount,
-  doseCalc, doseMain, calcLine, regCalcLine, calcDesc
+  parseNum, hasPerKg, fmt, validKg, CALC_UNITS, CALC_PER, CALC_FREQS, normCalc, calcFromReg, calcOf, needsKg, presOptions, pickAmount,
+  doseCalc, doseMain, calcLine, regCalcLine, calcDesc, calcListOf, tableOnly, rankPres, defaultLevel, doseShort, COMMON_FREQS, bracketTxt, routeOf, bracketFor
 } from './drugped.js';
 import { formatBytes } from './util.js';
 
@@ -60,10 +60,11 @@ function fillLists(d) { for (const k of LISTS) listBox(k).value = (d[k] || []).j
 
 // v1.32.0: solo las carpetas del perfil activo (adulto / pediátrico); get/has/set van a todas
 const DF = () => profileView(store.drugFolders);
-let kg = 0;              // peso de la ficha abierta (adulto o pediátrico; no se guarda; se olvida al abrir otra ficha)
-let calcSel = {};        // v1.36.0: calculadora: { regId, freq, level, pres } (no se guarda; se olvida al abrir otra ficha)
-/** v1.36.0 (fase 3): olvida peso y elecciones de la calculadora (al volver a la app) */
-export function resetDrugCalc() { kg = 0; calcSel = {}; }
+let kg = 0;              // v1.39.0: peso del paciente: el mismo en todas las fichas (no se guarda; se olvida al volver al inicio)
+let calcSel = {};        // asistente: { key, freq, level, pres } de la ficha abierta (no se guarda; se olvida al abrir otra)
+let calcOpen = false;    // v1.39.0: asistente desplegado (cerrado por defecto; se cierra al abrir otra ficha)
+/** v1.38.0: olvida peso y elecciones de la calculadora (al volver a la app) */
+export function resetDrugCalc() { kg = 0; calcSel = {}; calcOpen = false; }
 const isPed = (d) => profOf(d) === 'ped';
 const profExtra = () => (drugProfile() === 'ped' ? { profile: 'ped' } : {});
 export const currentDrug = () => curId;
@@ -655,7 +656,7 @@ export function openDrug(id, { push = false, focusTitle = false, fromHash = fals
   // v1.32.0: cada ficha se abre en su perfil (enlaces desde notas, Buscar en los dos perfiles)
   if (profOf(d) !== drugProfile()) { setDrugProfile(profOf(d)); ctx.onProfile?.(); }
   const same = curId === id;
-  if (!same) { saveSoon.flush(); kg = 0; calcSel = {}; }
+  if (!same) { saveSoon.flush(); calcSel = {}; calcOpen = false; } // v1.39.0: el peso se conserva (mismo paciente)
   curId = id;
   if (!same || focusTitle) {
     dirtyLight = false; dirtyBody = false;
@@ -846,8 +847,13 @@ function renderScopes() {
   const d = store.drugs.get(curId);
   const box = $('#drug-scopes');
   const cur = tagsOf(d);
-  box.classList.toggle('hidden', !!d.trashed && !cur.length && !isPed(d));
-  box.replaceChildren(...[isPed(d) ? el('span', { class: 'prof-badge big' }, 'Pediátrico') : null, ...cur.map((t) => tagChip(t)),
+  box.classList.toggle('hidden', !!d.trashed && !cur.length && !validKg(kg));
+  // v1.39.0: el peso del paciente (el mismo en todas las fichas) como chip: tocar = asistente; × = borrar
+  const kgChip = validKg(kg) ? el('span', { class: 'kg-chip' },
+    el('button', { class: 'kg-chip-main', type: 'button', 'data-calc': 'open', title: 'Peso del paciente (para todas las fichas). Toca para calcular' }, `Peso ${fmt(kg)} kg`),
+    el('button', { class: 'kg-chip-x', type: 'button', 'data-calc': 'kg-clear', title: 'Borrar el peso', 'aria-label': 'Borrar el peso' }, '×')) : null;
+  // v1.39.0: ficha idéntica en adulto y pediátrico (sin etiqueta «Pediátrico»: solo cambia el selector Adulto/Pediátrico)
+  box.replaceChildren(...[kgChip, ...cur.map((t) => tagChip(t)),
     d.trashed ? null : el('button', { class: `chip scope-ed ${isRd() ? 'sec-ed' : ''}`, type: 'button', 'data-ed': 'tags', title: 'Editar las etiquetas', 'aria-label': 'Editar las etiquetas' }, icon('pencil'), cur.length ? null : ' Etiquetas')].filter(Boolean));
 }
 
@@ -1111,7 +1117,13 @@ function regGroupView(name, g) {
  *  que copia la línea de tratamiento completa (lineOf: nombre + presentación + dosis…) */
 function regView(name, r) {
   const dd = store.drugs.get(curId);
-  const copyTxt = () => (kg && regCalcLine(dd?.name, r, kg, dd?.presentations || [])) || lineOf(dd?.name, r);
+  const calcs = calcListOf(r);
+  // v1.39.0: con el peso, Copiar = la línea calculada con lo habitual (la misma que el resultado gris de la pauta)
+  const copyTxt = () => {
+    const e = calcs[0];
+    const x = e && (!needsKg(e.c) || validKg(kg)) ? resolveCalc(dd, { r, key: e.key, c: e.c }).x : null;
+    return (x && !x.needFreq && !x.noBracket && calcLine(dd?.name, r, e.c, x, kg)) || lineOf(dd?.name, r);
+  };
   const line = copyTxt();
   const type = r.type || '';
   const route = str(r.route).trim();
@@ -1121,24 +1133,32 @@ function regView(name, r) {
   const chip = type || (route.length <= 14 ? route : routeType(route) || route.split(/[\s(/,]+/)[0]);
   const nr = norm(route), nc = norm(chip);
   const routeSaid = !route || main === route || nr === nc || (nr.includes(nc.slice(0, 6)) && route.split(/\s+/).length <= 2);
-  // v1.36.0: igual en adulto y pediátrico. Con el peso, resultado corto (opciones habituales); tocarlo la elige en la calculadora
-  const c = calcOf(r);
-  const x = c && (!needsKg(c) || validKg(kg)) ? doseCalc(c, { kg, pres: presFor(dd, r, c) }) : null;
   const max = maxText(r, main);
   const meta = [
     routeSaid ? '' : route,
     brands.length ? `${r.pres}: ${brands.join(' · ')}` : ''
   ].filter(Boolean);
   const slug = chip ? typeSlug(type || routeType(route)) : '';
-  return el('div', { class: `reg ${slug ? `t-${slug}` : ''} ${calcSel.regId === r.id ? 'calc-on' : ''}`, 'data-reg': r.id },
+  // v1.39.0: icono de calculadora en cada pauta calculable (abre el asistente con esa indicación) y, con el peso,
+  // el resultado con lo habitual en gris: «→ 5,3 ml c/8 h»
+  const calcBtns = calcs.length ? el('div', { class: 'reg-calcs' }, ...calcs.map((e) => {
+    const x = !needsKg(e.c) || validKg(kg) ? resolveCalc(dd, { r, key: e.key, c: e.c }).x : null;
+    const capped = x && (x.cappedDose || x.cappedDay);
+    return el('button', { class: `reg-calc ${x ? '' : 'nokg'} ${capped ? 'capped' : ''} ${calcOpen && calcSel.key === e.key ? 'on' : ''}`, type: 'button', 'data-calc': `reg:${e.key}`,
+      title: 'Calcular la dosis de esta indicación', 'aria-label': `Calcular la dosis${e.label ? ` (${e.label})` : ''}` },
+    icon('calculator'), calcs.length > 1 && e.label ? el('span', { class: 'rc-lbl' }, e.label) : null,
+    x ? el('span', { class: 'rc-res' }, `→ ${doseShort(x)}`, capped ? el('span', { class: 'cap-warn' }, ' · máx.') : null) : calcs.length > 1 ? null : el('span', { class: 'rc-res' }, 'Calcular'));
+  })) : null;
+  const tabs = !calcs.length && tableOnly(r) ? tablesOf(dd).filter((t) => !t.regId || t.regId === r.id) : [];
+  const tabLine = tabs.length ? el('button', { class: 'reg-tabline', type: 'button', onclick: () => ctx.openImage(tabs[0].fileId, tabs[0].title) },
+    icon('table'), ' Dosis por tramos: ver tabla por peso') : null;
+  return el('div', { class: `reg ${slug ? `t-${slug}` : ''} ${calcOpen && calcs.some((e) => e.key === calcSel.key) ? 'calc-on' : ''}`, 'data-reg': r.id },
     el('div', { class: 'reg-body' },
       el('div', { class: 'reg-main' },
         chip ? el('span', { class: `reg-type ${slug ? `t-${slug}` : ''}` }, chip) : null,
         el('span', { class: 'reg-text' }, markMax(main || line))),
       max ? el('div', { class: 'reg-max' }, icon('triangle-alert'), ` Máx. ${max}`) : null,
-      c ? el('button', { class: `reg-calc ${x ? '' : 'nokg'} ${x && (x.cappedDose || x.cappedDay) ? 'capped' : ''}`, type: 'button', title: 'Ver en la calculadora', onclick: () => pickReg(r.id) },
-        icon('calculator'), x ? [' ', el('b', {}, `= ${doseMain(x)}`), x.freq && x.per !== 'kg/h' ? ` cada ${fmt(x.freq)} h` : '', x.cappedDose || x.cappedDay ? el('span', { class: 'cap-warn' }, ' · dosis máxima') : null]
-          : ' Calcular por peso') : null,
+      calcBtns, tabLine,
       meta.length ? el('div', { class: 'reg-meta' }, meta.join(' · ')) : null,
       r.lineAuto === false && str(r.line).trim() ? el('div', { class: 'reg-meta reg-custom' }, icon('copy'), ` ${str(r.line).trim()}`) : null),
     ...regResLinks(r),
@@ -1239,153 +1259,343 @@ function renderTables(d) {
   }));
 }
 
-// ---------- Pediátrico (v1.32.0): peso de la ficha abierta ----------
-// ---------- Calculadora de dosis por toma (v1.36.0): al principio de «Indicaciones y dosis» ----------
-// Peso (−/+ 0,5 kg) · Indicación (chips) · Frecuencia · Dosis (si hay rango) · Presentación · resultado grande,
-// cálculo paso a paso, topes, duración y Copiar. Igual en adulto y pediátrico. Cálculo: drugped.js (sin DOM).
+// ---------- Asistente de dosis (v1.39.0; calculadora v1.37.0): Indicación → Dosis → Frecuencia → Presentación → Resultado ----------
+// Cerrado por defecto: botón «Calcular dosis» en la cabecera de «Indicaciones y dosis» o el icono de cada pauta calculable
+// (abre con esa indicación). Todo viene elegido con lo habitual: con el peso, el resultado sale al momento. Cada paso
+// filtra el siguiente. Igual en adulto y pediátrico. El peso es del paciente: se comparte entre fichas (chip en la
+// cabecera) y se borra con la × o al volver al inicio (v1.38.0). Cálculo: drugped.js (sin DOM).
 const regTitle = (d, id) => { const r = (d?.regimens || []).find((x) => x.id === id); return r ? (r.indication || '') : ''; };
-const calcRegs = (d) => (d.regimens || []).map((r) => ({ r, c: calcOf(r) })).filter((x) => x.c);
-/** Presentación de la calculadora: la elegida, la de la pauta o la primera con concentración/dosis por unidad */
-function presFor(d, r, c) {
-  const opts = presOptions(d?.presentations || []);
-  if (!opts.length) return null;
-  const same = (o) => o && (unitOk(o, c) ? o : null);
-  return same(opts.find((o) => o.p === calcSel.pres && calcSel.regId === r.id)) || same(opts.find((o) => o.p === r.pres)) || opts.find((o) => unitOk(o, c)) || null;
+/** Indicaciones calculables de la ficha: [{ r, key, c, label }] (una pauta con varias dosis por kg en el texto da varias) */
+function calcRegs(d) {
+  const out = [];
+  (d?.regimens || []).forEach((r, i) => {
+    const l = calcListOf(r);
+    l.forEach((x, j) => out.push({ r, key: x.key, c: x.c, label: [r.indication || `Pauta ${i + 1}`, l.length > 1 ? (x.label || String(j + 1)) : ''].filter(Boolean).join(' · ') }));
+  });
+  // nombres repetidos (p. ej. varias «Dosis (Guía de Aragón)»): se añade la vía o el principio del texto
+  const seen = {};
+  for (const e of out) seen[e.label] = (seen[e.label] || 0) + 1;
+  for (const e of out) if (seen[e.label] > 1) e.label += ` · ${e.r.type || routeOf(e.r, e.c) || calcDesc(e.c).slice(0, 24)}`;
+  return out;
 }
-const unitOk = (o, c) => { const a = norm(o.unit).replace('µg', 'mcg'), b = norm(c.unit); return a === b || (['mg', 'mcg', 'g'].includes(a) && ['mg', 'mcg', 'g'].includes(b)); };
-function pickReg(id) {
-  calcSel = { regId: id };
+const isRate = (c) => c.per === 'kg/h' || c.per === 'kg/min';
+const unitOk = (o, c) => {
+  const a = norm(o.unit).replace('µg', 'mcg'), b = norm(c.unit).replace('µg', 'mcg');
+  return a === b || (['mg', 'mcg', 'g', 'ng'].includes(a) && ['mg', 'mcg', 'g', 'ng'].includes(b));
+};
+/** ¿La presentación es de la vía de la indicación? (oral / inyectable / rectal…; sin vía conocida, todas) */
+function routeFits(d, o, r, c) {
+  const v = norm(`${routeOf(r, c)} ${r.type || ''}`);
+  if (!v.trim()) return true;
+  const g = norm(presGroup(d, o.p));
+  if (/\bvo\b|oral/.test(v)) return g === 'oral';
+  if (/\b(iv|im|sc|io)\b|bolo|perfus|intraven|intramus|subcut/.test(v)) return /iv|im|sc|inyect|intraven|intramus|subcut/.test(g);
+  if (/rectal|\bvr\b/.test(v)) return g === 'rectal';
+  if (/nebul/.test(v)) return g === 'nebulizada';
+  if (/nasal/.test(v)) return g === 'intranasal';
+  return true;
+}
+/** Frecuencias que se ofrecen: las de la indicación; si no dice ninguna, las habituales (ninguna marcada) */
+function freqOptions(c) {
+  if (isRate(c) || c.once) return [];
+  if (c.per === 'tramos') return c.freqs;
+  return c.freqs.length ? c.freqs : COMMON_FREQS;
+}
+/**
+ * Lo elegido (o lo habitual) para una indicación: { freq, level, pres, opts, x }.
+ * sel = las elecciones del asistente (solo si es la indicación abierta); sin elecciones, lo habitual.
+ */
+function resolveCalc(d, e, sel = calcSel.key === e.key ? calcSel : {}) {
+  const { r, c } = e;
+  const fo = freqOptions(c);
+  const freq = fo.includes(sel.freq) ? sel.freq : (c.freq ?? null);
+  const level = sel.level ?? defaultLevel(c);
+  let opts = presOptions(d?.presentations || []).filter((o) => unitOk(o, c));
+  const byRoute = opts.filter((o) => routeFits(d, o, r, c));
+  if (byRoute.length) opts = byRoute;
+  // la de la pauta va delante (salvo que la indicación tenga presentación preferida); luego la más fácil de medir
+  const own = r.pres ? opts.find((o) => o.p === r.pres) : null;
+  opts = rankPres(c, opts, { kg, level, freq });
+  if (own && !c.presPref) opts = [own, ...opts.filter((o) => o !== own)];
+  const pres = opts.find((o) => o.p === sel.pres) || opts[0] || null;
+  const x = !needsKg(c) || validKg(kg) ? doseCalc(c, { kg, level, freq, pres }) : null;
+  return { freq, level, pres, opts, x };
+}
+/** Acciones del asistente: 'toggle' (botón de la sección), 'open' (chip del peso), 'reg:KEY' (icono de una pauta), 'kg-clear' */
+function calcAction(a) {
   const d = store.drugs.get(curId);
   if (!d) return;
-  renderCalc(d); renderRegs();
-  $('#drug-calc').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (a === 'kg-clear') { kg = 0; refreshCalc(d); renderScopes(); return; }
+  const list = calcRegs(d);
+  if (!list.length) return;
+  if (a.startsWith('reg:')) {
+    const k = a.slice(4);
+    if (calcOpen && calcSel.key === k) calcOpen = false;
+    else { if (calcSel.key !== k) calcSel = { key: k }; calcOpen = true; }
+  } else if (a === 'open') calcOpen = true;
+  else calcOpen = !calcOpen;
+  const det = document.querySelector('#drug-wrap details.dsec[data-sec="regs"]');
+  if (calcOpen && det && !det.open) { det.dataset.set = '1'; det.open = true; }
+  refreshCalc(d);
+  if (calcOpen) requestAnimationFrame(() => {
+    $('#drug-calc').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const inp = $('#drug-calc .dc-weight input');
+    if (inp && !validKg(kg) && matchMedia('(pointer: fine)').matches) inp.focus();
+  });
 }
+function refreshCalc(d) { renderCalc(d); renderRegs(); }
 function renderCalc(d) {
   const box = $('#drug-calc');
   const list = d.trashed || !isRd() ? [] : calcRegs(d);
-  box.classList.toggle('hidden', !list.length);
-  if (!list.length) return;
+  // botón «Calcular dosis» de la cabecera de la sección (solo si hay algo que calcular: si no, ni botón ni hueco)
+  const tg = $('#drug-calc-btn');
+  tg.classList.toggle('hidden', !list.length);
+  tg.classList.toggle('on', calcOpen && !!list.length);
+  tg.setAttribute('aria-expanded', String(calcOpen && !!list.length));
+  tg.title = calcOpen ? 'Cerrar el asistente de dosis' : 'Calcular la dosis por peso';
+  box.classList.toggle('hidden', !list.length || !calcOpen);
+  if (!list.length || !calcOpen) { box.replaceChildren(); return; }
   const anyKg = list.some((x) => needsKg(x.c));
   if (!box.querySelector('.dc-weight')) {
     const inp = el('input', { type: 'text', inputmode: 'decimal', enterkeyhint: 'done', placeholder: '—', maxlength: 6, autocomplete: 'off', 'aria-label': 'Peso en kg' });
-    inp.addEventListener('input', onWeight);
+    inp.addEventListener('input', () => onWeight());
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); });
     const step = (dlt) => { const v = Math.max(0, Math.round(((validKg(kg) ? kg : 0) + dlt) * 2) / 2); kg = validKg(v) ? v : 0; inp.value = kg ? fmt(kg) : ''; onWeight({ keep: true }); };
     box.replaceChildren(
-      el('div', { class: 'dc-weight drug-weight' },
-        el('div', { class: 'w-in' }, el('span', {}, 'Peso'),
+      el('div', { class: 'dc-weight' },
+        el('label', { class: 'w-in' }, el('span', {}, 'Peso'),
           el('button', { class: 'w-step', type: 'button', 'aria-label': 'Restar 0,5 kg', onclick: () => step(-0.5) }, '−'), inp,
           el('button', { class: 'w-step', type: 'button', 'aria-label': 'Sumar 0,5 kg', onclick: () => step(0.5) }, '＋'), el('span', {}, 'kg')),
-        el('span', { class: 'w-warn' }, icon('triangle-alert'), ' Comprueba la dosis calculada')),
-      el('div', { class: 'dc-body' }));
+        el('span', { class: 'muted small w-share' }, 'para todas las fichas')),
+      el('div', { class: 'dc-steps-box' }), el('div', { class: 'dc-out' }));
   }
-  box.querySelector('.dc-weight .w-in').classList.toggle('hidden', !anyKg);
+  box.querySelector('.dc-weight').classList.toggle('hidden', !anyKg);
   const inp = box.querySelector('.dc-weight input');
   if (document.activeElement !== inp) inp.value = kg ? fmt(kg) : '';
-  const cur = list.find((x) => x.r.id === calcSel.regId) || list[0];
-  if (calcSel.regId !== cur.r.id) calcSel = { regId: cur.r.id };
+  const cur = list.find((x) => x.key === calcSel.key) || list[0];
+  if (calcSel.key !== cur.key) calcSel = { key: cur.key };
   const { r, c } = cur;
-  const freq = c.freqs.includes(calcSel.freq) ? calcSel.freq : c.freq;
-  const level = calcSel.level ?? 'mid';
-  const pres = presFor(d, r, c);
-  const x = !needsKg(c) || validKg(kg) ? doseCalc(c, { kg, level, freq, pres }) : null;
-  const chips = (label, items) => el('div', { class: 'dc-row' }, el('span', { class: 'dc-lbl' }, label), el('div', { class: 'dc-chips' }, ...items));
-  const chipBtn = (on, txt, fn, extra = {}) => el('button', { type: 'button', class: `chip toggle ${on ? 'on' : ''} ${extra.cls || ''}`, 'aria-pressed': String(on), onclick: fn, title: extra.title || null }, txt, extra.sub ? el('small', {}, extra.sub) : null);
-  const set = (k, v) => { calcSel[k] = v; renderCalc(d); renderRegs(); };
+  const st = resolveCalc(d, cur, calcSel);
+  const set = (k, v) => { calcSel[k] = v; refreshCalc(d); };
+  // Un paso = una fila: nº, nombre, lo elegido en pequeño y las opciones (chips si hay ≤ 4; si no, desplegable)
+  const stepRow = (n, label, value, control, cls = '') => el('div', { class: `dc-step ${cls}` },
+    el('div', { class: 'dc-sh' }, el('span', { class: 'dc-n' }, String(n)), el('span', { class: 'dc-lbl' }, label), value ? el('span', { class: 'dc-val' }, value) : null),
+    control);
+  const choose = (items, onPick, aria) => {
+    if (items.length <= 4) return el('div', { class: 'dc-chips' }, ...items.map((it) => el('button', {
+      type: 'button', class: `chip toggle ${it.on ? 'on' : ''} ${it.cls || ''}`, 'aria-pressed': String(!!it.on), title: it.title || it.label, onclick: () => onPick(it.v)
+    }, el('span', { class: 'dc-cl' }, it.label), it.sub ? el('small', {}, it.sub) : null)));
+    const s = el('select', { class: 'dc-select', 'aria-label': aria },
+      ...(items.some((it) => it.on) ? [] : [el('option', { value: '' }, 'Elige…')]),
+      ...items.map((it, i) => el('option', { value: String(i) }, it.sub ? `${it.label} · ${it.sub}` : it.label)));
+    const on = items.findIndex((it) => it.on);
+    s.value = on >= 0 ? String(on) : '';
+    s.addEventListener('change', () => { if (s.value !== '') onPick(items[Number(s.value)].v); });
+    return s;
+  };
   const rows = [];
-  if (list.length > 1 || r.indication) rows.push(chips('Indicación', list.map((y, i) => chipBtn(y.r.id === r.id, y.r.indication || `Pauta ${i + 1}`, () => { calcSel = { regId: y.r.id }; renderCalc(d); renderRegs(); }))));
-  if (c.freqs.length && c.per !== 'kg/h') rows.push(chips('Frecuencia', c.freqs.map((h) => chipBtn(h === freq, `c/${fmt(h)} h`, () => set('freq', h), { cls: h === c.freq ? 'hab' : '', sub: h === c.freq && c.freqs.length > 1 ? 'habitual' : '', title: h === c.freq ? 'Frecuencia habitual' : '' }))));
-  if (c.amount.hi > c.amount.lo) {
-    const u = `${c.unit}/${c.per === 'dosis fija' ? 'dosis' : c.per}`;
-    rows.push(chips('Dosis', [['min', 'Mínima'], ['mid', 'Media'], ['max', 'Máxima']].map(([k, l]) => chipBtn(level === k, l, () => set('level', k), { sub: `${fmt(pickAmount(c, k))} ${u}` }))));
-  }
-  const opts = presOptions(d.presentations || []).filter((o) => unitOk(o, c));
-  if (opts.length) rows.push(chips('Presentación', [...opts.map((o) => chipBtn(pres?.p === o.p, o.p, () => set('pres', o.p)))]));
-  // Resultado
-  let res;
-  if (!x) res = el('div', { class: 'dc-result empty' }, needsKg(c) ? 'Escribe el peso para calcular la dosis por toma.' : 'Falta la frecuencia para repartir la dosis.');
-  else {
-    const capped = x.cappedDose || x.cappedDay;
-    const main = x.vol != null ? `${fmt(x.volR)} ml${x.per === 'kg/h' ? '/h' : ''}` : x.units?.ok ? doseMain(x).replace(/ \(.*/, '') : `${fmt(x.perDose)} ${x.unit}${x.per === 'kg/h' ? '/h' : ''}`;
-    const sub = x.vol != null || x.units?.ok ? `${fmt(x.given)} ${x.unit}${x.per === 'kg/h' ? '/h' : ''}` : '';
-    const line = calcLine(d.name, r, c, x, kg);
-    res = el('div', { class: `dc-result ${capped ? 'capped' : ''}` },
-      el('div', { class: 'dc-main' },
-        el('div', { class: 'dc-dose' }, el('span', { class: 'dc-big' }, main), sub ? el('span', { class: 'dc-sub' }, sub) : null,
-          el('span', { class: 'dc-when' }, x.per === 'kg/h' ? 'en perfusión' : x.freq ? `cada ${fmt(x.freq)} h${x.perDay != null ? ` · ${fmt(x.perDay)} ${x.unit}/día` : ''}` : 'por dosis')),
-        el('button', { class: 'reg-copy big dc-copy', type: 'button', title: `Copiar: ${line}`, 'aria-label': `Copiar: ${line}`, onclick: (e) => copyLine(line, e.currentTarget) }, icon('copy'), el('span', {}, 'Copiar'))),
-      x.volHalf != null ? el('div', { class: 'dc-note' }, `Con jeringa oral: ${fmt(x.volHalf)} ml`) : null,
-      x.units && !x.units.ok ? el('div', { class: 'dc-warn' }, icon('triangle-alert'), ` No cuadra con ${x.units.form === 'comp' ? `comprimidos${x.units.half ? ' ni medios' : ''}` : x.units.form} de ${x.conc}: serían ${fmt(x.units.exact)} → mejor otra presentación`) : null,
-      capped ? el('div', { class: 'dc-cap' }, icon('triangle-alert'), ` Limitado a la dosis máxima (sin tope: ${fmt(x.perDoseRaw)} ${x.unit} por ${x.per === 'kg/h' ? 'hora' : 'toma'})`) : null,
-      x.noMax ? el('div', { class: 'dc-note' }, 'Sin dosis máxima en la ficha: consulta la tabla.') : null,
-      el('div', { class: 'dc-steps' }, x.steps.join(' ')),
-      c.duration || r.duration ? el('div', { class: 'dc-note' }, `Duración: ${c.duration || r.duration}`) : null);
-  }
+  let n = 0;
+  // 1 · Indicación
+  rows.push(stepRow(++n, 'Indicación', list.length > 1 ? '' : cur.label,
+    list.length > 1 ? choose(list.map((y) => ({ v: y.key, label: y.label, on: y.key === cur.key })), (k) => { calcSel = { key: k }; refreshCalc(d); }, 'Indicación') : null));
+  // 2 · Dosis (rango: Mín · Habitual/Media · Máx y deslizador; tramos de peso: el tramo; fija: no sale)
+  const perU = `${c.unit}${c.per === 'dosis fija' ? '' : `/${c.per}`}`;
+  const amtNow = c.per === 'tramos' ? 0 : (st.x?.amt ?? (typeof st.level === 'number' ? st.level : null));
+  if (c.per === 'tramos') {
+    const b = bracketFor(c, kg);
+    rows.push(stepRow(++n, 'Dosis', b ? `${bracketTxt(b)} → ${fmt(b.dose)} ${b.unit}` : 'por tramos de peso',
+      el('div', { class: 'dc-brackets small' }, ...c.brackets.map((y) => el('span', { class: `dc-br ${y === b ? 'on' : ''}` }, `${bracketTxt(y)}: ${fmt(y.dose)} ${y.unit}${y.freq ? ` c/${fmt(y.freq)} h` : ''}`)))));
+  } else if (c.amount.hi > c.amount.lo) {
+    const lv = [['min', 'Mín.'], [c.amount.usual ? 'usual' : 'mid', c.amount.usual ? 'Habitual' : 'Media'], ['max', 'Máx.']];
+    const val = el('span', { class: 'dc-val' }, `${fmt(pickAmount(c, st.level))} ${perU}`);
+    const lo = c.amount.lo, hi = c.amount.hi;
+    const stp = (() => { const raw = (hi - lo) / 40; const p = 10 ** Math.floor(Math.log10(raw)); return [1, 2, 2.5, 5, 10].map((k) => k * p).find((k) => k >= raw) || raw; })();
+    const slider = el('input', { type: 'range', class: 'dc-range', min: String(lo), max: String(hi), step: String(stp), value: String(pickAmount(c, st.level)), 'aria-label': `Dosis en ${perU}` });
+    slider.addEventListener('input', () => { calcSel.level = Number(slider.value); val.textContent = `${fmt(Number(slider.value))} ${perU}`; renderOut(d, cur); });
+    slider.addEventListener('change', () => { calcSel.level = Number(slider.value); refreshCalc(d); });
+    const row = stepRow(++n, 'Dosis', '', el('div', { class: 'dc-dose-ctl' },
+      choose(lv.map(([k, l]) => ({ v: k, label: l, sub: fmt(pickAmount(c, k)), on: st.level === k, title: `${fmt(pickAmount(c, k))} ${perU}` })), (k) => set('level', k), 'Dosis'), slider));
+    row.querySelector('.dc-sh').append(val);
+    rows.push(row);
+  } else if (c.per !== 'dosis fija') rows.push(stepRow(++n, 'Dosis', `${fmt(c.amount.lo)} ${perU}`, null, 'dc-fixed'));
+  // 3 · Frecuencia (solo las permitidas; la habitual marcada; si la pauta no dice ninguna, se ofrecen todas sin marcar)
+  const fo = freqOptions(c);
+  if (fo.length) {
+    const val = st.freq ? `cada ${fmt(st.freq)} h${c.per === 'kg/día' ? ` · ${fmt(24 / st.freq)} ${24 / st.freq === 1 ? 'toma' : 'tomas'}/día` : ''}` : 'elige';
+    rows.push(stepRow(++n, 'Frecuencia', val, choose(fo.map((h) => ({ v: h, label: `c/${fmt(h)} h`, on: h === st.freq, cls: h === c.freq && fo.length > 1 ? 'hab' : '', sub: h === c.freq && fo.length > 1 ? 'habitual' : '' })), (h) => set('freq', h), 'Frecuencia'),
+      st.freq ? '' : 'need'));
+  } else if (c.once) rows.push(stepRow(++n, 'Frecuencia', 'dosis única', null, 'dc-fixed'));
+  else if (isRate(c)) rows.push(stepRow(++n, 'Frecuencia', 'perfusión continua', null, 'dc-fixed'));
+  // 4 · Presentación (las que encajan con la unidad y la vía; primero la preferida o la más fácil de medir)
+  if (st.opts.length) rows.push(stepRow(++n, 'Presentación', st.opts.length > 1 ? '' : st.pres?.p || '',
+    st.opts.length > 1 ? choose(st.opts.map((o) => ({ v: o.p, label: o.p, on: st.pres?.p === o.p, cls: c.presPref && norm(o.p) === norm(c.presPref) ? 'hab' : '' })), (p) => set('pres', p), 'Presentación') : null));
+  box.querySelector('.dc-steps-box').replaceChildren(...rows);
+  renderOut(d, cur);
+}
+/** Resultado del asistente (aparte, para que el deslizador no rehaga los pasos) */
+function renderOut(d, cur) {
+  const box = $('#drug-calc .dc-out');
+  if (!box) return;
+  const { r, c } = cur;
+  const { x } = resolveCalc(d, cur, calcSel);
+  const u = x?.unit || c.unit;
+  const check = el('div', { class: 'dc-check' }, icon('triangle-alert'), ' Comprueba la dosis calculada');
   const tabs = tablesOf(d).filter((t) => t.regId === r.id);
-  box.querySelector('.dc-body').replaceChildren(...[...rows, res,
-    tabs.length ? el('div', { class: 'dc-tabs' }, ...tabs.map((t) => el('button', { class: 'chip', type: 'button', onclick: () => ctx.openImage(t.fileId, t.title) }, icon('table'), ` ${t.title || 'Tabla por peso'}`))) : null,
-    c.auto ? el('div', { class: 'dc-auto muted small' }, icon('pencil'), ' Calculado desde el texto de la dosis: revísalo (lápiz de la indicación → «Cálculo por peso»).') : null].filter(Boolean));
+  const tabsRow = tabs.length ? el('div', { class: 'dc-tabs' }, ...tabs.map((t) => el('button', { class: 'chip', type: 'button', onclick: () => ctx.openImage(t.fileId, t.title) }, icon('table'), ` ${t.title || 'Tabla por peso'}`))) : null;
+  const auto = c.auto ? el('div', { class: 'dc-auto muted small' }, icon('pencil'), ' Leído del texto de la dosis: revísalo (lápiz de la indicación → «Cálculo por peso»).') : null;
+  if (!x || x.noBracket) {
+    box.replaceChildren(...[el('div', { class: 'dc-result empty' }, x?.noBracket ? `${fmt(kg)} kg no está en ningún tramo de la ficha.` : 'Escribe el peso y sale la dosis.'), tabsRow, auto].filter(Boolean));
+    return;
+  }
+  const rate = isRate({ per: x.per });
+  const capped = x.cappedDose || x.cappedDay;
+  const dur = str(c.duration || r.duration).trim();
+  const route = routeOf(r, c);
+  let big, sub;
+  if (x.needFreq) {
+    big = `${fmt(x.perDay)} ${u}/día`;
+    sub = ['elige la frecuencia para repartirlo en tomas', dur ? `durante ${dur}` : '', route].filter(Boolean).join(' · ');
+  } else {
+    const hu = x.per === 'kg/h' ? '/h' : x.per === 'kg/min' ? '/min' : '';
+    const main = x.vol != null ? `${fmt(x.volR)} ml${rate ? '/h' : ''}` : x.units?.ok ? unitsLong(x.units) : `${fmt(x.perDose)} ${u}${hu}`;
+    const when = rate ? 'en perfusión' : x.freq ? `cada ${fmt(x.freq)} h` : c.once ? 'dosis única' : '';
+    big = `Dar ${main}${when ? ` ${when}` : ''}`;
+    sub = [
+      rate ? `${fmt(x.perDose)} ${u}${hu}${x.per === 'kg/min' ? ` = ${fmt(x.perHour)} ${u}/h` : ''}` : (x.vol != null || x.units?.ok ? `${fmt(x.given)} ${u}/toma` : x.freq ? `${fmt(x.perDose)} ${u}/toma` : ''),
+      x.perDay != null && !rate ? `${fmt(x.perDay)} ${u}/día` : '',
+      dur ? `durante ${dur}` : '', route
+    ].filter(Boolean).join(' · ');
+  }
+  const line = x.needFreq ? '' : calcLine(d.name, r, c, x, kg);
+  const notes = [];
+  // dosis práctica: redondeos para poder medirla, con su diferencia
+  if (x.vol != null && !rate) {
+    const d1 = x.vol ? Math.round(((x.volR - x.vol) / x.vol) * 1000) / 10 : 0;
+    if (Math.abs(d1) >= 0.5) notes.push(el('div', { class: 'dc-note' }, `Redondeado a ${fmt(x.volR)} ml (exacto ${fmt(x.vol)} ml, ${d1 > 0 ? '+' : ''}${fmt(d1)} %)`));
+    if (x.volHalf != null) notes.push(el('div', { class: 'dc-note' }, `Con jeringa de 0,5 ml: ${fmt(x.volHalf)} ml (${x.volDiff > 0 ? '+' : ''}${fmt(x.volDiff)} %)`));
+  }
+  if (x.units?.ok && Math.abs(x.units.diff) >= 0.5) notes.push(el('div', { class: 'dc-note' }, `${unitsLong(x.units)} = ${fmt(x.given)} ${u} (calculado ${fmt(x.perDose)} ${u}, ${x.units.diff > 0 ? '+' : ''}${fmt(x.units.diff)} %)`));
+  if (x.units && !x.units.ok) notes.push(el('div', { class: 'dc-warn' }, icon('triangle-alert'), ` No cuadra con ${x.units.form === 'comp' ? `comprimidos${x.units.half ? ' ni medios' : ''}` : x.units.form} de ${x.conc}: serían ${fmt(x.units.exact)} → mejor otra presentación`));
+  if (capped) notes.push(el('div', { class: 'dc-cap' }, icon('triangle-alert'), x.cappedDay && !x.cappedDose && x.needFreq
+    ? ` Limitado a la dosis máxima al día (sin tope: ${fmt(x.perDayRaw)} ${u}/día)`
+    : ` Limitado a la dosis máxima (sin tope: ${fmt(x.perDoseRaw)} ${u} por ${rate ? (x.per === 'kg/h' ? 'hora' : 'minuto') : 'toma'})`));
+  if (x.noMax) notes.push(el('div', { class: 'dc-note muted' }, 'Sin dosis máxima en la ficha' + (tablesOf(d).length ? ': mira la tabla por peso.' : '.')));
+  box.replaceChildren(...[
+    el('div', { class: `dc-result ${capped ? 'capped' : ''} ${x.needFreq ? 'need' : ''}` },
+      el('div', { class: 'dc-main' },
+        el('div', { class: 'dc-dose' }, el('span', { class: 'dc-big' }, big), sub ? el('span', { class: 'dc-sub' }, sub) : null),
+        line ? el('button', { class: 'reg-copy big dc-copy', type: 'button', title: `Copiar: ${line}`, 'aria-label': `Copiar: ${line}`, onclick: (e) => copyLine(line, e.currentTarget) }, icon('copy'), el('span', {}, 'Copiar')) : null),
+      ...notes,
+      el('details', { class: 'dc-how' }, el('summary', {}, 'Ver cálculo'), el('div', { class: 'dc-steps' }, ...x.steps.map((t) => el('div', {}, t)))),
+      check),
+    tabsRow, auto].filter(Boolean));
+}
+/** «1 comp y medio» · «½ comp» · «2 cáps» */
+function unitsLong(un) {
+  const whole = Math.floor(un.n), half = un.n - whole >= 0.5;
+  if (!half) return `${whole} ${un.form}`;
+  return whole ? `${whole} ${un.form} y medio` : `½ ${un.form}`;
 }
 function onWeight({ keep = false } = {}) {
   if (!keep) { const v = parseNum($('#drug-calc .dc-weight input').value); kg = validKg(v) ? v : 0; }
   const d = store.drugs.get(curId);
-  if (d && isRd()) { renderRegs(); renderCalc(d); }
+  if (d && isRd()) { refreshCalc(d); renderScopes(); }
 }
 
-/** Editor de la pauta → «Cálculo por peso» (v1.36.0): dosis o rango, unidad, por kg/día·kg/dosis·kg/h·fija, frecuencias,
- *  habitual, máximos y duración, con vista previa con un peso de ejemplo. Escribe r.calc (null = sin cálculo). */
+/** Editor de la pauta → «Cálculo por peso» (v1.39.0, formulario guiado; antes v1.36.0): dosis o rango + la habitual, unidad,
+ *  por kg/día · kg/dosis · kg/h · kg/min · fija · solo tramos, frecuencias permitidas (casillas) y la habitual, dosis única,
+ *  máx por toma y por día, duración, vía, presentación preferida y tramos de peso («de … a … kg → dosis»), con vista previa
+ *  en directo y un peso de ejemplo editable. Escribe r.calc (null = sin cálculo). Lo rellenado desde el texto queda
+ *  marcado «Revisar» hasta que se guarda. */
 function calcFields(r, sync, d) {
-  const start = normCalc(r.calc) || (hasPerKg(r) ? calcOf({ ...r, calc: null }) : null);
-  const cs = start ? { lo: fmt(start.amount.lo), hi: start.amount.hi > start.amount.lo ? fmt(start.amount.hi) : '', unit: start.unit, per: start.per, freqs: [...start.freqs], freq: start.freq,
-    maxDose: start.maxDose || '', maxDay: start.maxDay || '', duration: start.duration || '' } : { lo: '', hi: '', unit: 'mg', per: 'kg/día', freqs: [], freq: null, maxDose: '', maxDay: '', duration: '' };
+  // lo guardado; si no, perKg (v1.32.0); si no, lo leído del texto (marcado «Revisar» hasta guardar)
+  const saved = normCalc(r.calc) || (hasPerKg(r) ? calcOf({ ...r, calc: null }) : null);
+  const fromTxt = !saved && r.calcAuto !== false ? calcFromReg(r) : null;
+  const start = saved || fromTxt?.calc || null;
+  const blank = { lo: '', hi: '', usual: '', unit: 'mg', per: 'kg/día', freqs: [], freq: null, once: false, maxDose: '', maxDay: '', duration: '', route: '', presPref: '', brackets: [] };
+  const fromCalc = (c) => ({
+    lo: c.per === 'tramos' ? '' : fmt(c.amount.lo), hi: c.amount.hi > c.amount.lo ? fmt(c.amount.hi) : '', usual: c.amount.usual ? fmt(c.amount.usual) : '',
+    unit: c.unit, per: c.per, freqs: [...c.freqs], freq: c.freq, once: !!c.once, maxDose: c.maxDose || '', maxDay: c.maxDay || '', duration: c.duration || '',
+    route: c.route || '', presPref: c.presPref || '',
+    brackets: (c.brackets || []).map((b) => ({ fromKg: b.fromKg ? fmt(b.fromKg) : '', toKg: b.toKg != null ? fmt(b.toKg) : '', dose: fmt(b.dose), unit: b.unit, freq: b.freq || '' }))
+  });
+  const cs = start ? fromCalc(start) : { ...blank };
   let exKg = 20;
+  let review = !!((r.calcAuto && !r.calcTouched && saved) || fromTxt); // leído del texto: «Revisar» hasta guardar
   const box = el('div', { class: 'calc-ed' });
   const prev = el('div', { class: 'calc-prev', 'aria-live': 'polite' });
+  const build = () => normCalc({ amount: { lo: cs.lo, hi: cs.hi, usual: cs.usual }, unit: cs.unit, per: cs.per === 'tramos' ? null : cs.per, freqs: cs.freqs, freq: cs.freq, once: cs.once,
+    maxDose: cs.maxDose, maxDay: cs.maxDay, duration: cs.duration, route: cs.route, presPref: cs.presPref,
+    brackets: cs.brackets.map((b) => ({ fromKg: b.fromKg || 0, toKg: b.toKg, dose: b.dose, unit: b.unit || cs.unit, freq: b.freq })) });
   const apply = (touched = true) => {
-    const c = normCalc({ amount: { lo: cs.lo, hi: cs.hi }, unit: cs.unit, per: cs.per, freqs: cs.freqs, freq: cs.freq, maxDose: cs.maxDose, maxDay: cs.maxDay, duration: cs.duration });
+    const c = build();
     if (touched) { r.calc = c; r.calcAuto = false; r.calcTouched = true; }
-    const x = c ? doseCalc(c, { kg: exKg, pres: presOptions(d?.presentations || []).find((o) => unitOk(o, c)) || null }) : null;
-    prev.replaceChildren(el('span', { class: 'lp-lbl' }, icon('calculator'), ' Ejemplo con ',
+    const opts = presOptions(d?.presentations || []).filter((o) => unitOk(o, c || { unit: cs.unit }));
+    const pres = c ? (rankPres(c, opts, { kg: exKg })[0] || null) : null;
+    const x = c ? doseCalc(c, { kg: exKg, pres }) : null;
+    const txt = !c ? 'Escribe la dosis (o añade tramos de peso).' : !x ? '—' : x.noBracket ? `${fmt(exKg)} kg no está en ningún tramo` : x.needFreq ? `${doseMain(x)} · marca una frecuencia para repartirlo`
+      : `${doseMain(x)}${x.freq && x.per !== 'kg/h' && x.per !== 'kg/min' ? ` cada ${fmt(x.freq)} h` : c.once ? ' (dosis única)' : ''}${x.cappedDose || x.cappedDay ? ' (limitado a la máxima)' : ''}`;
+    prev.replaceChildren(el('span', { class: 'lp-lbl' }, icon('calculator'), ' Vista previa con ',
       el('input', { type: 'text', inputmode: 'decimal', value: fmt(exKg), class: 'ex-kg', 'aria-label': 'Peso de ejemplo', oninput: (e) => { const v = parseNum(e.target.value); if (validKg(v)) { exKg = v; apply(false); } } }), ' kg:'),
-    el('span', { class: 'lp-txt' }, x ? `${doseMain(x)}${x.freq && x.per !== 'kg/h' ? ` cada ${fmt(x.freq)} h` : ''}${x.cappedDose || x.cappedDay ? ' (limitado a la máxima)' : ''}` : c ? (c.per === 'kg/día' ? 'Marca al menos una frecuencia.' : '—') : 'Escribe la dosis.'),
-    x ? el('span', { class: 'muted small' }, x.steps.join(' ')) : null);
+    el('span', { class: 'lp-txt' }, txt),
+    x && !x.noBracket ? el('span', { class: 'muted small' }, x.steps.join(' ')) : null);
     if (touched) sync();
   };
-  const inp = (k, ph, attrs = {}) => { const i = el('input', { type: 'text', value: cs[k], placeholder: ph, autocomplete: 'off', maxlength: 40, ...attrs }); i.addEventListener('input', () => { cs[k] = i.value.trim(); apply(); }); return i; };
-  const sel = (k, opts) => { const s = el('select', {}, ...opts.map((o) => el('option', { value: o }, o))); s.value = cs[k]; s.addEventListener('change', () => { cs[k] = s.value; apply(); draw(); }); return s; };
+  const inp = (k, ph, attrs = {}) => { const i = el('input', { type: 'text', value: cs[k], placeholder: ph, autocomplete: 'off', maxlength: 60, ...attrs }); i.addEventListener('input', () => { cs[k] = i.value.trim(); apply(); }); return i; };
+  const sel = (k, opts) => { const s = el('select', {}, ...opts.map(([v, l]) => el('option', { value: v }, l))); s.value = cs[k]; s.addEventListener('change', () => { cs[k] = s.value; apply(); draw(); }); return s; };
   const draw = () => {
+    const tramos = cs.per === 'tramos';
+    const rate = cs.per === 'kg/h' || cs.per === 'kg/min';
     const fq = el('div', { class: 'dc-chips' }, ...CALC_FREQS.map((h) => {
       const on = cs.freqs.includes(h);
-      return el('button', { type: 'button', class: `chip toggle ${on ? 'on' : ''} ${cs.freq === h ? 'hab' : ''}`, 'aria-pressed': String(on), title: on ? (cs.freq === h ? 'Habitual. Toca para quitar' : 'Toca para quitar; mantén… o usa «Habitual»') : 'Permitir esta frecuencia',
-        onclick: () => { if (on) { cs.freqs = cs.freqs.filter((x) => x !== h); if (cs.freq === h) cs.freq = cs.freqs[0] ?? null; } else { cs.freqs = [...cs.freqs, h].sort((a, b) => a - b); if (!cs.freq) cs.freq = h; } apply(); draw(); } }, `c/${h} h`);
-    }));
-    const hab = cs.freqs.length > 1 ? el('div', { class: 'dc-row' }, el('span', { class: 'dc-lbl' }, 'Habitual'), el('div', { class: 'dc-chips' }, ...cs.freqs.map((h) =>
-      el('button', { type: 'button', class: `chip toggle ${cs.freq === h ? 'on' : ''}`, onclick: () => { cs.freq = h; apply(); draw(); } }, `c/${h} h`)))) : null;
+      return el('button', { type: 'button', class: `chip toggle ${on ? 'on' : ''} ${cs.freq === h ? 'hab' : ''}`, 'aria-pressed': String(on), title: on ? 'Permitida. Toca para quitar' : 'Permitir esta frecuencia',
+        onclick: () => { cs.once = false; if (on) { cs.freqs = cs.freqs.filter((x) => x !== h); if (cs.freq === h) cs.freq = cs.freqs.length === 1 ? cs.freqs[0] : null; } else { cs.freqs = [...cs.freqs, h].sort((a, b) => a - b); if (!cs.freq && cs.freqs.length === 1) cs.freq = h; } apply(); draw(); } }, `c/${h} h`);
+    }), el('button', { type: 'button', class: `chip toggle ${cs.once ? 'on' : ''}`, 'aria-pressed': String(cs.once), onclick: () => { cs.once = !cs.once; if (cs.once) { cs.freqs = []; cs.freq = null; } apply(); draw(); } }, 'Dosis única'));
+    const hab = cs.freqs.length > 1 ? el('div', { class: 'dc-row' }, el('span', { class: 'dc-lbl' }, 'Habitual'), el('div', { class: 'dc-chips' },
+      el('button', { type: 'button', class: `chip toggle ${!cs.freq ? 'on' : ''}`, onclick: () => { cs.freq = null; apply(); draw(); } }, 'Ninguna'),
+      ...cs.freqs.map((h) => el('button', { type: 'button', class: `chip toggle ${cs.freq === h ? 'on' : ''}`, onclick: () => { cs.freq = h; apply(); draw(); } }, `c/${h} h`)))) : null;
+    const presList = [['', '— la más fácil de medir —'], ...(d?.presentations || []).map((p) => [p, p])];
+    const bRow = (b, i) => {
+      const f = (k, ph, w) => { const x = el('input', { type: 'text', inputmode: k === 'unit' ? 'text' : 'decimal', value: b[k], placeholder: ph, autocomplete: 'off', maxlength: 12, class: `br-${k}`, 'aria-label': ph, style: `width:${w}` });
+        x.addEventListener('input', () => { b[k] = x.value.trim(); apply(); }); return x; };
+      return el('div', { class: 'br-row' }, 'de', f('fromKg', '0', '58px'), 'a', f('toKg', '∞', '58px'), 'kg →', f('dose', 'dosis', '70px'), f('unit', cs.unit, '62px'), 'c/', f('freq', 'h', '44px'), 'h',
+        el('button', { class: 'icon-btn', type: 'button', title: 'Quitar este tramo', 'aria-label': 'Quitar este tramo', onclick: () => { cs.brackets.splice(i, 1); apply(); draw(); } }, icon('trash-2')));
+    };
     box.replaceChildren(...[
-      r.calcAuto && !r.calcTouched ? el('p', { class: 'dc-auto small' }, icon('pencil'), ' Rellenado desde el texto de la dosis: revísalo. Al guardar con algún cambio aquí, queda como revisado.') : null,
+      review ? el('p', { class: 'dc-auto small calc-review' }, el('span', { class: 'rv-pill' }, 'Revisar'), ' Rellenado desde el texto de la dosis: compruébalo. Al guardar, queda como revisado.') : null,
       el('div', { class: 'calc-grid' },
+        el('label', { class: 'rf' }, 'Por', sel('per', [...CALC_PER.map((p) => [p, p === 'dosis fija' ? 'dosis fija (sin peso)' : p]), ['tramos', 'solo tramos de peso']])),
+        el('label', { class: 'rf' }, 'Unidad', sel('unit', CALC_UNITS.map((u) => [u, u])))),
+      tramos ? null : el('div', { class: 'calc-grid' },
         el('label', { class: 'rf' }, 'Dosis', el('div', { class: 'ped-row' }, inp('lo', 'p. ej. 80', { inputmode: 'decimal' }), el('span', { class: 'muted' }, '–'), inp('hi', 'hasta (opcional)', { inputmode: 'decimal' }))),
-        el('label', { class: 'rf' }, 'Unidad', sel('unit', CALC_UNITS)),
-        el('label', { class: 'rf' }, 'Por', sel('per', CALC_PER))),
-      el('div', { class: 'rf' }, 'Frecuencias permitidas', fq), hab,
+        el('label', { class: 'rf' }, 'Habitual (si es un rango)', inp('usual', 'opcional', { inputmode: 'decimal' }))),
+      rate ? null : el('div', { class: 'rf' }, 'Frecuencias permitidas', fq), rate ? null : hab,
       el('div', { class: 'calc-grid' },
-        el('label', { class: 'rf' }, 'Máx. por toma', inp('maxDose', 'p. ej. 1 g')),
-        el('label', { class: 'rf' }, 'Máx. al día', inp('maxDay', 'p. ej. 3 g')),
-        el('label', { class: 'rf' }, 'Duración', inp('duration', 'p. ej. 10 días'))),
-      el('p', { class: 'muted small' }, 'Las máximas solo si las dice la ficha o la guía: si no hay, la calculadora avisa.'),
+        el('label', { class: 'rf' }, rate ? `Máx. por ${cs.per === 'kg/h' ? 'hora' : 'minuto'}` : 'Máx. por toma', inp('maxDose', 'p. ej. 1 g')),
+        rate ? null : el('label', { class: 'rf' }, 'Máx. al día', inp('maxDay', 'p. ej. 3 g')),
+        el('label', { class: 'rf' }, 'Duración', inp('duration', 'p. ej. 10 días')),
+        el('label', { class: 'rf' }, 'Vía', inp('route', 'VO, IV, IM…', { list: 'drug-route-dl' }))),
+      (d?.presentations || []).length ? el('label', { class: 'rf' }, 'Presentación preferida', sel('presPref', presList)) : null,
+      el('div', { class: 'rf br-box' }, el('span', {}, tramos ? 'Tramos de peso' : 'Tramos de peso (opcional: si el peso cae en un tramo, se usa su dosis)'),
+        ...cs.brackets.map(bRow),
+        el('button', { class: 'btn sm', type: 'button', onclick: () => { const last = cs.brackets[cs.brackets.length - 1]; cs.brackets.push({ fromKg: last?.toKg || '', toKg: '', dose: '', unit: cs.unit, freq: '' }); draw(); } }, '＋ Tramo')),
+      el('p', { class: 'muted small' }, 'Dosis y máximas solo si las dice la ficha, la guía o la tabla: si no hay máxima, la calculadora lo avisa.'),
       prev,
       el('div', { class: 'reg-actions' },
         el('button', { class: 'btn sm', type: 'button', onclick: () => {
-          const t = calcFromText(str(r.text) || str(r.dose), { duration: str(r.duration) });
-          if (!t) { toast('El texto de la dosis no dice una dosis por kg', 'error'); return; }
-          Object.assign(cs, { lo: fmt(t.calc.amount.lo), hi: t.calc.amount.hi > t.calc.amount.lo ? fmt(t.calc.amount.hi) : '', unit: t.calc.unit, per: t.calc.per, freqs: [...t.calc.freqs], freq: t.calc.freq,
-            maxDose: t.calc.maxDose || '', maxDay: t.calc.maxDay || '', duration: t.calc.duration || cs.duration });
+          const t = calcFromReg(r);
+          if (!t) { toast('El texto de la dosis no dice una dosis por kg ni tramos de peso', 'error'); return; }
+          Object.assign(cs, fromCalc(t.calc), { duration: t.calc.duration || cs.duration, route: cs.route, presPref: cs.presPref });
+          review = true;
           apply(); draw(); toast(t.sure ? 'Rellenado desde el texto: revísalo' : 'Rellenado con dudas: revisa sobre todo la frecuencia y las máximas', t.sure ? 'ok' : 'error', 3500);
         } }, '↧ Rellenar desde el texto'),
-        el('button', { class: 'btn sm', type: 'button', onclick: () => { Object.assign(cs, { lo: '', hi: '', freqs: [], freq: null, maxDose: '', maxDay: '', duration: '' }); apply(); draw(); } }, 'Quitar cálculo'))].filter(Boolean));
+        el('button', { class: 'btn sm', type: 'button', onclick: () => { Object.assign(cs, { ...blank, unit: cs.unit, per: cs.per, brackets: [] }); review = false; apply(); draw(); } }, 'Quitar cálculo'))].filter(Boolean));
   };
   draw();
   apply(false);
-  return el('details', { class: 'reg-more calc-sec', open: !!start || null }, el('summary', {}, 'Cálculo por peso (calculadora)'), box);
+  // nueva indicación (sin texto ni nada): el formulario abierto
+  const fresh = !start && !str(r.text).trim() && !str(r.indication).trim() && !str(r.dose).trim();
+  return el('details', { class: 'reg-more calc-sec', open: !!start || fresh || null }, el('summary', {}, 'Cálculo por peso (calculadora)', review ? el('span', { class: 'rv-pill' }, 'Revisar') : null), box);
 }
 /** Al guardar la pauta: si se tocó «Cálculo por peso», calc nuevo (sin perKg); si no y era automático y cambió el texto, se vuelve a leer */
 function finishCalc(out, before) {
@@ -1397,7 +1607,7 @@ function finishCalc(out, before) {
     return;
   }
   if (out.calcAuto && before && str(before.text) !== str(out.text)) {
-    const t = calcFromText(out.text, { duration: str(out.duration) });
+    const t = calcFromReg(out);
     if (t?.sure) out.calc = t.calc; else { delete out.calc; delete out.calcAuto; }
   }
 }
@@ -1411,7 +1621,7 @@ export async function migrateDrugCalc() {
     let ch = false;
     const regs = (d.regimens || []).map((r) => {
       if (!r || r.calc || hasPerKg(r) || r.calcAuto === false) return r;
-      const t = calcFromText(str(r.text) || str(r.dose), { duration: str(r.duration) });
+      const t = calcFromReg(r);
       if (!t?.sure) return r;
       ch = true;
       return { ...r, calc: t.calc, calcAuto: true };
@@ -1631,6 +1841,9 @@ export function initDrugs(appCtx) {
     // v1.36.0: una sección vacía no se despliega (su «＋» abre el editor)
     const sum = e.target.closest('details.dsec.empty > summary');
     if (sum && !e.target.closest('button')) { e.preventDefault(); return; }
+    // v1.39.0: asistente de dosis (botón de la sección, icono de cada pauta, chip del peso)
+    const cb = e.target.closest('[data-calc]');
+    if (cb && curId && $('#drug-wrap').contains(cb)) { e.preventDefault(); e.stopPropagation(); calcAction(cb.dataset.calc); return; }
     const b = e.target.closest('[data-ed], [data-add]');
     if (!b || !curId || !$('#drug-wrap').contains(b)) return;
     e.preventDefault(); e.stopPropagation();

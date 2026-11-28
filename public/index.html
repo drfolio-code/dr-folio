@@ -273,9 +273,9 @@
                   <div class="dsec-body"><div id="drug-tables" class="drug-tables"></div></div>
                 </details>
                 <details class="dsec" data-sec="regs">
-                  <summary><h3>Indicaciones y dosis</h3><span class="dsec-n" data-n="regs"></span><button class="btn sm sec-add" type="button" data-add="regs" title="Añadir indicación" aria-label="Añadir indicación">＋</button><button class="icon-btn sec-ed" type="button" data-ed="regs" title="Editar las indicaciones" aria-label="Editar las indicaciones"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></button></summary>
+                  <summary><h3>Indicaciones y dosis</h3><span class="dsec-n" data-n="regs"></span><button class="btn sm calc-toggle hidden" id="drug-calc-btn" type="button" data-calc="toggle" aria-expanded="false" title="Calcular la dosis por peso"><svg class="i" aria-hidden="true"><use href="#i-calculator"/></svg><span class="lbl">Calcular dosis</span></button><button class="btn sm sec-add" type="button" data-add="regs" title="Añadir indicación" aria-label="Añadir indicación">＋</button><button class="icon-btn sec-ed" type="button" data-ed="regs" title="Editar las indicaciones" aria-label="Editar las indicaciones"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></button></summary>
                   <div class="dsec-body">
-                    <!-- v1.36.0: calculadora de dosis por peso (adulto y pediátrico; el peso no se guarda) -->
+                    <!-- v1.39.0: asistente de dosis (adulto y pediátrico): plegado; se abre con «Calcular dosis» o el icono de una pauta -->
                     <div id="drug-calc" class="dcalc hidden"></div>
                     <div id="drug-regs" class="drug-regs"></div>
                     <button class="btn sm" id="drug-add-reg" type="button">＋ Añadir indicación</button>
