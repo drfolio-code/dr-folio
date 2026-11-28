@@ -285,6 +285,14 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 ### Buscador del Vademécum siempre global (v1.35.2)
 - En cualquier vista del Vademécum (raíz, carpeta, A-Z, Favoritos, Recientes, Por revisar) la caja de búsqueda busca en **todos los fármacos del perfil** (`renderDrugSearch` en app.js): sin limitarse a la carpeta abierta ni al filtro de etiquetas. Resultados: carpetas que coinciden + fármacos (`rankDrugs`, con su ruta). Aviso «Buscando en todo el Vademécum» con botón «Incluir pediátrico/adulto» (`S.drugBoth`). La papelera sigue buscando solo en la papelera. Placeholder «Buscar en todo el Vademécum…». Notas y prerredactados mantienen la búsqueda por carpeta.
 
+### Ficha igual en adulto y pediátrico (v1.36.0, fase 1)
+- **Orden único en lectura** (los dos perfiles; sustituye al de v1.28.0): cabecera (nombre, marcas en gris, etiquetas, botones de calculadoras externas `#drug-calcs`) · `details.dsec` en este orden: **Presentaciones** (`pres`) · **Tablas por peso** (`tables`) · **Indicaciones y dosis** (`regs`, ya no es `section.dsec-fixed`: se pliega como las demás) · **Observaciones y contraindicaciones** (`obs`, una sección con dos subtítulos `.dsub[data-sub]`; su lápiz → `editList(id, 'obs')`, una hoja con las dos listas) · Sueros y compatibilidad (`compat`) · Enlaces y bibliografía (`res`) · Mis notas (`notes`).
+- Abiertas por defecto: `SEC_OPEN = {pres, tables, regs}`; el resto plegado; se recuerda en `drfolio.drugSecs`. El `toggle` solo guarda lo que cambia la persona (`det.dataset.set` = lo que abrió el programa).
+- **Secciones vacías** (`secEmpty(d)`): en lectura salen en su sitio como una fila fina discontinua (`details.dsec.empty`, no se despliega) con «＋» (`.sec-add.if-empty`, `data-add` = la sección; `sectionEdit` abre su editor). Sustituye a los chips «Añadir:» (`#drug-addmore`, eliminado). Presentaciones e Indicaciones llevan siempre su «＋».
+- **Dos columnas** (≥1100 px y panel ≥680 px): `.drug-col-a` = Presentaciones → Tablas → Indicaciones; `.drug-col-b` = el resto. Móvil: una columna en ese orden.
+- **Nada depende del perfil** salvo la etiqueta «Pediátrico» de la cabecera: el peso (`#drug-calc`, al principio de «Indicaciones y dosis») sale en cualquier ficha con alguna pauta por peso (`weightRegs`: `perKg` o mg/kg en el texto), `regView` calcula igual en adulto y pediátrico, «Dosis por kg» sale en el editor de la pauta de las dos.
+- Arreglo: en fichas adultas salía «null» delante de las etiquetas (`replaceChildren(null…)`).
+
 ### Formato del JSON de importación (Vademécum → ⋯ / «Importar»)
 Ejemplo completo en `ejemplos/vademecum-ejemplo.json`. Se acepta `{ "format": "drfolio-vademecum", "version": 1, "drugs": [ … ] }` o directamente la lista `[ … ]`. Claves en inglés o en español:
 

@@ -256,6 +256,13 @@ export async function editList(id, k) {
   const d = store.drugs.get(id);
   if (!d) return;
   if (k === 'compat') return editCompat(id);
+  if (k === 'obs') { // v1.36.0: observaciones y contraindicaciones, en la misma hoja
+    const mk = (f, ph) => { const t = el('textarea', { rows: 5, placeholder: ph }); t.value = (d[f] || []).join('\n'); return t; };
+    const o = mk('observations', 'Una por línea'), c = mk('contraindications', 'Una por línea');
+    if (await sheet('Observaciones y contraindicaciones', [el('label', { class: 'rf' }, 'Observaciones (una por línea)', o), el('label', { class: 'rf' }, 'Contraindicaciones (una por línea)', c)]) !== 'ok') return;
+    saveFields(id, { observations: lines(o.value), contraindications: lines(c.value) });
+    return;
+  }
   const ta = el('textarea', { rows: 8, placeholder: 'Una por línea' });
   ta.value = (d[k] || []).join('\n');
   if (await sheet(LIST_TITLES[k], [el('label', { class: 'rf' }, el('span', { class: 'muted small' }, 'Una por línea'), ta)]) !== 'ok') return;

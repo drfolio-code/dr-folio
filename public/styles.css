@@ -1774,3 +1774,16 @@ button.dtag { cursor: pointer; }
 #update-banner .ub-close { border: 0; background: none; color: var(--muted); font-size: 20px; line-height: 1; padding: 4px 8px; cursor: pointer; }
 @media (max-width: 400px) { #update-banner .ub-v { display: none; } }
 @keyframes ub-in { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ===== v1.36.0: ficha igual en adulto y pediátrico ===== */
+/* Secciones vacías: una fila fina con «＋», en su sitio (mismo orden en todas las fichas) */
+#drug-wrap details.dsec.empty { background: transparent; border-style: dashed; }
+#drug-wrap details.dsec.empty > summary { background: transparent; padding-top: 6px; padding-bottom: 6px; cursor: default; }
+#drug-wrap details.dsec.empty > summary h3 { color: var(--muted); font-weight: 650; font-size: 15px; }
+#drug-wrap details.dsec.empty > summary::after { display: none; }
+#drug-wrap .sec-add.if-empty { display: none !important; }
+#drug-wrap.reading:not(.in-trash):not(.notes-edit) details.dsec.empty .sec-add.if-empty { display: inline-flex !important; }
+#drug-wrap details.dsec.empty .sec-ed { display: none !important; }
+#drug-wrap .dsec .sec-add { min-width: 34px; justify-content: center; }
+#drug-wrap .drug-calcs { margin-top: 10px; }
+#drug-wrap .dcalc .drug-weight { margin: 0 0 4px; }

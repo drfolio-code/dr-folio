@@ -57,7 +57,7 @@ function fillLists(d) { for (const k of LISTS) listBox(k).value = (d[k] || []).j
 
 // v1.32.0: solo las carpetas del perfil activo (adulto / pediátrico); get/has/set van a todas
 const DF = () => profileView(store.drugFolders);
-let kg = 0;              // peso de la ficha pediátrica abierta (no se guarda; se olvida al abrir otra ficha)
+let kg = 0;              // peso de la ficha abierta (adulto o pediátrico; no se guarda; se olvida al abrir otra ficha)
 const isPed = (d) => profOf(d) === 'ped';
 const profExtra = () => (drugProfile() === 'ped' ? { profile: 'ped' } : {});
 export const currentDrug = () => curId;
@@ -752,12 +752,13 @@ function sectionEdit(ed, add) {
   if (!reading) setReading(true); // «Editar todo» abierto: se guarda y se vuelve a lectura antes
   if (add === 'regs') return editReg(id, null);
   if (add === 'pres') return editPres(id, { addNew: true });
+  if (add) ed = add; // v1.36.0: «＋» de una sección vacía = su editor
   if (ed === 'head') return editHead(id);
   if (ed === 'tags') return editTags(id);
   if (ed === 'regs') return editRegs(id);
   if (ed.startsWith('reg:')) { const i = (d.regimens || []).findIndex((r) => r.id === ed.slice(4)); return i >= 0 ? editReg(id, i) : null; }
   if (ed === 'pres') return editPres(id);
-  if (['observations', 'contraindications', 'compat'].includes(ed)) return editList(id, ed);
+  if (['obs', 'observations', 'contraindications', 'compat'].includes(ed)) return editList(id, ed);
   if (ed === 'res') return editRes(id);
   if (ed === 'tables') return editTables(id);
   if (ed === 'notes') return setNotesEdit(true);
@@ -776,22 +777,6 @@ function refreshDrug(id) {
   }
   ctx.renderList(); ctx.renderSidebar();
 }
-/** Secciones vacías (no salen en lectura): botones para añadirlas */
-function renderAddMore(d) {
-  const box = $('#drug-addmore');
-  if (!isRd() || d.trashed) { box.classList.add('hidden'); return; }
-  const miss = [
-    !(d.presentations || []).length ? ['pres', 'Presentaciones', true] : null,
-    !tablesOf(d).length ? ['tables', 'Tabla por peso'] : null,
-    !(d.observations || []).length ? ['observations', 'Observaciones'] : null,
-    !(d.contraindications || []).length ? ['contraindications', 'Contraindicaciones'] : null,
-    !(d.compat || []).length && !(d.fluids || []).length ? ['compat', 'Sueros y compatibilidad'] : null,
-    !(d.resources || []).length && !inheritedRes(d).length ? ['res', 'Enlaces y bibliografía'] : null
-  ].filter(Boolean);
-  box.classList.toggle('hidden', !miss.length);
-  box.replaceChildren(el('span', { class: 'muted small' }, 'Añadir:'), ...miss.map(([k, l, add]) => el('button', { class: 'chip', type: 'button', ...(add ? { 'data-add': k } : { 'data-ed': k }) }, `＋ ${l}`)));
-}
-
 function toggleToc() {
   if (!curId || !bodyReady) return;
   const on = editor.toggleTocBlock();
@@ -837,7 +822,7 @@ function renderChrome() {
   renderBrands();
   renderScopes();
   renderCalcs();
-  renderWeight(d);
+  renderCalc(d);
   renderFluids();
   renderPres();
   renderRegs();
@@ -847,7 +832,6 @@ function renderChrome() {
   renderSource();
   applySections();
   renderBacklinks();
-  renderAddMore(d);
   renderInfo(d);
 }
 
@@ -857,8 +841,8 @@ function renderScopes() {
   const box = $('#drug-scopes');
   const cur = tagsOf(d);
   box.classList.toggle('hidden', !!d.trashed && !cur.length && !isPed(d));
-  box.replaceChildren(isPed(d) ? el('span', { class: 'prof-badge big' }, 'Pediátrico') : null, ...cur.map((t) => tagChip(t)),
-    d.trashed ? null : el('button', { class: `chip scope-ed ${isRd() ? 'sec-ed' : ''}`, type: 'button', 'data-ed': 'tags', title: 'Editar las etiquetas', 'aria-label': 'Editar las etiquetas' }, icon('pencil'), cur.length ? null : ' Etiquetas'));
+  box.replaceChildren(...[isPed(d) ? el('span', { class: 'prof-badge big' }, 'Pediátrico') : null, ...cur.map((t) => tagChip(t)),
+    d.trashed ? null : el('button', { class: `chip scope-ed ${isRd() ? 'sec-ed' : ''}`, type: 'button', 'data-ed': 'tags', title: 'Editar las etiquetas', 'aria-label': 'Editar las etiquetas' }, icon('pencil'), cur.length ? null : ' Etiquetas')].filter(Boolean));
 }
 
 // ---------- Sueros compatibles (chips) ----------
@@ -895,8 +879,9 @@ function renderLists() {
     ul.replaceChildren(...items.map((x) => el('li', {}, x)));
     ul.classList.toggle('hidden', !rd);
     listBox(k).classList.toggle('hidden', rd);
-    const empty = !items.length && !(k === 'compat' && (d.fluids || []).length);
-    ul.closest('details').classList.toggle('hidden', rd && empty);
+    // v1.36.0: observaciones y contraindicaciones van en la misma sección (cada una con su subtítulo)
+    const sub = document.querySelector(`#drug-wrap .dsub[data-sub="${k}"]`);
+    if (sub) sub.classList.toggle('hidden', rd && !items.length);
   }
   $('#drug-compat-lbl').classList.toggle('hidden', rd && (!(d.compat || []).length || !(d.fluids || []).length));
 }
@@ -924,15 +909,33 @@ const secState = () => { try { return JSON.parse(localStorage.getItem(SEC_KEY)) 
 function applySections() {
   const st = secState();
   const d = store.drugs.get(curId);
+  const rd = isRd();
+  const empty = d ? secEmpty(d) : {};
   for (const det of document.querySelectorAll('#drug-wrap details.dsec')) {
     const k = det.dataset.sec;
-    det.open = isRd() ? (st[k] ?? SEC_OPEN[k] ?? false) : true;
-    if (k === 'pres') det.classList.toggle('hidden', isRd() && !(d?.presentations || []).length);
+    const e = rd && !!empty[k];
+    det.classList.toggle('empty', e);
+    const open = rd ? (!e && (st[k] ?? SEC_OPEN[k] ?? false)) : true;
+    det.dataset.set = open ? '1' : '0'; // para no guardar como preferencia lo que abre o cierra el programa
+    det.open = open;
   }
   renderCounts(d);
 }
-// v1.28.0: en lectura solo Presentaciones empieza abierta; Indicaciones no se pliega nunca; el resto, plegado
-const SEC_OPEN = { pres: true, tables: true };
+// v1.36.0: Presentaciones, Tablas e Indicaciones empiezan abiertas; el resto, plegado (se recuerda en drfolio.drugSecs)
+const SEC_OPEN = { pres: true, tables: true, regs: true };
+/** Secciones sin nada (en lectura salen como una fila fina con «＋», en su sitio) */
+function secEmpty(d) {
+  const notesTxt = drugBodyOf(d.id)?.text?.trim();
+  return {
+    pres: !(d.presentations || []).length,
+    tables: !tablesOf(d).length,
+    regs: !(d.regimens || []).length,
+    obs: !(d.observations || []).length && !(d.contraindications || []).length,
+    compat: !(d.fluids || []).length && !(d.compat || []).length,
+    res: !(d.resources || []).length && !inheritedRes(d).length,
+    notes: !notesEdit && (!(d.bodyAt > 0) || (bodyReady && !notesTxt))
+  };
+}
 /** Nº de elementos junto al título de cada sección (se ve aunque esté plegada) */
 function renderCounts(d) {
   if (!d) return;
@@ -940,7 +943,7 @@ function renderCounts(d) {
   const notesTxt = drugBodyOf(d.id)?.text?.trim();
   const n = {
     regs: (d.regimens || []).length, pres: (d.presentations || []).length,
-    observations: (d.observations || []).length, contraindications: (d.contraindications || []).length,
+    obs: (d.observations || []).length + (d.contraindications || []).length,
     compat: (d.fluids || []).length + (d.compat || []).length, res: own, tables: tablesOf(d).length, notes: d.bodyAt > 0 && notesTxt !== '' ? '✎' : 0
   };
   for (const x of document.querySelectorAll('#drug-wrap .dsec-n')) {
@@ -1101,7 +1104,7 @@ function regGroupView(name, g) {
 /** Pauta en lectura (v1.28.0): [tipo] dosis bien legible, dosis máxima destacada y un botón Copiar grande
  *  que copia la línea de tratamiento completa (lineOf: nombre + presentación + dosis…) */
 function regView(name, r) {
-  const line = lineOf(name, r, isPed(store.drugs.get(curId)) ? kg : 0);
+  const line = lineOf(name, r, kg);
   const type = r.type || '';
   const route = str(r.route).trim();
   const perKgTxt = !str(r.dose).trim() && hasPerKg(r) ? `${fmt(parseNum(r.perKg))} ${str(r.perKgUnit) || 'mg'}/kg` : '';
@@ -1110,11 +1113,10 @@ function regView(name, r) {
   const chip = type || (route.length <= 14 ? route : routeType(route) || route.split(/[\s(/,]+/)[0]);
   const nr = norm(route), nc = norm(chip);
   const routeSaid = !route || main === route || nr === nc || (nr.includes(nc.slice(0, 6)) && route.split(/\s+/).length <= 2);
-  const isP = isPed(store.drugs.get(curId));
-  const ped = isP && hasPerKg(r);
+  const ped = hasPerKg(r); // v1.36.0: igual en adulto y pediátrico
   const calc = ped ? pedCalc(r, kg) : null;
   // v1.34.2: sin «Dosis por kg», se calcula con las dosis por kg que dice el texto («60 mg/kg/día», «0,2 mg/kg»…)
-  const tFrom = isP && !ped ? (str(r.text) || str(r.dose)) : '';
+  const tFrom = !ped ? (str(r.text) || str(r.dose)) : '';
   const tOk = !!tFrom && perKgInText(tFrom).length > 0;
   const tCalc = tOk ? textCalc(tFrom, kg) : null;
   const max = maxText(r, main);
@@ -1140,7 +1142,7 @@ function regView(name, r) {
     ...regResLinks(r),
     el('button', {
       class: 'reg-copy big', type: 'button', title: `Copiar: ${line}`, 'aria-label': `Copiar: ${line}`,
-      onclick: (e) => { const dd = store.drugs.get(curId); copyLine(lineOf(dd?.name, r, isPed(dd) ? kg : 0), e.currentTarget); }
+      onclick: (e) => { const dd = store.drugs.get(curId); copyLine(lineOf(dd?.name, r, kg), e.currentTarget); }
     }, icon('copy'), el('span', {}, 'Copiar')),
     el('button', { class: 'icon-btn reg-ed sec-ed', type: 'button', 'data-ed': `reg:${r.id}`, title: 'Editar esta indicación', 'aria-label': 'Editar esta indicación' }, icon('pencil')));
 }
@@ -1221,7 +1223,7 @@ function addRegimen() {
 function renderTables(d) {
   const list = tablesOf(d);
   const sec = $('#drug-tables-sec');
-  sec.classList.toggle('hidden', !list.length || !isRd());
+  sec.classList.toggle('hidden', !isRd()); // en «Editar todo» no se editan aquí
   const box = $('#drug-tables');
   const id = d.id;
   box.replaceChildren(...list.map((t) => {
@@ -1236,22 +1238,30 @@ function renderTables(d) {
 }
 
 // ---------- Pediátrico (v1.32.0): peso de la ficha abierta ----------
-function renderWeight(d) {
-  const box = $('#drug-weight');
-  const on = isPed(d) && !d.trashed;
+const weightRegs = (d) => (d.regimens || []).filter((r) => hasPerKg(r) || perKgInText(str(r.text) || str(r.dose)).length);
+/** Peso de la ficha abierta, al principio de «Indicaciones y dosis» (cualquier ficha con alguna pauta por peso) */
+function renderCalc(d) {
+  const box = $('#drug-calc');
+  const on = !d.trashed && isRd() && weightRegs(d).length > 0;
   box.classList.toggle('hidden', !on);
   if (!on) return;
+  if (!box.querySelector('.w-in')) {
+    const inp = el('input', { type: 'text', inputmode: 'decimal', enterkeyhint: 'done', placeholder: '—', maxlength: 6, autocomplete: 'off', 'aria-label': 'Peso en kg' });
+    inp.addEventListener('input', onWeight);
+    box.replaceChildren(el('div', { class: 'drug-weight' },
+      el('label', { class: 'w-in' }, el('span', {}, 'Peso'), inp, el('span', {}, 'kg')),
+      el('span', { class: 'w-warn' }, icon('triangle-alert'), ' Comprueba la dosis calculada'),
+      el('span', { class: 'w-hint muted small' })));
+  }
   const inp = box.querySelector('input');
   if (document.activeElement !== inp) inp.value = kg ? fmt(kg) : '';
-  const any = (d.regimens || []).some((r) => hasPerKg(r) || perKgInText(str(r.text) || str(r.dose)).length);
-  box.querySelector('.w-hint').textContent = !any ? 'Ninguna pauta tiene dosis por kg: usa la tabla por peso (o lápiz de la pauta → «Dosis por kg»).'
-    : kg && validKg(kg) ? '' : 'Escribe el peso para calcular las dosis.';
+  box.querySelector('.w-hint').textContent = kg && validKg(kg) ? '' : 'Escribe el peso para calcular las dosis.';
 }
 function onWeight() {
-  const v = parseNum($('#drug-weight input').value);
+  const v = parseNum($('#drug-calc input').value);
   kg = validKg(v) ? v : 0;
   const d = store.drugs.get(curId);
-  if (d && isPed(d) && isRd()) { renderRegs(); renderWeight(d); }
+  if (d && isRd()) { renderRegs(); renderCalc(d); }
 }
 /** Editor de pauta (ficha pediátrica): dosis por kg + unidad; la máxima va en «Dosis máxima» */
 function pedFields(r, sync) {
@@ -1260,7 +1270,7 @@ function pedFields(r, sync) {
   u.value = r.perKgUnit || 'mg';
   n.addEventListener('input', () => { r.perKg = n.value.trim(); if (r.perKg && !r.perKgUnit) r.perKgUnit = u.value; sync(); });
   u.addEventListener('change', () => { r.perKgUnit = u.value; sync(); });
-  return el('div', { class: 'rf ped-fields' }, 'Dosis por kg (pediátrico)',
+  return el('div', { class: 'rf ped-fields' }, 'Dosis por kg',
     el('div', { class: 'ped-row' }, n, u),
     el('span', { class: 'muted small' }, 'Pon la dosis máxima absoluta en «Dosis máxima» (campos detallados), p. ej. «1 g»: el cálculo no la pasa. La presentación con concentración («100 mg/ml») da el volumen.'));
 }
@@ -1429,7 +1439,6 @@ async function duplicateDrug(id) {
 export function initDrugs(appCtx) {
   ctx = appCtx;
   setProfileFn(drugProfile);
-  $('#drug-weight input').addEventListener('input', onWeight);
   editor = ctx.editor;
   $('#drug-title').addEventListener('input', () => { changedLight(); if (!reading) renderRegsLines(); });
   $('#drug-title').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#drug-brand-input').focus(); } });
@@ -1447,7 +1456,8 @@ export function initDrugs(appCtx) {
   $('#drug-fluid-dl').replaceChildren(...FLUIDS.map((v) => el('option', { value: v })));
   for (const det of document.querySelectorAll('#drug-wrap details.dsec')) {
     det.addEventListener('toggle', () => {
-      if (!curId || !isRd()) return;
+      if (!curId || !isRd() || det.classList.contains('empty') || (det.dataset.set === '1') === det.open) return;
+      det.dataset.set = det.open ? '1' : '0';
       const st = secState(); st[det.dataset.sec] = det.open;
       try { localStorage.setItem(SEC_KEY, JSON.stringify(st)); } catch { /* nada */ }
     });
@@ -1461,6 +1471,9 @@ export function initDrugs(appCtx) {
   $('#drug-edit').addEventListener('click', () => { if (notesEdit) setNotesEdit(false); else setReading(!reading); });
   // v1.29.0: lápices de cada sección (también dentro de los títulos plegables: no pliegan) y «＋» rápidos
   $('#drug-wrap').addEventListener('click', (e) => {
+    // v1.36.0: una sección vacía no se despliega (su «＋» abre el editor)
+    const sum = e.target.closest('details.dsec.empty > summary');
+    if (sum && !e.target.closest('button')) { e.preventDefault(); return; }
     const b = e.target.closest('[data-ed], [data-add]');
     if (!b || !curId || !$('#drug-wrap').contains(b)) return;
     e.preventDefault(); e.stopPropagation();
@@ -1483,7 +1496,7 @@ export function initDrugs(appCtx) {
       }
       return parent;
     },
-    extraFields: (r, sync) => (isPed(store.drugs.get(curId)) ? pedFields(r, sync) : null),
+    extraFields: (r, sync) => pedFields(r, sync), // v1.36.0: en adulto y pediátrico
     hasExtra: (r) => hasPerKg(r),
     write: (id, light) => writeDrug(id, light),
     refresh: refreshDrug,
@@ -1742,7 +1755,7 @@ function renderRes() {
   const inh = inheritedRes(d);
   const nInh = inh.reduce((s, g) => s + g.items.length, 0);
   if (rd) {
-    sec.classList.toggle('hidden', !own.length && !nInh);
+    sec.classList.remove('hidden');
     const items = [...own.map((r) => ({ r })), ...inh.flatMap((g) => g.items.map((r) => ({ r, from: g.folder })))];
     box.replaceChildren(...byKind(items).map((g) => el('div', { class: 'res-group' },
       el('div', { class: 'pres-glabel' }, g.label), ...g.items.map((x) => resRow(x.r, x.from)))));
