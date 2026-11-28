@@ -32,9 +32,9 @@ import {
   pasteChuletario, scopeOk, pickDrug, onDrugEditorChange, drugImageOwner, isDrugReading, editFolderResources, TEMPLATE_URL
 } from './drugs.js';
 import { mergeResources, resFileIds } from './drugres.js';
-import { reorgPending, openReorg, dismissReorg } from './drugreorg.js';
+import { reorgPending, openReorg, dismissReorg, createPedFolders } from './drugreorg.js';
 import { liveTags, tagFilter, setTagFilter, toggleTagFilter, tagChip, manageTags, migrateDrugTags } from './drugtags.js';
-import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies } from './drugbody.js';
+import { drugMatches, rankDrugs, byName, liveDrugs, clearDrugBodies, drugProfile, setDrugProfile, profileView, profOf } from './drugbody.js';
 import {
   startChat, stopChat, chatShown, unreadCount, chatReady, chatSearch, chatCard, chatFileIds, chatFilesInUse, fetchAllChat,
   settingsChanged, refreshChat, consumeShare, ttlDays, setTtl, TTL_OPTIONS
@@ -134,7 +134,7 @@ const TREES = {
   },
   // Vademécum (v1.18.0): carpetas por grupo terapéutico (p. ej. Analgésicos › AINE), elementos = fichas de fármacos
   drugs: {
-    id: 'drugs', col: 'drugFolders', itemCol: 'drugs', map: () => store.drugFolders,
+    id: 'drugs', col: 'drugFolders', itemCol: 'drugs', map: () => profileView(store.drugFolders), // v1.32.0: solo las del perfil activo
     root: 'drugs', folder: 'dfolder', views: ['daz', 'dfav', 'drecent', 'dreview', 'dtrash'],
     rootHash: '#/vademecum', rootName: 'Vademécum', rootIcon: 'pill',
     one: 'fármaco', many: 'fármacos',
@@ -161,16 +161,18 @@ const TREES = {
       el('button', { class: 'btn', type: 'button', onclick: () => importDrugs(folderId) }, icon('file-up'), ' Importar'),
       el('button', { class: 'btn', type: 'button', onclick: () => pasteChuletario({ folderId }) }, icon('clipboard-paste'), ' Pegar del Chuletario'),
       // Plantilla de carpetas: en la raíz (también en ⋯ y en el aviso de arriba)
-      !folderId ? el('button', { class: 'btn', type: 'button', onclick: () => importTemplate() }, icon('folder-plus'), ' Plantilla de carpetas') : null],
+      !folderId && drugProfile() === 'ped' ? el('button', { class: 'btn', type: 'button', onclick: () => createPedFolders({ render: () => { renderList(); renderSidebar(); } }) }, icon('folder-plus'), ' Carpetas pediátricas') : null,
+      !folderId && drugProfile() !== 'ped' ? el('button', { class: 'btn', type: 'button', onclick: () => importTemplate() }, icon('folder-plus'), ' Plantilla de carpetas') : null],
     menuExtra: (folderId) => [
       folderId ? { icon: 'book-open', label: 'Enlaces y bibliografía…', onClick: () => editFolderResources(folderId) } : null,
       { icon: 'list-plus', label: folderId ? 'Añadir varios aquí…' : 'Añadir varios…', onClick: () => addManyDrugs(folderId) },
       { icon: 'file-up', label: folderId ? 'Importar fichas aquí (JSON)…' : 'Importar fichas (JSON)…', onClick: () => importDrugs(folderId) },
       { icon: 'clipboard-paste', label: 'Pegar del Chuletario…', onClick: () => pasteChuletario({ folderId }) },
-      { icon: 'folder-plus', label: 'Plantilla de carpetas (AP, urgencias, montaña)…', onClick: () => importTemplate() },
-      { icon: 'combine', label: 'Unir fichas repetidas (mismo principio activo)…', onClick: () => mergeDuplicates() },
+      drugProfile() === 'ped' ? { icon: 'folder-plus', label: 'Crear carpetas pediátricas…', onClick: () => createPedFolders({ render: () => { renderList(); renderSidebar(); } }) }
+        : { icon: 'folder-plus', label: 'Plantilla de carpetas (AP, urgencias, montaña)…', onClick: () => importTemplate() },
+      drugProfile() === 'ped' ? null : { icon: 'combine', label: 'Unir fichas repetidas (mismo principio activo)…', onClick: () => mergeDuplicates() },
       { icon: 'tag', label: 'Etiquetas…', onClick: () => openTagAdmin() },
-      !folderId ? { icon: 'folder-input', label: 'Reorganizar carpetas por grupo terapéutico…', onClick: () => runReorg() } : null],
+      !folderId && drugProfile() !== 'ped' ? { icon: 'folder-input', label: 'Reorganizar carpetas por grupo terapéutico…', onClick: () => runReorg() } : null],
     txt: {
       Many: 'Fármacos', newBtn: '＋ Fármaco', newOne: 'Nuevo fármaco', newHere: 'Nuevo fármaco aquí', folderHint: 'Grupo (p. ej. Analgésicos)',
       loose: 'Sin carpeta', itemsHere: 'Fármacos', rootDest: '«Vademécum» (sin carpeta)',
@@ -380,6 +382,7 @@ function startApp(user) {
     showList: () => showList(),
     showPane,
     newFolder: (parentId) => newFolder(parentId, TREES.drugs),
+    onProfile: () => onDrugProfile(false),
     openNote: (id) => openNote(id, { push: true }),
     openFile: (fileId, name) => openViewer({ fileId, name, mime: 'application/pdf' }),
     dropFiles: (ids) => dropUnusedFiles(ids)
@@ -1093,9 +1096,11 @@ const SEARCH_SOURCES = [
   },
   {
     // Vademécum: principio activo, nombres comerciales, presentaciones e indicaciones (sin tildes ni mayúsculas)
-    id: 'drugs', name: 'Vademécum', icon: 'pill', all: 'Ver todos los fármacos', none: 'No hay fármacos que coincidan.',
+    id: 'drugs', get name() { return S.drugBoth ? 'Vademécum (adulto y pediátrico)' : drugProfile() === 'ped' ? 'Vademécum pediátrico' : 'Vademécum'; },
+    icon: 'pill', all: 'Ver todos los fármacos', none: 'No hay fármacos que coincidan.',
     loaded: () => store.loaded.drugs,
-    run: (words) => rankDrugs(liveDrugs().filter((d) => drugMatches(d, words)), words),
+    // v1.32.0: el perfil activo; con «Buscar también en …», los dos
+    run: (words) => rankDrugs(liveDrugs(S.drugBoth ? 'all' : drugProfile()).filter((d) => drugMatches(d, words)), words),
     card: (d, q) => drugCard(d, { search: q, showPath: true, onLongPress: longPressed, onOpen: openDrugInVademecum })
   },
   {
@@ -1179,7 +1184,13 @@ function renderFind() {
         S.findFilter === 'all' ? `${src.all} (${list.length})` : `Mostrando ${max} de ${list.length}. Afina la búsqueda.`));
     }
   }
-  if (!out.some((x) => !x.classList.contains('cs-bar'))) out.push(el('div', { class: 'list-empty' }, `Sin resultados para «${q.trim()}».`));
+  // v1.32.0: buscar también en el otro perfil del Vademécum (adulto / pediátrico)
+  const other = drugProfile() === 'ped' ? 'adult' : 'ped';
+  if (words.length && (S.findFilter === 'all' || S.findFilter === 'drugs') && (S.drugBoth || liveDrugs(other).length)) {
+    out.push(el('button', { class: 'btn sm find-more', type: 'button', onclick: () => { S.drugBoth = !S.drugBoth; renderFind(); } },
+      icon('pill'), S.drugBoth ? ` Buscar solo en el ${drugProfile() === 'ped' ? 'pediátrico' : 'adulto'}` : ` Buscar también en el ${other === 'ped' ? 'pediátrico' : 'adulto'}`));
+  }
+  if (!out.some((x) => !x.classList.contains('cs-bar') && !x.classList.contains('find-more'))) out.unshift(el('div', { class: 'list-empty' }, `Sin resultados para «${q.trim()}».`));
   box.replaceChildren(...out);
 }
 
@@ -1236,7 +1247,7 @@ function renderSidebar() {
       navItem('star', 'Favoritos', all.filter((x) => x.favorite).length, 'dfav'),
       navItem('clock', 'Recientes', null, 'drecent'),
       navItem('triangle-alert', 'Por revisar', all.filter((x) => x.reviewed === false).length, 'dreview'),
-      navItem('trash-2', 'Papelera', [...store.drugs.values()].filter((x) => x.trashed).length, 'dtrash')));
+      navItem('trash-2', 'Papelera', [...store.drugs.values()].filter((x) => x.trashed && profOf(x) === drugProfile()).length, 'dtrash')));
   } else {
     const all = allSnippets();
     body.push(el('nav', { class: 'side-nav' },
@@ -1372,7 +1383,7 @@ async function newFolder(parentId, T = TREES.notes) {
   if (!name) return;
   const id = newId(T.col);
   const now = Date.now();
-  const data = { name, parentId: parentId || null, color: null, order: now, createdAt: now, updatedAt: now };
+  const data = { name, parentId: parentId || null, color: null, order: now, createdAt: now, updatedAt: now, ...(T.id === 'drugs' && drugProfile() === 'ped' ? { profile: 'ped' } : {}) };
   T.map().set(id, { id, ...data }); // visible al instante
   put(T.col, id, data);
   if (parentId && T.id === 'notes') { S.expanded.add(parentId); localStorage.setItem('drfolio.expanded', JSON.stringify([...S.expanded])); }
@@ -1651,7 +1662,7 @@ function viewTitle() {
   if (v.type === 'sfav') return 'Favoritos';
   if (v.type === 'sused') return 'Más usados';
   if (v.type === 'srecent') return 'Recientes';
-  if (v.type === 'drugs') return 'Vademécum';
+  if (v.type === 'drugs') return drugProfile() === 'ped' ? 'Vademécum pediátrico' : 'Vademécum';
   if (v.type === 'daz') return 'Vademécum A-Z';
   if (v.type === 'dfav') return 'Fármacos favoritos';
   if (v.type === 'drecent') return 'Consultados recientemente';
@@ -1800,11 +1811,18 @@ function renderDrugView(box, T) {
         onclick: () => { toggleTagFilter(t.id); renderList(); renderSidebar(); } }, f.includes(t.id) ? icon('check') : null, t.name)),
       el('button', { type: 'button', class: 'find-chip tag-manage', title: 'Gestionar etiquetas', 'aria-label': 'Gestionar etiquetas', onclick: () => openTagAdmin() }, icon('tag'), tags.length ? null : ' Etiquetas…'));
   };
+  const ped = drugProfile() === 'ped';
   if (v.type === T.root || v.type === T.folder) {
     renderExplorer(box, T);
     box.prepend(scopeBar());
+    if (ped && v.type === T.root && !liveDrugs('ped').length) {
+      box.prepend(el('div', { class: 'tpl-banner' }, el('span', { class: 'tpl-ico' }, icon('pill')),
+        el('div', { class: 'tpl-txt' }, el('b', {}, 'Vademécum pediátrico'),
+          el('span', {}, 'Empieza vacío: añade solo tus fármacos de referencia, con «＋ Fármaco» o desde una ficha adulta (⋯ → «Crear ficha pediátrica a partir de esta»). Las pautas pueden ir por kg: en la ficha escribes el peso y calcula la dosis.')),
+        el('div', { class: 'tpl-btns' }, el('button', { class: 'btn primary', type: 'button', onclick: () => createPedFolders({ render: () => { renderList(); renderSidebar(); } }) }, 'Crear carpetas pediátricas'))));
+    }
     // v1.24.0: si hay principios activos con más de una ficha, aviso para unirlas
-    const dups = v.type === T.root ? duplicateCount() : 0;
+    const dups = v.type === T.root && !ped ? duplicateCount() : 0;
     if (dups) {
       box.prepend(el('div', { class: 'tpl-banner dup-banner' },
         el('span', { class: 'tpl-ico' }, icon('combine')),
@@ -1813,7 +1831,7 @@ function renderDrugView(box, T) {
         el('div', { class: 'tpl-btns' }, el('button', { class: 'btn primary', type: 'button', onclick: () => mergeDuplicates() }, 'Revisar y unir'))));
     }
     // v1.30.0: organización antigua (carpetas por contexto) → aviso para pasar a la de grupos terapéuticos
-    if (v.type === T.root && reorgPending()) {
+    if (v.type === T.root && !ped && reorgPending()) {
       box.prepend(el('div', { class: 'tpl-banner' },
         el('span', { class: 'tpl-ico' }, icon('folder-input')),
         el('div', { class: 'tpl-txt' }, el('b', {}, 'Nueva organización por carpetas'),
@@ -1823,7 +1841,7 @@ function renderDrugView(box, T) {
           el('button', { class: 'btn', type: 'button', onclick: () => { dismissReorg(); renderList(); } }, 'Ahora no'))));
     }
     // Aviso bien visible arriba mientras no se haya cargado (o descartado) la versión actual de la plantilla
-    if (v.type === T.root && templatePending()) {
+    if (v.type === T.root && !ped && templatePending()) {
       box.prepend(el('div', { class: 'tpl-banner' },
         el('span', { class: 'tpl-ico' }, icon('folder-plus')),
         ...(templateState().templateVersion
@@ -1835,6 +1853,7 @@ function renderDrugView(box, T) {
           el('button', { class: 'btn primary', type: 'button', onclick: () => importTemplate() }, templateState().templateVersion ? 'Actualizar' : 'Cargar'),
           el('button', { class: 'btn', type: 'button', onclick: () => { dismissTemplate(); renderList(); } }, 'Ahora no'))));
     }
+    box.prepend(profileSwitch());
     return;
   }
   let list = drugsForView(v.type);
@@ -1855,13 +1874,34 @@ function renderDrugView(box, T) {
           : v.type === 'dreview' ? 'No hay fichas pendientes de revisar ✓'
             : v.type === 'dtrash' ? 'La papelera del Vademécum está vacía.' : 'Aún no hay fármacos. Crea el primero con ＋ o usa «Añadir varios».'));
     if (tagFilter().length && v.type !== 'dtrash') box.prepend(scopeBar(), el('div', { class: 'fx-hint' }, 'Filtro de etiquetas activo: solo salen las fichas con todas las elegidas. Toca «Todas».'));
+    box.prepend(profileSwitch());
     return;
   }
   if (v.type !== 'dtrash') head.unshift(scopeBar());
+  head.unshift(profileSwitch());
   const wrap = el('div', { class: `fx ${S.layout === 'grid' ? 'grid' : ''}` }, ...head);
   if (v.type === 'daz' && !q) wrap.append(...drugsAZ(list));
   else wrap.append(drugsBlock(list, { showPath: true }));
   box.replaceChildren(wrap);
+}
+
+/** v1.32.0: selector «Adulto | Pediátrico» arriba del Vademécum (por dispositivo, drfolio.drugProfile) */
+function profileSwitch() {
+  const p = drugProfile();
+  const b = (k, label) => el('button', { type: 'button', class: `${p === k ? 'on' : ''} ${k}`, 'aria-pressed': String(p === k),
+    onclick: () => { if (p === k) return; setDrugProfile(k); onDrugProfile(true); } }, label);
+  return el('div', { class: 'prof-switch', role: 'group', 'aria-label': 'Perfil del Vademécum' }, b('adult', 'Adulto'), b('ped', 'Pediátrico'));
+}
+/** Tras cambiar de perfil: fuera de carpetas del otro perfil, y a repintar */
+function onDrugProfile(fromSwitch = false) {
+  const v = S.view;
+  const f = v.type === 'dfolder' ? store.drugFolders.get(v.id) : null;
+  if (fromSwitch && isDrugView()) {
+    if (currentDrug() && profOf(store.drugs.get(currentDrug())) !== drugProfile()) { closeDrug(); showPane('empty'); }
+    if (v.type === 'dfolder') { setView({ type: 'drugs', id: null }); return; }
+  } else if (f && profOf(f) !== drugProfile()) S.view = { type: 'drugs', id: null };
+  S.search = ''; $('#search').value = '';
+  renderSection(); renderSidebar(); renderList();
 }
 
 /** A-Z con letras (sin tildes) y una barra para saltar a cada letra */
@@ -1939,7 +1979,7 @@ function renderExplorer(box, T) {
         count != null ? el('span', { class: 'fx-tile-n' }, count) : null))));
     // En el móvil no hay barra lateral: Papelera (Vademécum), aquí
     if (T.id === 'drugs') {
-      const nTrash = [...store.drugs.values()].filter((d) => d.trashed).length;
+      const nTrash = [...store.drugs.values()].filter((d) => d.trashed && profOf(d) === drugProfile()).length;
       wrap.append(el('div', { class: 'fx-extra' },
         el('button', { class: 'fx-tile', type: 'button', onclick: () => setView({ type: 'dtrash', id: null }) },
           el('span', { class: 'fx-tile-ico' }, icon('trash-2')), el('span', { class: 'fx-tile-lbl' }, 'Papelera'), el('span', { class: 'fx-tile-n' }, nTrash || ''))));

@@ -1704,3 +1704,35 @@ button.dtag { cursor: pointer; }
 #drug-scopes .dtag { font-size: 12.5px; }
 @media (pointer: fine) { .tag-bar { flex-wrap: wrap; } }
 .toast.has-undo > span { white-space: nowrap; }
+
+/* ===== v1.32.0: perfil pediátrico ===== */
+.drug-weight { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; border: 1.5px solid #f59e0b; background: #fffbeb; }
+@media (prefers-color-scheme: dark) { .drug-weight { background: #2e2210; border-color: #a16207; } }
+.w-in { display: inline-flex; align-items: center; gap: 8px; font-weight: 750; font-size: 16px; }
+.w-in input { width: 90px; font-size: 20px; font-weight: 800; text-align: center; padding: 6px 8px; min-height: 44px; }
+.w-warn { display: inline-flex; align-items: center; gap: 4px; color: #b45309; font-weight: 750; font-size: 13.5px; }
+@media (prefers-color-scheme: dark) { .w-warn { color: #fcd34d; } }
+.w-hint:empty { display: none; }
+.w-hint { flex-basis: 100%; }
+.reg-calc { margin-top: 3px; font-size: 14px; color: var(--text); line-height: 1.35; }
+.reg-calc b { font-size: calc(var(--dtxt, 16px) * 1.05); color: #047857; }
+@media (prefers-color-scheme: dark) { .reg-calc b { color: #6ee7b7; } }
+.reg-calc.nokg { color: var(--muted); font-size: 13px; }
+.reg-calc.capped b, .cap-warn { color: #b91c1c; }
+@media (prefers-color-scheme: dark) { .reg-calc.capped b, .cap-warn { color: #fca5a5; } }
+.cap-warn { font-weight: 700; }
+.ped-row { display: flex; gap: 8px; }
+.ped-row input { flex: 1; min-width: 0; }
+.ped-row select { width: auto; }
+.prof-switch { display: flex; gap: 0; margin: 0 0 8px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.fx .prof-switch, .list-body > .prof-switch { margin: 0 0 8px; }
+.prof-switch button { flex: 1; min-height: 38px; border: 0; background: var(--panel); color: var(--muted); font: inherit; font-weight: 750; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.prof-switch button.on { background: var(--accent); color: #fff; }
+.prof-switch button.on.ped { background: #d97706; }
+.prof-badge { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 10px; background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 800; vertical-align: 2px; }
+@media (prefers-color-scheme: dark) { .prof-badge { background: #3a2a07; color: #fcd34d; } }
+.ped-groups { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow: auto; }
+.ped-groups label { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
+.ped-groups label.sub { padding-left: 26px; font-size: 14px; color: var(--muted); }
+.modal .ped-groups input[type=checkbox] { width: 18px !important; height: 18px !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; flex: none; }
+.prof-badge.big { font-size: 12.5px; padding: 3px 10px; margin: 0; vertical-align: 0; }

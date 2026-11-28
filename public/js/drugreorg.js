@@ -185,3 +185,66 @@ export async function openReorg(ctx) {
   toast(`Reorganizado ✓ ${plan.moves.length} ficha(s) movida(s), ${created.length} carpeta(s) nueva(s), ${plan.del.length} borrada(s)`, 'ok', 5000);
   ctx.render();
 }
+
+// ====================== Carpetas pediátricas (v1.32.0) ======================
+/** La misma estructura de grupos terapéuticos que la plantilla v5 (tools/mk_template5.py → STRUCTURE) */
+export const GROUPS = [
+  'Analgesia y anestesia › Analgésicos', 'Analgesia y anestesia › AINE', 'Analgesia y anestesia › Opioides', 'Analgesia y anestesia › Anestésicos locales y sedación',
+  'Cardiovascular › Antihipertensivos y diuréticos', 'Cardiovascular › Antiarrítmicos y vasoactivos',
+  'Cardiovascular › Cardiopatía isquémica e insuficiencia cardiaca', 'Cardiovascular › Hipolipemiantes',
+  'Respiratorio', 'Digestivo',
+  'Antiinfecciosos › Antibacterianos', 'Antiinfecciosos › Antivirales, antifúngicos y antiparasitarios', 'Antiinfecciosos › Vacunas e inmunoglobulinas',
+  'Neurología y psiquiatría › Neurología', 'Neurología y psiquiatría › Psiquiatría',
+  'Endocrino y metabolismo', 'Sangre y anticoagulación', 'Alergia e inmunología', 'Dermatología', 'Oftalmología y ORL',
+  'Urología y ginecología', 'Aparato locomotor', 'Sueros y electrolitos', 'Antídotos'
+];
+/** Vademécum pediátrico → «Crear carpetas pediátricas»: elige qué grupos (y subcarpetas) crear */
+export async function createPedFolders(ctx) {
+  const tops = [];
+  for (const p of GROUPS) { const [t, sub] = p.split(SEP); let g = tops.find((x) => x.name === t); if (!g) tops.push(g = { name: t, subs: [] }); if (sub) g.subs.push(sub); }
+  const pedChild = (parent, name) => [...DF().values()].find((x) => x.profile === 'ped' && (x.parentId || null) === parent && nk(x.name) === nk(name));
+  const checks = [];
+  const box = el('div', { class: 'ped-groups' });
+  for (const g of tops) {
+    const exists = !!pedChild(null, g.name);
+    const c = el('input', { type: 'checkbox', checked: false, disabled: exists });
+    const subs = g.subs.map((sname) => {
+      const sx = exists && pedChild(pedChild(null, g.name).id, sname);
+      const sc = el('input', { type: 'checkbox', checked: false, disabled: !!sx });
+      checks.push({ top: g.name, sub: sname, c: sc, parent: c });
+      return el('label', { class: 'sub' }, sc, ` ${sname}${sx ? ' (ya está)' : ''}`);
+    });
+    c.addEventListener('change', () => { for (const x of checks) if (x.parent === c && !x.c.disabled) x.c.checked = c.checked; });
+    checks.push({ top: g.name, c });
+    box.append(el('label', {}, c, el('b', {}, ` ${g.name}`), exists ? el('span', { class: 'muted small' }, ' (ya está)') : null), ...subs);
+  }
+  const ok = await modal({
+    title: 'Crear carpetas pediátricas',
+    body: [el('p', { class: 'muted small' }, 'La misma organización por grupo terapéutico que el adulto. Marca solo las que vayas a usar (puedes crear más luego).'), box],
+    actions: [{ label: 'Cancelar' }, { label: 'Crear', primary: true, value: true }]
+  });
+  if (!ok) return;
+  const want = checks.filter((x) => x.c.checked && !x.c.disabled);
+  if (!want.length) return;
+  const batch = writeBatch(db);
+  let n = 0;
+  const now = Date.now();
+  const make = (name, parentId, order) => {
+    const id = newId('drugFolders');
+    const data = { name, parentId, color: null, order, profile: 'ped', createdAt: now, updatedAt: now };
+    DF().set(id, { id, ...data });
+    batch.set(ref('drugFolders', id), data);
+    n++;
+    return id;
+  };
+  for (const x of want) {
+    const gi = GROUPS.findIndex((p) => p.startsWith(x.top));
+    let top = pedChild(null, x.top);
+    const topId = top ? top.id : make(x.top, null, gi * 1000);
+    if (x.sub && !pedChild(topId, x.sub)) make(x.sub, topId, GROUPS.indexOf(`${x.top}${SEP}${x.sub}`) * 1000);
+  }
+  await commitBatch(batch);
+  addQuota(n, 0);
+  toast(`${n} carpeta(s) pediátrica(s) creada(s)`, 'ok');
+  ctx.render();
+}

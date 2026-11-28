@@ -18,6 +18,7 @@ import { store, ref, col, commitBatch } from './store.js';
 import { norm } from './util.js';
 import { regType, scopeKey } from './chuletario.js';
 import { normResources, mergeResources, resSearchText } from './drugres.js';
+import { pedLine } from './drugped.js';
 
 const str = (x) => (typeof x === 'string' ? x : x == null ? '' : String(x));
 const arr = (x) => (Array.isArray(x) ? x : []);
@@ -32,17 +33,20 @@ export const DRUG_DERIVED = ['files', 'links', 'size', 'bodyAt'];
 
 /** Línea para el tratamiento del informe, generada de los campos: «Dexketoprofeno 25 mg comp: 1 comp cada 8 h durante 5 días» */
 /** ¿La pauta tiene campos detallados (vía, dosis, frecuencia…)? Si no, la línea sale del texto de la dosis (v1.22.0) */
-export const hasDetail = (r = {}) => ['pres', 'route', 'dose', 'freq', 'duration', 'max'].some((k) => str(r[k]).trim());
+export const hasDetail = (r = {}) => ['pres', 'route', 'dose', 'freq', 'duration', 'max', 'perKg'].some((k) => str(r[k]).trim());
 export function genLine(name, r = {}) {
   if (!hasDetail(r) && str(r.text).trim()) return `${str(name).trim()}${str(name).trim() ? ': ' : ''}${str(r.text).trim().replace(/\s*\n\s*/g, ' ')}`;
   const head = [str(name).trim(), str(r.pres).trim()].filter(Boolean).join(' ');
   const dur = str(r.duration).trim();
-  const parts = [r.dose, r.route, r.freq].map((x) => str(x).trim()).filter(Boolean);
+  // v1.32.0: pauta pediátrica sin dosis escrita → «15 mg/kg»
+  const perKg = !str(r.dose).trim() && str(r.perKg).trim() ? `${str(r.perKg).trim()} ${str(r.perKgUnit).trim() || 'mg'}/kg` : '';
+  const parts = [r.dose || perKg, r.route, r.freq].map((x) => str(x).trim()).filter(Boolean);
   if (dur) parts.push(/^\d/.test(dur) ? `durante ${dur}` : dur);
   return head + (parts.length ? `${head ? ': ' : ''}${parts.join(' ')}` : '');
 }
 /** Texto que se copia (el retocado a mano, o el generado) */
-export const lineOf = (name, r) => (r && r.lineAuto === false && str(r.line).trim() ? str(r.line).trim() : genLine(name, r));
+/** kg (v1.32.0, pediátrico): con peso y pauta por kg, la línea lleva la dosis calculada */
+export const lineOf = (name, r, kg = 0) => (kg && pedLine(name, r, kg)) || (r && r.lineAuto === false && str(r.line).trim() ? str(r.line).trim() : genLine(name, r));
 /** Resumen de una pauta: «Dolor agudo · IV · 50 mg · cada 8 h · máx 150 mg/día» */
 export function regSummary(r = {}) {
   return [r.route, r.dose, r.freq, r.duration, r.max ? `máx ${str(r.max).replace(/^m[aá]x(\.|imo|ima)?\s*/i, '')}` : '']
@@ -69,7 +73,24 @@ export function rankDrugs(list, words) {
   return list.sort((a, b) => score(a) - score(b) || byName(a, b));
 }
 export const byName = (a, b) => str(a.name || 'Sin nombre').localeCompare(str(b.name || 'Sin nombre'), 'es', { sensitivity: 'base', numeric: true });
-export const liveDrugs = () => [...store.drugs.values()].filter((d) => !d.trashed);
+// v1.32.0: perfil Adulto | Pediátrico (por dispositivo). Cada perfil es un vademécum aparte (fichas, carpetas, etiquetas).
+export const drugProfile = () => (localStorage.getItem('drfolio.drugProfile') === 'ped' ? 'ped' : 'adult');
+export function setDrugProfile(p) { try { localStorage.setItem('drfolio.drugProfile', p === 'ped' ? 'ped' : 'adult'); } catch { /* nada */ } }
+/** Fichas no eliminadas del perfil (por defecto, el activo; 'all' = las dos) */
+export const liveDrugs = (profile = drugProfile()) => [...store.drugs.values()].filter((d) => !d.trashed && (profile === 'all' || profOf(d) === profile));
+/** Vista de un Map de carpetas/etiquetas solo con las del perfil activo: get/has/set van al Map completo */
+export function profileView(map) {
+  const ok = (x) => profOf(x) === drugProfile();
+  return {
+    get: (k) => map.get(k), has: (k) => map.has(k), set: (k, v) => map.set(k, v), delete: (k) => map.delete(k),
+    *values() { for (const v of map.values()) if (ok(v)) yield v; },
+    *keys() { for (const [k, v] of map) if (ok(v)) yield k; },
+    *entries() { for (const e of map) if (ok(e[1])) yield e; },
+    [Symbol.iterator]() { return this.entries(); },
+    forEach(f) { for (const [k, v] of map) if (ok(v)) f(v, k, this); },
+    get size() { let n = 0; for (const v of map.values()) if (ok(v)) n++; return n; }
+  };
+}
 export const drugKey = (name) => norm(str(name)).replace(/\s+/g, ' ').trim();
 /** Ficha (no eliminada) con ese principio activo, o null */
 export function drugByName(name) {
@@ -244,12 +265,15 @@ export function normRegimen(r, id) {
     type: regType(pick(r, 'type', 'tipo', 'etiqueta')) || cut(pick(r, 'type', 'tipo', 'etiqueta'), 30),
     text: str(pick(r, 'text', 'texto', 'dosisTexto', 'dosis_texto', 'posologia', 'posología')).trim().slice(0, 1000)
   };
+  // v1.32.0: pauta pediátrica por kg (opcional)
+  const pk = cut(pick(r, 'perKg', 'porKg', 'dosisKg', 'dosisPorKg'), 20);
+  if (pk) { out.perKg = pk; out.perKgUnit = cut(pick(r, 'perKgUnit', 'unidadKg', 'unidad'), 10) || 'mg'; }
   const line = cut(pick(r, 'line', 'linea', 'línea', 'informe'), 500);
   out.lineAuto = !line;
   out.line = line;
   return Object.values(out).some((v, i) => i > 0 && v && typeof v === 'string') ? out : null;
 }
-export const regKey = (r) => norm([r.indication, r.route, r.dose, r.freq, r.text].map(str).join('|')).replace(/\s+/g, ' ');
+export const regKey = (r) => norm([r.indication, r.route, r.dose, r.freq, r.text, r.perKg].map(str).join('|')).replace(/\s+/g, ' ');
 
 /**
  * Lee el archivo de importación. Devuelve [{ name, brands, folder: [nombres], presentations, regimens, notes }]

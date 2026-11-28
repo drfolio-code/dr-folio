@@ -16,7 +16,7 @@ import {
   REG_FIELDS, genLine, lineOf, regSummary, drugMatches, byName, liveDrugs, drugKey, drugByName,
   drugBodyOf, loadDrugBody, writeDrug, deleteDrugDocs, parseDrugImport, mergeList, regKey, hasDetail, EXTRA_LISTS, presBrandsOf,
   baseKey, drugByBase, withForm, duplicateGroups, mergeGroupLight, mergePres, presByGroup,
-  DEFAULT_TAGS, scopeTagId, profOf, scopesToTags, tagIdsByName
+  DEFAULT_TAGS, scopeTagId, profOf, scopesToTags, tagIdsByName, drugProfile, setDrugProfile, profileView
 } from './drugbody.js';
 import {
   SCOPES, scopeName, FLUIDS, REG_TYPES, regType, typeSlug, parseChuletario, CHULETARIO_SOURCE
@@ -26,7 +26,8 @@ import {
 } from './drugres.js';
 import { saveFile } from './files.js';
 import { initDrugEdit, editHead, editTags, editPres, editReg, editRegs, editList, editRes } from './drugedit.js';
-import { tagOk, tagsOf, tagChip } from './drugtags.js';
+import { tagOk, tagsOf, tagChip, setProfileFn } from './drugtags.js';
+import { PERKG_UNITS, parseNum, pedCalc, hasPerKg, doseText, fmt, validKg } from './drugped.js';
 import { formatBytes } from './util.js';
 
 const str = (x) => (x == null ? '' : String(x));
@@ -52,7 +53,11 @@ const listBox = (k) => document.querySelector(`#drug-wrap textarea.dlist-edit[da
 const listVals = (k) => listBox(k).value.split('\n').map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
 function fillLists(d) { for (const k of LISTS) listBox(k).value = (d[k] || []).join('\n'); }
 
-const DF = () => store.drugFolders;
+// v1.32.0: solo las carpetas del perfil activo (adulto / pediátrico); get/has/set van a todas
+const DF = () => profileView(store.drugFolders);
+let kg = 0;              // peso de la ficha pediátrica abierta (no se guarda; se olvida al abrir otra ficha)
+const isPed = (d) => profOf(d) === 'ped';
+const profExtra = () => (drugProfile() === 'ped' ? { profile: 'ped' } : {});
 export const currentDrug = () => curId;
 export const isDrugReading = () => !!curId && ((reading && !notesEdit) || !!store.drugs.get(curId)?.trashed);
 export const drugPathText = (folderId) => (folderId ? folderPath(folderId, DF()).map((f) => f.name).join(' › ') : '');
@@ -64,7 +69,7 @@ const FREQS = ['dosis única', 'cada 4 h', 'cada 6 h', 'cada 8 h', 'cada 12 h', 
 // ====================== Lista: tarjetas, vistas y orden ======================
 /** Fármacos de una vista fija: daz (A-Z) | dfav | drecent | dreview | dtrash */
 export function drugsForView(type) {
-  if (type === 'dtrash') return [...store.drugs.values()].filter((d) => d.trashed).sort((a, b) => (b.trashedAt || 0) - (a.trashedAt || 0));
+  if (type === 'dtrash') return [...store.drugs.values()].filter((d) => d.trashed && profOf(d) === drugProfile()).sort((a, b) => (b.trashedAt || 0) - (a.trashedAt || 0));
   const live = liveDrugs().filter(tagOk);
   if (type === 'dfav') return live.filter((d) => d.favorite).sort(byName);
   if (type === 'drecent') return live.filter((d) => d.lastViewedAt).sort((a, b) => (b.lastViewedAt || 0) - (a.lastViewedAt || 0)).slice(0, 50);
@@ -98,6 +103,7 @@ export function drugCard(d, { search = '', showPath = false, onLongPress = null,
   },
     el('div', { class: 'snip-card-main' },
       el('div', { class: 't' }, el('span', {}, markText(d.name || 'Sin nombre', search)),
+        profOf(d) !== drugProfile() || (showPath && isPed(d) && search) ? el('span', { class: 'prof-badge' }, isPed(d) ? 'Pediátrico' : 'Adulto') : null,
         d.reviewed === false ? el('span', { class: 'rev-badge', title: 'Pendiente de revisar' }, '⚠ Revisar') : null),
       el('div', { class: 's' }, brands ? markText(brands, search) : regs.length ? `${regs[0].indication || ''} ${regSummary(regs[0])}`.trim() : el('span', { class: 'muted' }, 'Ficha vacía')),
       el('div', { class: 'm' },
@@ -169,6 +175,7 @@ export function drugItemMenu(anchor, d, { inList = true } = {}) {
       ? { icon: 'check', label: 'Marcar como revisada', onClick: () => setReviewed(d.id, true) }
       : { icon: 'triangle-alert', label: 'Marcar «Pendiente de revisar»', onClick: () => setReviewed(d.id, false) },
     { icon: 'folder-input', label: 'Mover a carpeta…', onClick: () => moveDrug(d.id) },
+    !isPed(d) ? { icon: 'copy-plus', label: 'Crear ficha pediátrica a partir de esta', onClick: () => pedFromAdult(d.id) } : null,
     { icon: 'copy-plus', label: 'Duplicar', onClick: () => duplicateDrug(d.id) },
     '-',
     { icon: 'trash-2', label: 'Mover a la papelera', danger: true, onClick: () => trashDrug(d.id) }
@@ -221,7 +228,7 @@ async function copyLine(text, btn = null) {
 // ====================== Selector (enlazar un fármaco desde una nota) ======================
 /** Buscador de fármacos (principio activo o nombre comercial). Resuelve con {id, name} o null. */
 export function pickDrug() {
-  const items = liveDrugs().sort(byName).map((d) => ({ id: d.id, label: d.name || 'Sin nombre', sub: [(d.brands || []).join(', '), drugPathText(d.folderId)].filter(Boolean).join(' · ') }));
+  const items = liveDrugs('all').sort(byName).map((d) => ({ id: d.id, label: `${d.name || 'Sin nombre'}${isPed(d) ? ' (pediátrico)' : ''}`, sub: [(d.brands || []).join(', '), drugPathText(d.folderId)].filter(Boolean).join(' · ') }));
   return picker('Insertar fármaco', items, { placeholder: 'Principio activo o nombre comercial…', emptyText: 'No hay fármacos que coincidan (créalos en el Vademécum)' })
     .then((id) => (id ? { id, name: store.drugs.get(id)?.name || 'Fármaco' } : null));
 }
@@ -241,7 +248,7 @@ export function newDrug({ folderId = null, favorite = false, name = '' } = {}) {
   return id;
 }
 const blankDrug = ({ name = '', folderId = null, favorite = false, now = Date.now(), reviewed = true } = {}) => ({
-  name, brands: [], folderId: folderId || null, presentations: [], regimens: [], favorite: !!favorite, reviewed, tags: [],
+  name, brands: [], folderId: folderId || null, presentations: [], regimens: [], favorite: !!favorite, reviewed, tags: [], ...profExtra(),
   lastViewedAt: null, trashed: false, trashedAt: null, createdAt: now, updatedAt: now, bodyAt: 0, files: [], links: [], size: 0
 });
 
@@ -303,7 +310,7 @@ function folderFor(names, parentId, batch, created) {
     if (!f) {
       const id = newId('drugFolders');
       const now = Date.now();
-      const data = { name, parentId: parent, color: null, order: now + created.length, createdAt: now, updatedAt: now };
+      const data = { name, parentId: parent, color: null, order: now + created.length, createdAt: now, updatedAt: now, ...profExtra() };
       DF().set(id, { id, ...data });
       batch.set(ref('drugFolders', id), data);
       created.push(name);
@@ -555,8 +562,10 @@ export function openDrug(id, { push = false, focusTitle = false, fromHash = fals
     closeDrug();
     return;
   }
+  // v1.32.0: cada ficha se abre en su perfil (enlaces desde notas, Buscar en los dos perfiles)
+  if (profOf(d) !== drugProfile()) { setDrugProfile(profOf(d)); ctx.onProfile?.(); }
   const same = curId === id;
-  if (!same) saveSoon.flush();
+  if (!same) { saveSoon.flush(); kg = 0; }
   curId = id;
   if (!same || focusTitle) {
     dirtyLight = false; dirtyBody = false;
@@ -742,6 +751,7 @@ function renderChrome() {
   renderBrands();
   renderScopes();
   renderCalcs();
+  renderWeight(d);
   renderFluids();
   renderPres();
   renderRegs();
@@ -759,8 +769,8 @@ function renderScopes() {
   const d = store.drugs.get(curId);
   const box = $('#drug-scopes');
   const cur = tagsOf(d);
-  box.classList.toggle('hidden', !!d.trashed && !cur.length);
-  box.replaceChildren(...cur.map((t) => tagChip(t)),
+  box.classList.toggle('hidden', !!d.trashed && !cur.length && !isPed(d));
+  box.replaceChildren(isPed(d) ? el('span', { class: 'prof-badge big' }, 'Pediátrico') : null, ...cur.map((t) => tagChip(t)),
     d.trashed ? null : el('button', { class: `chip scope-ed ${isRd() ? 'sec-ed' : ''}`, type: 'button', 'data-ed': 'tags', title: 'Editar las etiquetas', 'aria-label': 'Editar las etiquetas' }, icon('pencil'), cur.length ? null : ' Etiquetas'));
 }
 
@@ -980,14 +990,17 @@ function regGroupView(name, g) {
 /** Pauta en lectura (v1.28.0): [tipo] dosis bien legible, dosis máxima destacada y un botón Copiar grande
  *  que copia la línea de tratamiento completa (lineOf: nombre + presentación + dosis…) */
 function regView(name, r) {
-  const line = lineOf(name, r);
+  const line = lineOf(name, r, isPed(store.drugs.get(curId)) ? kg : 0);
   const type = r.type || '';
   const route = str(r.route).trim();
-  const main = str(r.text).trim() || [r.dose, r.freq, r.duration].map((x) => str(x).trim()).filter(Boolean).join(' · ') || route;
+  const perKgTxt = !str(r.dose).trim() && hasPerKg(r) ? `${fmt(parseNum(r.perKg))} ${str(r.perKgUnit) || 'mg'}/kg` : '';
+  const main = str(r.text).trim() || [r.dose || perKgTxt, r.freq, r.duration].map((x) => str(x).trim()).filter(Boolean).join(' · ') || route;
   const brands = r.pres ? presBrandsOf(store.drugs.get(curId), r.pres) : [];
   const chip = type || (route.length <= 14 ? route : routeType(route) || route.split(/[\s(/,]+/)[0]);
   const nr = norm(route), nc = norm(chip);
   const routeSaid = !route || main === route || nr === nc || (nr.includes(nc.slice(0, 6)) && route.split(/\s+/).length <= 2);
+  const ped = isPed(store.drugs.get(curId)) && hasPerKg(r);
+  const calc = ped ? pedCalc(r, kg) : null;
   const max = maxText(r, main);
   const meta = [
     routeSaid ? '' : route,
@@ -1000,12 +1013,15 @@ function regView(name, r) {
         chip ? el('span', { class: `reg-type ${slug ? `t-${slug}` : ''}` }, chip) : null,
         el('span', { class: 'reg-text' }, markMax(main || line))),
       max ? el('div', { class: 'reg-max' }, icon('triangle-alert'), ` Máx. ${max}`) : null,
+      ped ? el('div', { class: `reg-calc ${calc?.capped ? 'capped' : ''} ${calc ? '' : 'nokg'}` },
+        calc ? [el('b', {}, `= ${doseText(calc)}`), ` · ${fmt(calc.perKg)} ${calc.unit}/kg × ${fmt(kg)} kg`, calc.capped ? el('span', { class: 'cap-warn' }, ` · tope: dosis máxima (sin tope serían ${fmt(calc.raw)} ${calc.unit})`) : null]
+          : `${fmt(parseNum(r.perKg))} ${str(r.perKgUnit) || 'mg'}/kg · escribe el peso arriba para calcular`) : null,
       meta.length ? el('div', { class: 'reg-meta' }, meta.join(' · ')) : null,
       r.lineAuto === false && str(r.line).trim() ? el('div', { class: 'reg-meta reg-custom' }, icon('copy'), ` ${str(r.line).trim()}`) : null),
     ...regResLinks(r),
     el('button', {
       class: 'reg-copy big', type: 'button', title: `Copiar: ${line}`, 'aria-label': `Copiar: ${line}`,
-      onclick: (e) => copyLine(lineOf(store.drugs.get(curId)?.name, r), e.currentTarget)
+      onclick: (e) => { const dd = store.drugs.get(curId); copyLine(lineOf(dd?.name, r, isPed(dd) ? kg : 0), e.currentTarget); }
     }, icon('copy'), el('span', {}, 'Copiar')),
     el('button', { class: 'icon-btn reg-ed sec-ed', type: 'button', 'data-ed': `reg:${r.id}`, title: 'Editar esta indicación', 'aria-label': 'Editar esta indicación' }, icon('pencil')));
 }
@@ -1080,6 +1096,60 @@ function addRegimen() {
   const last = $('#drug-regs').lastElementChild;
   last?.querySelector('input')?.focus();
   last?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+// ---------- Pediátrico (v1.32.0): peso de la ficha abierta ----------
+function renderWeight(d) {
+  const box = $('#drug-weight');
+  const on = isPed(d) && !d.trashed;
+  box.classList.toggle('hidden', !on);
+  if (!on) return;
+  const inp = box.querySelector('input');
+  if (document.activeElement !== inp) inp.value = kg ? fmt(kg) : '';
+  const any = (d.regimens || []).some(hasPerKg);
+  box.querySelector('.w-hint').textContent = !any ? 'Ninguna pauta tiene dosis por kg (lápiz de la pauta → «Dosis por kg»).'
+    : kg && validKg(kg) ? '' : 'Escribe el peso para calcular las dosis.';
+}
+function onWeight() {
+  const v = parseNum($('#drug-weight input').value);
+  kg = validKg(v) ? v : 0;
+  const d = store.drugs.get(curId);
+  if (d && isPed(d) && isRd()) { renderRegs(); renderWeight(d); }
+}
+/** Editor de pauta (ficha pediátrica): dosis por kg + unidad; la máxima va en «Dosis máxima» */
+function pedFields(r, sync) {
+  const n = el('input', { type: 'text', inputmode: 'decimal', value: r.perKg || '', placeholder: 'p. ej. 15', maxlength: 12, autocomplete: 'off', 'aria-label': 'Dosis por kg' });
+  const u = el('select', { 'aria-label': 'Unidad' }, ...PERKG_UNITS.map((x) => el('option', { value: x }, `${x}/kg`)));
+  u.value = r.perKgUnit || 'mg';
+  n.addEventListener('input', () => { r.perKg = n.value.trim(); if (r.perKg && !r.perKgUnit) r.perKgUnit = u.value; sync(); });
+  u.addEventListener('change', () => { r.perKgUnit = u.value; sync(); });
+  return el('div', { class: 'rf ped-fields' }, 'Dosis por kg (pediátrico)',
+    el('div', { class: 'ped-row' }, n, u),
+    el('span', { class: 'muted small' }, 'Pon la dosis máxima absoluta en «Dosis máxima» (campos detallados), p. ej. «1 g»: el cálculo no la pasa. La presentación con concentración («100 mg/ml») da el volumen.'));
+}
+
+/** ⋯ de una ficha adulta → «Crear ficha pediátrica a partir de esta»: nombre, marcas y presentaciones, sin pautas */
+function pedFromAdult(id) {
+  saveSoon.flush();
+  const d = store.drugs.get(id);
+  if (!d) return;
+  const ex = liveDrugs('ped').find((x) => drugKey(x.name) === drugKey(d.name));
+  if (ex) { toast(`Ya tienes «${ex.name}» en el pediátrico`, 'ok'); openDrug(ex.id, { push: true }); return; }
+  // misma carpeta si existe en el pediátrico (por nombre), si no sin carpeta
+  const path = d.folderId ? folderPath(d.folderId, store.drugFolders).map((f) => f.name) : [];
+  let parent = null;
+  for (const n of path) {
+    const f = [...store.drugFolders.values()].find((x) => isPed(x) && (x.parentId || null) === parent && norm(x.name).trim() === norm(n).trim());
+    if (!f) break;
+    parent = f.id;
+  }
+  const nid = newId('drugs');
+  const now = Date.now();
+  const light = { ...blankDrug({ name: d.name, folderId: parent, now }), profile: 'ped', brands: [...(d.brands || [])], presentations: [...(d.presentations || [])],
+    ...(d.presBrands?.length ? { presBrands: clone(d.presBrands) } : {}) };
+  writeDrug(nid, light);
+  toast(`Ficha pediátrica «${d.name}» creada: añade sus pautas por kg`, 'ok', 4000);
+  openDrug(nid, { push: true });
 }
 
 // ---------- Aparece en estas notas ----------
@@ -1191,7 +1261,7 @@ async function deleteForever(id) {
   ctx.renderList(); ctx.renderSidebar();
 }
 export async function emptyDrugTrash() {
-  const list = [...store.drugs.values()].filter((d) => d.trashed);
+  const list = [...store.drugs.values()].filter((d) => d.trashed && profOf(d) === drugProfile());
   if (!list.length) return;
   if (!await confirm('Vaciar papelera del Vademécum', `Se borrarán para siempre ${list.length} ficha(s). No se puede deshacer.`, { okLabel: 'Vaciar', danger: true })) return;
   if (curId && list.some((d) => d.id === curId)) { closeDrug(); ctx.showPane('empty'); }
@@ -1221,6 +1291,8 @@ async function duplicateDrug(id) {
 // ====================== Arranque ======================
 export function initDrugs(appCtx) {
   ctx = appCtx;
+  setProfileFn(drugProfile);
+  $('#drug-weight input').addEventListener('input', onWeight);
   editor = ctx.editor;
   $('#drug-title').addEventListener('input', () => { changedLight(); if (!reading) renderRegsLines(); });
   $('#drug-title').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#drug-brand-input').focus(); } });
@@ -1259,6 +1331,8 @@ export function initDrugs(appCtx) {
   });
   initDrugEdit({
     ctx, regId, genLine, resEditor, cleanResList,
+    extraFields: (r, sync) => (isPed(store.drugs.get(curId)) ? pedFields(r, sync) : null),
+    hasExtra: (r) => hasPerKg(r),
     write: (id, light) => writeDrug(id, light),
     refresh: refreshDrug,
     purgeNew: (id) => {

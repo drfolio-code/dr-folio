@@ -187,7 +187,7 @@ export async function editReg(id, regIdx = null) {
     el('label', { class: 'rf' }, hasDetail(r) && !str(r.text).trim() ? 'Dosis (texto; esta pauta usa los campos detallados de abajo)' : 'Dosis', textIn),
     extra,
     mk(presF, { list: 'dedit-pres-dl' }), dl,
-    el('details', { class: 'reg-more', open: hasDetail(r) }, el('summary', {}, 'Campos detallados (opcional): vía, dosis, frecuencia, máx…'),
+    el('details', { class: 'reg-more', open: hasDetail(r) || !!extra }, el('summary', {}, 'Campos detallados (opcional): vía, dosis, frecuencia, máx…'),
       el('div', { class: 'reg-grid' }, rest.map((f) => mk(f, f[0] === 'route' ? { list: 'drug-route-dl' } : f[0] === 'freq' ? { list: 'drug-freq-dl' } : {}))))
   ], {
     autofocus: isNew ? undefined : false,

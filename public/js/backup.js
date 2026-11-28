@@ -306,7 +306,7 @@ function drugPageHtml(d) {
   if (d.fluids?.length) parts.push(`<p><strong>Sueros:</strong> ${e(d.fluids.join(', '))}</p>`);
   if (d.presentations?.length) parts.push(`<h2>Presentaciones</h2><ul>${d.presentations.map((p) => { const b = presBrandsOf(d, p); return `<li>${e(p)}${b.length ? ` <span class="muted">(${e(b.join(', '))})</span>` : ''}</li>`; }).join('')}</ul>`);
   if (d.regimens?.length) {
-    parts.push(`<h2>Indicaciones</h2><table><thead><tr><th>Indicación</th><th>Tipo</th><th>Dosis</th><th>Para el informe</th></tr></thead><tbody>${d.regimens.map((r) => `<tr><td>${e(r.indication || '')}</td><td>${e(r.type || '')}</td><td>${e([r.text || '', regSummary(r)].filter(Boolean).join(' · '))}</td><td>${e(lineOf(d.name, r))}</td></tr>`).join('')}</tbody></table>`);
+    parts.push(`<h2>Indicaciones</h2><table><thead><tr><th>Indicación</th><th>Tipo</th><th>Dosis</th><th>Para el informe</th></tr></thead><tbody>${d.regimens.map((r) => `<tr><td>${e(r.indication || '')}</td><td>${e(r.type || '')}</td><td>${e([r.text || '', r.perKg ? `${r.perKg} ${r.perKgUnit || 'mg'}/kg` : '', regSummary(r)].filter(Boolean).join(' · '))}</td><td>${e(lineOf(d.name, r))}</td></tr>`).join('')}</tbody></table>`);
   }
   for (const [k, t] of [['observations', 'Observaciones'], ['contraindications', 'Contraindicaciones'], ['compat', 'Compatibilidad en Y']]) {
     if (d[k]?.length) parts.push(`<h2>${t}</h2><ul>${d[k].map((x) => `<li>${e(x)}</li>`).join('')}</ul>`);
@@ -391,11 +391,12 @@ async function exportZip() {
       refs: [...(d.resources || []), ...folderResources(d.folderId, store.drugFolders).flatMap((g) => g.items)].filter((r) => r.fileId)
         .map((r) => ({ cite: r.title, url: r.url || null, fileId: r.fileId, fileName: r.fileName })),
       createdAt: d.createdAt, updatedAt: d.updatedAt, drug: true, trashed: !!d.trashed, reviewed: d.reviewed,
-      drugPath: `💊 Vademécum${d.folderId && store.drugFolders.has(d.folderId) ? ` › ${drugNames(d.folderId)}` : ''}`
+      vroot: d.profile === 'ped' ? 'Vademécum pediátrico' : 'Vademécum', // v1.32.0
+      drugPath: `💊 ${d.profile === 'ped' ? 'Vademécum pediátrico' : 'Vademécum'}${d.folderId && store.drugFolders.has(d.folderId) ? ` › ${drugNames(d.folderId)}` : ''}`
     }]));
     for (const n of [...notes, ...snipNotes.values(), ...drugNotes.values()]) {
       const dir = n.snippet ? (n.snippetFolder && store.snippetFolders.has(n.snippetFolder) ? dirOf(n.snippetFolder, 'Prerredactados', store.snippetFolders) : 'Prerredactados')
-        : n.drug ? (n.trashed ? 'Vademécum/Papelera' : n.drugFolder && store.drugFolders.has(n.drugFolder) ? dirOf(n.drugFolder, 'Vademécum', store.drugFolders) : 'Vademécum')
+        : n.drug ? (n.trashed ? `${n.vroot}/Papelera` : n.drugFolder && store.drugFolders.has(n.drugFolder) ? dirOf(n.drugFolder, n.vroot, store.drugFolders) : n.vroot)
           : n.trashed ? 'Papelera' : n.folderId && store.folders.has(n.folderId) ? dirOf(n.folderId, 'Notas', store.folders) : 'Notas';
       const title = safeName(n.title, 'Sin título');
       const file = uniqueIn(used, dir, `${title}.html`);

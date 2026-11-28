@@ -255,6 +255,12 @@
             <div id="drug-scopes" class="drug-scopes"></div>
             <!-- v1.27.0: calculadoras (de la ficha y de sus carpetas) a un toque -->
             <div id="drug-calcs" class="drug-calcs hidden"></div>
+            <!-- v1.32.0: ficha pediátrica: peso (no se guarda) para calcular las dosis por kg -->
+            <div id="drug-weight" class="drug-weight hidden">
+              <label class="w-in"><span>Peso</span><input type="text" inputmode="decimal" enterkeyhint="done" placeholder="—" maxlength="6" autocomplete="off" aria-label="Peso en kg"><span>kg</span></label>
+              <span class="w-warn"><svg class="i" aria-hidden="true"><use href="#i-triangle-alert"/></svg> Comprueba la dosis calculada</span>
+              <span class="w-hint muted small"></span>
+            </div>
             <div class="drug-cols">
               <div class="drug-col-a">
                 <section class="dsec dsec-fixed" data-sec="regs">

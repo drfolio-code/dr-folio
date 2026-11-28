@@ -31,6 +31,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/js/drugedit.js` | Editores por sección del Vademécum (v1.29.0): `saveFields` (guarda + «Deshacer»), `editHead`, `editScopes`/etiquetas, `editPres`, `editReg`/`editRegs`, `editList`, `editRes` |
 | `public/js/drugreorg.js` | Asistente «Nueva organización por carpetas» (v1.30.0): `reorgPending`, `planReorg`, `openReorg` |
 | `public/js/drugtags.js` | Etiquetas libres del Vademécum (v1.31.0): `liveTags`, `tagsOf`, filtro (`tagFilter`/`tagOk`), `tagChip`, `migrateDrugTags`, `newTag`, `manageTags` |
+| `public/js/drugped.js` | Dosis pediátricas por peso (v1.32.0): `parseNum`, `concOf`, `pedCalc`, `doseText`, `pedLine`, `fmt` (sin DOM ni Firebase: se prueba con node) |
 | `public/js/drugs.js` | Vademécum (v1.18.0; plantilla v4 y «Actualizar» en v1.25.0): ficha (lectura/edición), pautas con línea para el informe y botón Copiar, «Mis notas» (editor `drugEditor`), tarjetas, vistas fijas, «Añadir varios», importar JSON, papelera, selector `pickDrug` (enlaces desde notas) |
 | `public/js/chuletario.js` | Ficha ampliada (v1.22.0): constantes (`PREG_CATS`, `SCOPES`, `FLUIDS`, `REG_TYPES`, `regType`, `typeSlug`) y `parseChuletario(texto)` = lector del texto copiado de una ficha del Chuletario de Urgencias (sin DOM ni Firebase: se prueba con node) |
 | `public/js/drugbody.js` | Datos del Vademécum: `genLine`/`lineOf`/`regSummary`, búsqueda (`drugMatches`, `rankDrugs`), «Mis notas» (`drugBodyOf`, `loadDrugBody`, `writeDrug`, `deleteDrugDocs`, `ensureAllDrugBodies`, `fullDrug`), lectura del JSON de importación (`parseDrugImport`) |
@@ -244,6 +245,17 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - **Gestión**: Vademécum ⋯ → «Etiquetas…» o botón 🏷 de la barra (`manageTags`): crear, renombrar, color (`colorPicker`), subir/bajar (`order`), borrar (se quita de las fichas en lotes). Ejemplos en la ayuda: «Mochila 061», «Carro de paradas», «Montaña», «Uso en embarazo».
 - **Buscar**: `drugSearchText` incluye los nombres de las etiquetas. **Copia**: `drugTags` en el JSON (opcional: una copia antigua no las borra al reemplazar) y «Etiquetas:» en el .zip.
 
+### Perfil pediátrico (v1.32.0, fase 5, `drugped.js`)
+- **Selector «Adulto | Pediátrico»** (`profileSwitch` en app.js) arriba de todas las vistas del Vademécum; `drfolio.drugProfile` (`drugProfile`/`setDrugProfile` en drugbody.js, por defecto adulto). Cambiar → `onDrugProfile` (sale de carpetas/fichas del otro perfil y repinta).
+- **Cada perfil es un vademécum aparte**: campo `profile: 'ped'` en `drugs`, `drugFolders` y `drugTags` (sin campo = adulto; `profOf`). `liveDrugs(profile = activo | 'all')`; carpetas con `profileView(store.drugFolders)` (vista: `values()` filtrado, `get/has/set` al Map completo) en `TREES.drugs.map` y en drugs.js (`DF`); etiquetas con `liveTags()` (`setProfileFn`). Las fichas/carpetas nuevas llevan el perfil activo (`blankDrug`, `folderFor`, `newFolder`). Papelera, contadores, «Unir repetidas», importar y Chuletario van por perfil. En el pediátrico no salen los avisos de plantilla, repetidas ni reorganización.
+- El pediátrico empieza vacío (aviso con «Crear carpetas pediátricas»). **«Crear carpetas pediátricas»** (`createPedFolders` en drugreorg.js, botón del explorador y ⋯): casillas con `GROUPS` (= estructura de la plantilla v5), solo las elegidas.
+- **⋯ de una ficha adulta → «Crear ficha pediátrica a partir de esta»** (`pedFromAdult`): nombre, marcas, presentaciones (+ `presBrands`), sin pautas; en la carpeta pediátrica con la misma ruta si existe.
+- **Pauta pediátrica**: campos opcionales `perKg` («15»), `perKgUnit` (`PERKG_UNITS`: mg, mcg, g, UI, mEq, mmol, ml, gotas), `max` (máxima absoluta, p. ej. «1 g») y `freq`. Editor de la pauta en ficha pediátrica: «Dosis por kg» + unidad (`pedFields`, vía `api.extraFields`). Importar: `perKg`/`porKg`/`dosisKg`, `perKgUnit`/`unidadKg`.
+- **Peso** (`#drug-weight`, solo fichas pediátricas): se recuerda mientras la ficha está abierta (`kg`, se pone a 0 al abrir otra), no se guarda; «⚠ Comprueba la dosis calculada» siempre visible. `pedCalc(r, kg)` (drugped.js, sin DOM, se prueba con node): dosis = perKg × kg con tope en `max` (`capped` → en rojo «tope: dosis máxima»), volumen si la presentación de la pauta dice la concentración (`concOf`: «100 mg/ml», «250 mg/5 ml», «1 g/10 ml»; mg/mcg/g se convierten). `lineOf(name, r, kg)` → `pedLine`: «Paracetamol 100 mg/ml sol oral: 300 mg (3 ml) VO cada 6 h — 15 mg/kg, peso 20 kg».
+- **Buscar**: por defecto el perfil activo; botón «Buscar también en el pediátrico/adulto» (`S.drugBoth`). Las fichas del otro perfil llevan `.prof-badge`. **Enlaces desde notas y Buscar** abren la ficha en su perfil (`openDrug` cambia el perfil). `pickDrug` lista los dos («(pediátrico)»).
+- **Copia**: el JSON ya lleva `profile`; el .zip pone las pediátricas en `Vademécum pediátrico/` (y su papelera), con «15 mg/kg» en la tabla de pautas.
+- Probado con el Firebase simulado + Playwright en 390×844, 844×390 y 1366×860 (57 comprobaciones de la fase 5, más las de las fases 1–4).
+
 ### Formato del JSON de importación (Vademécum → ⋯ / «Importar»)
 Ejemplo completo en `ejemplos/vademecum-ejemplo.json`. Se acepta `{ "format": "drfolio-vademecum", "version": 1, "drugs": [ … ] }` o directamente la lista `[ … ]`. Claves en inglés o en español:
 
@@ -284,7 +296,7 @@ Reglas (ver también v1.24.0: une por principio activo y opción Reemplazar): fi
 ## Hoja de ruta
 1. ✅ Notas: carpetas/subcarpetas, etiquetas, editor enriquecido, imágenes, bibliografía con PDF, índice, enlaces entre notas, offline, modo lectura con copiar sección, copia de seguridad y restauración
 2. ✅ Prerredactados (plantillas para copiar, con campos rellenables y texto enriquecido)
-3. ✅ Vademécum personal (fichas, pautas para copiar, enlaces desde notas, importar JSON, enlaces y bibliografía por ficha y carpeta)
+3. ✅ Vademécum personal (fichas, pautas para copiar, enlaces desde notas, importar JSON, enlaces y bibliografía por ficha y carpeta; v1.28–1.32: ficha para la guardia, edición por secciones, carpetas por grupo terapéutico, etiquetas y perfil pediátrico)
 4. ✅ Chat personal (bandeja temporal entre dispositivos: textos, enlaces, fotos y documentos; caducidad; convertir en nota)
 
 ## Probar
