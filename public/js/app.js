@@ -18,6 +18,7 @@ import {
 import { snippetFileIds } from './snipbody.js';
 import { MODULES, NAV_HOME, NAV_SEARCH, NAV_MORE, TAB_DEFAULT } from './modules.js';
 import { initViewport, initTitles, fitTitle, screenInfo, zoomable } from './viewport.js';
+import { initUpdates, checkForUpdate } from './update.js';
 import { openPdfViewer } from './pdfviewer.js';
 import { initBackup, openBackup, backupReminder, backupPublicReason, exportJson, progress, lastBackupAt } from './backup.js';
 import {
@@ -211,6 +212,8 @@ function newSnippetHere() {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
+// v1.35.0: aviso «Nueva versión disponible · Actualizar» (sin reinstalar la app)
+initUpdates({ onBeforeReload: () => { saveSoon.flush(); flushSnippet(); flushDrug(); } });
 
 const setScreen = (s) => { document.body.dataset.screen = s; };
 initViewport();
@@ -2876,6 +2879,15 @@ function openSettings() {
           : el('button', { class: 'btn sm', type: 'button', onclick: () => { closeSettings?.(); openBackup(); } }, 'Exportar / Restaurar…')),
       el('div', { class: 'settings-row' }, el('span', {}, 'Archivos sin usar'),
         el('button', { class: 'btn sm', type: 'button', onclick: cleanOrphans }, 'Limpiar')),
+      el('div', { class: 'settings-row' }, el('span', {}, 'Actualizaciones', el('br'), el('span', { class: 'muted small' }, 'Se comprueban solas al abrir la app')),
+        el('button', { class: 'btn sm', type: 'button', onclick: async (e) => {
+          const b = e.currentTarget; b.disabled = true; b.textContent = 'Buscando…';
+          const r = await checkForUpdate({ manual: true });
+          b.disabled = false; b.textContent = 'Buscar actualización';
+          if (r === 'same') toast(`Tienes la última versión (v${APP_VERSION})`, 'ok');
+          else if (r === 'offline') toast('Sin conexión: no se puede comprobar', 'error');
+          else if (r) { closeSettings?.(); toast(`Hay una versión nueva (v${r}): pulsa «Actualizar» arriba`, 'ok', 4000); }
+        } }, 'Buscar actualización')),
       el('div', { class: 'settings-row' }, el('span', { class: 'muted small' }, `Dr.Folio v${APP_VERSION}`),
         el('button', { class: 'btn sm primary danger', type: 'button', onclick: () => doLogout() }, 'Cerrar sesión'))
     ],

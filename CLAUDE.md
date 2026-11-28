@@ -46,6 +46,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 | `public/vendor/libs.js` | Firebase + DOMPurify empaquetados. Regenerar: `cd tools && npm install && npm run vendor` (regenera libs.js, jszip.js, pdfjs/ e icons.js). Exporta también `connect*Emulator` (solo para pruebas locales) |
 | `public/vendor/jszip.js` | JSZip (ESM) para el .zip legible. Se carga con `import()` solo al exportar (no va en libs.js). Sale de `tools/jszip-entry.js` (`npm run vendor:jszip`, incluido en `npm run vendor`) |
 | `public/vendor/pdfjs/` | PDF.js (pdfjs-dist, build **legacy** para Safari iOS) + worker, fuentes, wasm, cmaps. Lo copia `tools/copy-pdfjs.mjs` (incluido en `npm run vendor`) y genera `files.json` |
+| `public/js/update.js` | Aviso de actualización (v1.35.0): `initUpdates`, `checkForUpdate`, `applyUpdate` |
 | `public/sw.js` | Service worker (app offline, red primero). Recibe el POST de «Compartir» (`./share-target`, Android) y lo deja en la caché `drfolio-share` para `chat.js`. PDF.js va en una caché aparte `PDFJS_CACHE` (caché primero): **si se actualiza pdfjs-dist, cambiar `PDFJS_CACHE`** |
 
 ## Navegación (v1.7.0)
@@ -272,7 +273,7 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - **Presentaciones en lectura** (`presShort` + `chips` en `renderPres`): se quita del texto la marca de esa presentación (`presBrandsOf`) y las palabras del principio activo que van delante («Apiretal 100 mg/ml sol. oral» → «100 mg/ml sol. oral» con «Apiretal» debajo; «Paracetamol 650 mg comp.» → «650 mg comp.»). Si queda sin números, se deja el texto original. Las que quedan iguales se juntan en un chip con todas sus marcas; el texto completo sale al pasar el ratón (`title`). Solo vista: los datos no cambian. «sup.» = Rectal en `presGroup`.
 - **Calculadora pediátrica sin «Dosis por kg»** (`perKgInText`, `textCalc`, `textLine` en drugped.js): lee las dosis por kg del texto de la pauta (`text` o `dose`: «60 mg/kg/día», «40-90 mg/kg/día», «0,2-0,5 mg/kg», «200 μg/kg», «1,5 mg/kg/toma», «/h») y con el peso muestra `= 1200 mg/día` (o `/dosis`, `/h`) **sin tope**, avisando «mira la dosis máxima en la tabla». Copiar (`lineOf` → `pedLine` → `textLine`): «Paracetamol: 60 mg/kg/día → 1200 mg/día (peso 20 kg)». Las pautas con `perKg` siguen con `pedCalc` (tope y volumen). Así funcionan las fichas de la Guía de Aragón.
 
-### Guía de Aragón v2: presentaciones limpias, solo la guía y «Mis notas» mínima (v1.34.3)
+### Guía de Aragón v2: presentaciones limpias, solo la guía y «Mis notas» mínima (v1.34.3, publicada como v1.35.1)
 - `tools/guia_aragon/build.py` v2 (lee también `guia-v1.json`, el archivo anterior, para `presOld`):
   - **Presentaciones** (`clean_pres`): solo cantidad y forma («100 mg/ml sol. oral», «250 mg sup.»): sin marca (va debajo, `presBrands`), sin el principio activo delante, sin envase («(env. 30 y 60 ml)», «(200 ml)», «(60 amp 2 ml)»), sin «pediátrico/infantil/lactantes/adultos», sin «EFG». Las iguales (o una que empieza como otra) se juntan con todas sus marcas. Antes se perdían las presentaciones sin marca ni forma («Paracetamol 100 mg/ml»): ahora entran.
   - **Solo la guía de Aragón**: fuera los enlaces a otras guías (NICE, Cochrane, AEPap…) y el texto entero de la página.
@@ -326,6 +327,12 @@ Reglas (ver también v1.24.0: une por principio activo y opción Reemplazar): fi
 2. ✅ Prerredactados (plantillas para copiar, con campos rellenables y texto enriquecido)
 3. ✅ Vademécum personal (fichas, pautas para copiar, enlaces desde notas, importar JSON, enlaces y bibliografía por ficha y carpeta; v1.28–1.32: ficha para la guardia, edición por secciones, carpetas por grupo terapéutico, etiquetas y perfil pediátrico)
 4. ✅ Chat personal (bandeja temporal entre dispositivos: textos, enlaces, fotos y documentos; caducidad; convertir en nota)
+
+## Actualizaciones sin reinstalar (v1.35.0, `update.js`)
+- La app instalada puede quedarse días en memoria sin recargar. `checkForUpdate()` pide `js/config.js?v=…` sin caché y compara su `APP_VERSION` con la cargada: a los 5 s de abrir, al volver a la app (`visibilitychange`), al recuperar conexión y cada 30 min (máx. 1 vez/min). Si es distinta → `#update-banner` arriba «Nueva versión disponible · vX · Actualizar · ×».
+- «Actualizar» (`applyUpdate`): guarda lo pendiente (`onBeforeReload` = flush de nota/prerredactado/fármaco), espera 0,8 s, `reg.update()` y espera a que el SW nuevo se active (máx. 8 s), y `location.reload()`. El SW es red primero y Hosting sirve js/css/html con `no-cache`, así que la recarga trae todo nuevo.
+- Ajustes → «Buscar actualización» (manual: dice si ya es la última o si no hay conexión).
+- Por eso es imprescindible seguir subiendo `APP_VERSION` en cada cambio. Probado con Playwright (390×844 y 1366×860): sin versión nueva no sale; con otra versión sale y recarga.
 
 ## Probar
 No hay tests automáticos en el repo. Antes de publicar, al menos `node --experimental-default-type=module --check` en cada `public/js/*.js` (sin la opción, `node --check` trata los archivos como CommonJS y **no detecta** algunos errores de sintaxis).

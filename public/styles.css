@@ -1759,3 +1759,18 @@ button.dtag { cursor: pointer; }
 .fname-sugg { display: flex; flex-wrap: wrap; gap: 6px; max-height: 46vh; overflow: auto; }
 .fname-sugg .chip { min-height: 34px; }
 .fname-sugg .chip.done { opacity: .5; cursor: default; }
+
+/* v1.35.0: aviso de actualización */
+#update-banner {
+  position: fixed; z-index: 250; left: 50%; transform: translateX(-50%);
+  top: calc(10px + var(--safe-top, 0px)); width: max-content; max-width: calc(100vw - 24px);
+  display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 16px;
+  background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 999px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.18); font-size: 14px; animation: ub-in .25s ease-out;
+}
+#update-banner .ub-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#update-banner .ub-v { color: var(--muted); }
+#update-banner .btn { border-radius: 999px; white-space: nowrap; }
+#update-banner .ub-close { border: 0; background: none; color: var(--muted); font-size: 20px; line-height: 1; padding: 4px 8px; cursor: pointer; }
+@media (max-width: 400px) { #update-banner .ub-v { display: none; } }
+@keyframes ub-in { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
