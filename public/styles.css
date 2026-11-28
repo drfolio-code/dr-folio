@@ -1535,6 +1535,22 @@ details.dsec[open] > summary { border-bottom: 1px solid var(--border); }
 /* v1.39.1: subgrupos por forma dentro de una vía */
 .pres-sub { display: flex; flex-direction: column; gap: 4px; }
 .pres-sub + .pres-sub { margin-top: 4px; }
+/* v1.39.4: editor de presentaciones compacto */
+.pres-ed-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.pres-ed-q { flex: 1 1 160px; min-width: 0; min-height: 36px; }
+.pres-paste { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.pres-ed { display: flex; flex-direction: column; gap: 4px; }
+.pres-ed .pres-glabel { margin-top: 8px; }
+.pres-ed .pres-glabel:first-child { margin-top: 0; }
+.pres-ed .pres-slabel { margin-top: 2px; }
+.pres-ed-row { border: 1px solid var(--border); border-radius: 10px; padding: 3px 4px 3px 6px; display: flex; flex-direction: column; gap: 4px; }
+.pres-ed-row.open { border-color: var(--accent); padding: 6px; }
+.pres-ed-top { display: flex; gap: 2px; align-items: center; }
+.pres-ed-top input { flex: 1; min-width: 0; min-height: 36px; border-color: transparent; background: transparent; padding: 4px 6px; }
+.pres-ed-row.open .pres-ed-top input, .pres-ed-top input:focus { border-color: var(--border); background: var(--bg); }
+.pres-ed-more .i { transition: transform .15s; }
+.pres-ed-more.on .i { transform: rotate(180deg); }
+.pres-ed-sum { border: 0; background: none; text-align: left; font: inherit; font-size: 12.5px; color: var(--accent); padding: 0 6px 3px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pres-row-kind { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
 .pres-row-kind label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pres-row-kind select { width: 100%; min-height: 36px; font: inherit; font-size: 14px; }

@@ -5,7 +5,7 @@ import { store } from './store.js';
 import { el, norm } from './util.js';
 import { toast, modal, confirm, undoToast } from './ui.js';
 import { icon } from './icons.js';
-import { REG_FIELDS, lineOf, hasDetail, mergeList, presBrandsOf, profOf, tablesOf, presInfoOf, presGroup, presKind, PRES_GROUPS, FORM_LABELS } from './drugbody.js';
+import { REG_FIELDS, lineOf, hasDetail, mergeList, presBrandsOf, profOf, tablesOf, presInfoOf, presGroup, presKind, presSubgroups, PRES_GROUPS, FORM_LABELS } from './drugbody.js';
 import { saveFile, compressImage, fileUrl } from './files.js';
 import { FLUIDS, regType, typeSlug } from './chuletario.js';
 import { liveTags, tagChip, newTag, EXAMPLES } from './drugtags.js';
@@ -114,48 +114,100 @@ export async function editTags(id) {
 export async function editPres(id, { addNew = false } = {}) {
   const d = store.drugs.get(id);
   if (!d) return;
+  // v1.39.4: editor compacto. Agrupado como en la ficha (vía › forma), cada presentación en una línea con su resumen
+  // (marcas, vía/forma si es a mano); toca la línea para abrir sus opciones (una abierta a la vez). Buscador si hay
+  // muchas, «＋ Añadir» arriba y «Pegar varias» (una por línea). El orden lo pone la ficha (por forma y dosis).
   const brands = d.brands || [];
-  const rows = (d.presentations || []).map((p) => ({ p, b: [...presBrandsOf(d, p)], ...presInfoOf(d, p) }));
-  if (addNew || !rows.length) rows.push({ p: '', b: [], g: '', f: '' });
-  const box = el('div', { class: 'pres-rows', 'data-own-enter': '1' });
-  const render = (focusLast = false) => {
-    box.replaceChildren(...rows.map((row, i) => {
-      const inp = el('input', { type: 'text', value: row.p, placeholder: 'p. ej. 37,5/325 mg comp · 1 amp = 1 mL = 1 mg', maxlength: 150, autocomplete: 'off', 'aria-label': `Presentación ${i + 1}` });
-      // v1.39.2: vía y forma (automáticas; se pueden cambiar a mano para mover la presentación de grupo)
-      const autoG = () => presGroup({ ...d, presInfo: [] }, row.p), autoF = () => presKind(row.p).label;
-      const selG = el('select', { class: 'pres-sel', 'aria-label': 'Vía' });
-      const selF = el('select', { class: 'pres-sel', 'aria-label': 'Forma' });
-      const fill = () => {
-        selG.replaceChildren(el('option', { value: '' }, `Automática: ${autoG()}`), ...PRES_GROUPS.map((g) => el('option', { value: g }, g)));
-        selF.replaceChildren(el('option', { value: '' }, `Automática: ${autoF()}`), ...[...FORM_LABELS, 'Otras'].map((f) => el('option', { value: f }, f)));
-        selG.value = row.g || ''; selF.value = row.f || '';
-      };
-      fill();
-      selG.addEventListener('change', () => { row.g = selG.value; });
-      selF.addEventListener('change', () => { row.f = selF.value; });
-      inp.addEventListener('input', () => { row.p = inp.value; });
-      inp.addEventListener('change', fill);
-      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); rows.push({ p: '', b: [], g: '', f: '' }); render(true); } });
-      const chips = brands.map((b) => {
-        const onB = row.b.includes(b);
-        return el('button', { type: 'button', class: `chip toggle ${onB ? 'on' : ''}`, 'aria-pressed': String(onB),
-          onclick: () => { const k = row.b.indexOf(b); if (k >= 0) row.b.splice(k, 1); else row.b.push(b); render(); } }, onB ? icon('check') : null, b);
-      });
-      const mv = (dir) => { [rows[i], rows[i + dir]] = [rows[i + dir], rows[i]]; render(); };
-      return el('div', { class: 'pres-row' },
-        el('div', { class: 'pres-row-top' }, inp,
-          i > 0 ? el('button', { class: 'icon-btn', type: 'button', title: 'Subir', 'aria-label': 'Subir', onclick: () => mv(-1) }, icon('arrow-up')) : null,
-          el('button', { class: 'icon-btn', type: 'button', title: 'Quitar', 'aria-label': 'Quitar esta presentación', onclick: () => { rows.splice(i, 1); render(); } }, icon('x'))),
-        el('div', { class: 'pres-row-kind' }, el('label', {}, el('span', { class: 'muted small' }, 'Vía'), selG), el('label', {}, el('span', { class: 'muted small' }, 'Forma'), selF)),
-        brands.length ? el('div', { class: 'pres-row-brands' }, el('span', { class: 'muted small' }, 'Marca:'), ...chips) : null);
-    }));
-    if (focusLast) { const ins = box.querySelectorAll('input'); ins[ins.length - 1]?.focus(); }
+  let seq = 0;
+  const mk = (p = '', b = [], g = '', f = '') => ({ key: ++seq, p, b, g, f });
+  const rows = (d.presentations || []).map((p) => { const o = presInfoOf(d, p); return mk(p, [...presBrandsOf(d, p)], o.g, o.f); });
+  let openKey = null, q = '';
+  const kindOf = (row) => ({ g: row.g || presGroup({ ...d, presInfo: [] }, row.p), f: row.f || presKind(row.p).label });
+  const box = el('div', { class: 'pres-ed', 'data-own-enter': '1' });
+  const search = el('input', { type: 'search', class: 'pres-ed-q', placeholder: 'Buscar presentación o marca…', autocomplete: 'off', 'aria-label': 'Buscar presentación' });
+  search.addEventListener('input', () => { q = norm(search.value).trim(); render(); });
+  const add = (p = '') => { const r = mk(p); rows.push(r); openKey = r.key; q = ''; search.value = ''; render(true); };
+  const rowEl = (row) => {
+    const isOpen = openKey === row.key;
+    const k = kindOf(row);
+    const inp = el('input', { type: 'text', value: row.p, placeholder: 'p. ej. 250 mg/5 ml susp. · 500 mg comp.', maxlength: 150, autocomplete: 'off', 'aria-label': 'Presentación' });
+    inp.addEventListener('input', () => { row.p = inp.value; });
+    inp.addEventListener('focus', () => { if (openKey !== row.key) { openKey = row.key; render(); box.querySelector(`[data-k="${row.key}"] input`)?.focus(); } });
+    inp.addEventListener('change', () => render());
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); add(); } });
+    const summary = [row.b.length ? row.b.join(' · ') : '', row.g ? `vía: ${row.g}` : '', row.f ? `forma: ${row.f}` : ''].filter(Boolean).join(' · ');
+    const top = el('div', { class: 'pres-ed-top' }, inp,
+      el('button', { class: `icon-btn pres-ed-more ${isOpen ? 'on' : ''}`, type: 'button', title: isOpen ? 'Cerrar opciones' : 'Marcas, vía y forma', 'aria-label': 'Marcas, vía y forma', 'aria-expanded': String(isOpen),
+        onclick: () => { openKey = isOpen ? null : row.key; render(); } }, icon('chevron-down')),
+      el('button', { class: 'icon-btn', type: 'button', title: 'Quitar', 'aria-label': 'Quitar esta presentación', onclick: () => { rows.splice(rows.indexOf(row), 1); render(); } }, icon('x')));
+    const parts = [top];
+    if (!isOpen && summary) parts.push(el('button', { class: 'pres-ed-sum', type: 'button', onclick: () => { openKey = row.key; render(); } }, summary));
+    if (isOpen) {
+      const selG = el('select', { 'aria-label': 'Vía' }, el('option', { value: '' }, `Automática: ${presGroup({ ...d, presInfo: [] }, row.p)}`), ...PRES_GROUPS.map((g) => el('option', { value: g }, g)));
+      const selF = el('select', { 'aria-label': 'Forma' }, el('option', { value: '' }, `Automática: ${presKind(row.p).label}`), ...[...FORM_LABELS, 'Otras'].map((f) => el('option', { value: f }, f)));
+      selG.value = row.g; selF.value = row.f;
+      selG.addEventListener('change', () => { row.g = selG.value; render(); });
+      selF.addEventListener('change', () => { row.f = selF.value; render(); });
+      parts.push(el('div', { class: 'pres-row-kind' }, el('label', {}, el('span', { class: 'muted small' }, 'Vía'), selG), el('label', {}, el('span', { class: 'muted small' }, 'Forma'), selF)));
+      if (brands.length) parts.push(el('div', { class: 'pres-row-brands' }, el('span', { class: 'muted small' }, 'Marcas:'), ...brands.map((b) => {
+        const on = row.b.includes(b);
+        return el('button', { type: 'button', class: `chip toggle ${on ? 'on' : ''}`, 'aria-pressed': String(on),
+          onclick: () => { const i = row.b.indexOf(b); if (i >= 0) row.b.splice(i, 1); else row.b.push(b); render(); } }, on ? icon('check') : null, b);
+      })));
+    }
+    return el('div', { class: `pres-ed-row ${isOpen ? 'open' : ''}`, 'data-k': String(row.key) }, ...parts);
   };
+  const render = (focusOpen = false) => {
+    const match = (r) => !q || norm(`${r.p} ${r.b.join(' ')}`).includes(q) || r.key === openKey;
+    // grupos como en la ficha: vía › forma (las nuevas, sin texto, al final)
+    const groups = new Map();
+    const fresh = [];
+    for (const r of rows.filter(match)) {
+      if (!r.p.trim()) { fresh.push(r); continue; }
+      const k = kindOf(r);
+      const key = `${PRES_GROUPS.indexOf(k.g)}|${k.g}`;
+      if (!groups.has(key)) groups.set(key, { g: k.g, ord: PRES_GROUPS.indexOf(k.g), subs: new Map() });
+      const G = groups.get(key);
+      if (!G.subs.has(k.f)) G.subs.set(k.f, []);
+      G.subs.get(k.f).push(r);
+    }
+    const out = [];
+    for (const G of [...groups.values()].sort((a, b) => a.ord - b.ord)) {
+      out.push(el('div', { class: 'pres-glabel' }, G.g));
+      const subs = presSubgroups([...G.subs.values()].flat().map((r) => r.p), { presInfo: rows.filter((r) => r.f).map((r) => ({ p: r.p, f: r.f })) });
+      for (const sg of subs) {
+        out.push(el('div', { class: 'pres-slabel' }, sg.label));
+        const used = new Set();
+        for (const p of sg.items) { const r = [...G.subs.values()].flat().find((x) => x.p === p && !used.has(x)); if (r) { used.add(r); out.push(rowEl(r)); } }
+      }
+    }
+    if (fresh.length) { out.push(el('div', { class: 'pres-glabel' }, 'Nuevas')); out.push(...fresh.map(rowEl)); }
+    if (!out.length) out.push(el('p', { class: 'muted small' }, q ? 'Nada coincide.' : 'Sin presentaciones. Toca «＋ Añadir».'));
+    box.replaceChildren(...out);
+    search.classList.toggle('hidden', rows.length < 6);
+    if (focusOpen) box.querySelector('.pres-ed-row.open input')?.focus();
+  };
+  const paste = el('div', { class: 'pres-paste hidden' });
+  const pasteTa = el('textarea', { rows: 4, placeholder: 'Una presentación por línea:\n250 mg/5 ml susp.\n500 mg comp.\n1 g sobres' });
+  paste.append(pasteTa, el('div', { class: 'reg-actions' },
+    el('button', { class: 'btn sm primary', type: 'button', onclick: () => {
+      const have = new Set(rows.map((r) => norm(r.p).trim()));
+      const list = pasteTa.value.split(/\n+/).map((x) => x.replace(/^[\s•\-–*·]+/, '').trim()).filter((x) => x && !have.has(norm(x).trim()));
+      for (const x of list) rows.push(mk(x));
+      pasteTa.value = ''; paste.classList.add('hidden'); openKey = null; render();
+      toast(list.length ? `${list.length} añadidas` : 'Ninguna nueva', list.length ? 'ok' : 'error');
+    } }, 'Añadir'),
+    el('button', { class: 'btn sm', type: 'button', onclick: () => paste.classList.add('hidden') }, 'Cancelar')));
+  const bar = el('div', { class: 'pres-ed-bar' },
+    el('button', { class: 'btn sm primary', type: 'button', onclick: () => add() }, '＋ Añadir'),
+    el('button', { class: 'btn sm', type: 'button', onclick: () => { paste.classList.toggle('hidden'); if (!paste.classList.contains('hidden')) pasteTa.focus(); } }, 'Pegar varias'),
+    search);
+  if (addNew || !rows.length) { const r = mk(); rows.push(r); openKey = r.key; }
   render();
-  const r = await sheet('Presentaciones', [box,
-    el('button', { class: 'btn sm', type: 'button', onclick: () => { rows.push({ p: '', b: [], g: '', f: '' }); render(true); } }, '＋ Añadir presentación'),
-    brands.length ? null : el('p', { class: 'muted small' }, 'Para indicar de qué marca es cada presentación, añade antes los nombres comerciales (lápiz junto al nombre).')
-  ], { onOpen: (b) => { if (addNew) setTimeout(() => { const ins = b.querySelectorAll('.pres-row input'); ins[ins.length - 1]?.focus(); }, 60); } });
+  const r = await sheet('Presentaciones', [bar, paste, box,
+    brands.length ? el('p', { class: 'muted small' }, 'Toca la flecha de una presentación para elegir sus marcas, su vía o su forma. El orden lo pone la ficha (por forma y dosis).')
+      : el('p', { class: 'muted small' }, 'Para indicar de qué marca es cada presentación, añade antes los nombres comerciales (lápiz junto al nombre).')
+  ], { onOpen: (b) => { if (addNew) setTimeout(() => b.querySelector('.pres-ed-row.open input')?.focus(), 60); } });
   if (r !== 'ok') return;
   const clean = rows.map((x) => ({ p: one(x.p), b: x.b.filter((b) => brands.includes(b)), g: x.g || '', f: x.f || '' })).filter((x) => x.p);
   const [presentations] = mergeList([], clean.map((x) => x.p));
