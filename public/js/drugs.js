@@ -29,7 +29,7 @@ import { saveFile } from './files.js';
 import { initDrugEdit, editHead, editTags, editPres, editReg, editRegs, editList, editRes, editTables } from './drugedit.js';
 import { fileUrl } from './files.js';
 import { tagOk, tagsOf, tagChip, setProfileFn } from './drugtags.js';
-import { PERKG_UNITS, parseNum, pedCalc, hasPerKg, doseText, fmt, validKg } from './drugped.js';
+import { PERKG_UNITS, parseNum, pedCalc, hasPerKg, doseText, fmt, validKg, perKgInText, textCalc } from './drugped.js';
 import { formatBytes } from './util.js';
 
 const str = (x) => (x == null ? '' : String(x));
@@ -955,19 +955,43 @@ function renderPres() {
   $('#drug-add-pres').classList.toggle('hidden', rd);
   // Lectura: cada presentación con sus marcas debajo (p. ej. 37,5/325 mg comp · Zaldiar · Pazital)
   // v1.26.0: agrupadas por vía de administración (Oral, IV, IM, SC, Inhalada, Tópica…; presGroup en drugbody.js)
-  const chip = (p) => {
-    const b = presBrandsOf(d, p);
-    return el('span', { class: `pres-chip ${b.length ? 'has-brands' : ''}` }, el('span', {}, p), b.length ? el('span', { class: 'pres-brands' }, b.join(' · ')) : null);
+  const chip = (x) => el('span', { class: `pres-chip ${x.b.length ? 'has-brands' : ''}`, title: x.full.join('\n') }, el('span', {}, x.p),
+    x.b.length ? el('span', { class: 'pres-brands' }, x.b.join(' · ')) : null);
+  /** v1.34.2: «Apiretal 100 mg/ml sol. oral» con la marca Apiretal → «100 mg/ml sol. oral» + Apiretal debajo; las iguales se juntan */
+  const chips = (items) => {
+    const out = [];
+    for (const p of items) {
+      const b = presBrandsOf(d, p);
+      const shown = presShort(p, d.name, b);
+      const k = norm(shown).replace(/\s+/g, ' ').trim();
+      const prev = out.find((x) => x.k === k);
+      if (prev) { for (const x of b) if (!prev.b.includes(x)) prev.b.push(x); prev.full.push(p); continue; }
+      out.push({ k, p: shown, b: [...b], full: [p] });
+    }
+    return out.map(chip);
   };
   if (rd) {
     const groups = presByGroup(d);
     list.classList.toggle('grouped', groups.length > 0);
     // La vía se indica siempre, también si solo hay una (v1.26.1)
-    list.replaceChildren(...groups.map((g) => el('div', { class: 'pres-group' }, el('div', { class: 'pres-glabel' }, g.group), el('div', { class: 'pres-gitems' }, ...g.items.map(chip)))));
+    list.replaceChildren(...groups.map((g) => el('div', { class: 'pres-group' }, el('div', { class: 'pres-glabel' }, g.group), el('div', { class: 'pres-gitems' }, ...chips(g.items)))));
   }
   else $('#drug-pres-rows').replaceChildren(...form.pres.map(presRow));
   $('#drug-pres-dl').replaceChildren(...presList().map((p) => el('option', { value: p })));
 }
+/** Texto de una presentación sin el nombre comercial ni el principio activo delante (solo para mostrarla; v1.34.2):
+ *  «Apiretal 100 mg/ml sol. oral» (marca Apiretal) → «100 mg/ml sol. oral» · «Paracetamol 650 mg comp.» → «650 mg comp.» */
+function presShort(p, name, brands) {
+  let t = str(p).replace(/\s*®\s*/g, ' ').replace(/\s+/g, ' ').trim();
+  const starts = (w) => { const n = norm(t); const k = norm(w).trim(); return k && n.startsWith(k) && /[\s,.:-]/.test(t.charAt(k.length) || ' '); };
+  for (const b of [...brands].sort((a, z) => z.length - a.length)) if (starts(b)) { t = t.slice(b.length).replace(/^[\s,.:-]+/, ''); break; }
+  const nameTokens = new Set(norm(name).split(/[^a-z0-9]+/).filter((w) => w.length > 2));
+  let words = t.split(' ');
+  while (words.length > 1 && nameTokens.has(norm(words[0]).replace(/[^a-z0-9]/g, '')) && !/\d/.test(words[0])) words = words.slice(1);
+  const out = words.join(' ').trim();
+  return out && /\d/.test(out) ? out : str(p).replace(/\s*®\s*/g, ' ').trim();
+}
+
 /** Fila editable: presentación + marcas que la tienen (toca una marca para asignarla) */
 function presRow(row, i) {
   const inp = el('input', { type: 'text', value: row.p, placeholder: 'p. ej. 37,5/325 mg comp · 1 amp = 1 mL = 1 mg', maxlength: 150, autocomplete: 'off', 'aria-label': `Presentación ${i + 1}` });
@@ -1052,8 +1076,13 @@ function regView(name, r) {
   const chip = type || (route.length <= 14 ? route : routeType(route) || route.split(/[\s(/,]+/)[0]);
   const nr = norm(route), nc = norm(chip);
   const routeSaid = !route || main === route || nr === nc || (nr.includes(nc.slice(0, 6)) && route.split(/\s+/).length <= 2);
-  const ped = isPed(store.drugs.get(curId)) && hasPerKg(r);
+  const isP = isPed(store.drugs.get(curId));
+  const ped = isP && hasPerKg(r);
   const calc = ped ? pedCalc(r, kg) : null;
+  // v1.34.2: sin «Dosis por kg», se calcula con las dosis por kg que dice el texto («60 mg/kg/día», «0,2 mg/kg»…)
+  const tFrom = isP && !ped ? (str(r.text) || str(r.dose)) : '';
+  const tOk = !!tFrom && perKgInText(tFrom).length > 0;
+  const tCalc = tOk ? textCalc(tFrom, kg) : null;
   const max = maxText(r, main);
   const meta = [
     routeSaid ? '' : route,
@@ -1069,6 +1098,9 @@ function regView(name, r) {
       ped ? el('div', { class: `reg-calc ${calc?.capped ? 'capped' : ''} ${calc ? '' : 'nokg'}` },
         calc ? [el('b', {}, `= ${doseText(calc)}`), ` · ${fmt(calc.perKg)} ${calc.unit}/kg × ${fmt(kg)} kg`, calc.capped ? el('span', { class: 'cap-warn' }, ` · tope: dosis máxima (sin tope serían ${fmt(calc.raw)} ${calc.unit})`) : null]
           : `${fmt(parseNum(r.perKg))} ${str(r.perKgUnit) || 'mg'}/kg · escribe el peso arriba para calcular`) : null,
+      tOk ? el('div', { class: `reg-calc ${tCalc ? '' : 'nokg'}` },
+        tCalc ? [...tCalc.flatMap((x, i) => [i ? ' · ' : null, el('b', {}, `= ${x.out}`), tCalc.length > 1 ? ` (${x.src})` : null]), el('span', { class: 'muted' }, ` · ${fmt(kg)} kg · sin tope: mira la dosis máxima en la tabla`)]
+          : 'Escribe el peso arriba para calcular') : null,
       meta.length ? el('div', { class: 'reg-meta' }, meta.join(' · ')) : null,
       r.lineAuto === false && str(r.line).trim() ? el('div', { class: 'reg-meta reg-custom' }, icon('copy'), ` ${str(r.line).trim()}`) : null),
     ...regResLinks(r),
@@ -1177,8 +1209,8 @@ function renderWeight(d) {
   if (!on) return;
   const inp = box.querySelector('input');
   if (document.activeElement !== inp) inp.value = kg ? fmt(kg) : '';
-  const any = (d.regimens || []).some(hasPerKg);
-  box.querySelector('.w-hint').textContent = !any ? 'Ninguna pauta tiene dosis por kg (lápiz de la pauta → «Dosis por kg»).'
+  const any = (d.regimens || []).some((r) => hasPerKg(r) || perKgInText(str(r.text) || str(r.dose)).length);
+  box.querySelector('.w-hint').textContent = !any ? 'Ninguna pauta tiene dosis por kg: usa la tabla por peso (o lápiz de la pauta → «Dosis por kg»).'
     : kg && validKg(kg) ? '' : 'Escribe el peso para calcular las dosis.';
 }
 function onWeight() {

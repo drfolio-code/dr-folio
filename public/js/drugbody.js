@@ -502,7 +502,7 @@ export const PRES_GROUPS = ['Oral', 'Sublingual', 'Intravenosa (IV)', 'IV / IM',
   'Vaginal', 'Rectal', 'Transdérmica', 'Gas medicinal', 'Otras'];
 const FORM_RULES = [
   [/colirio|oftalm/, 'Oftálmica'], [/otic|oido/, 'Ótica'], [/vaginal|ovulo/, 'Vaginal'],
-  [/supositorio|rectal|microenema|enema/, 'Rectal'], [/parche|transderm|aposito/, 'Transdérmica'],
+  [/supositorio|\bsup\b|rectal|microenema|enema/, 'Rectal'], [/parche|transderm|aposito/, 'Transdérmica'],
   [/nebuliz/, 'Nebulizada'], [/spray nasal|polvo nasal|nasal|intranasal/, 'Intranasal'],
   [/sublingual|\bsl\b/, 'Sublingual'],
   [/inh\b|aerosol|turbuhaler|accuhaler|ellipta|respimat|nexthaler|breezhaler|inhalacion|inhalador/, 'Inhalada'],

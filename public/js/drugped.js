@@ -75,9 +75,43 @@ export const doseText = (c) => (c ? `${fmt(c.dose)} ${c.unit}${c.vol != null ? `
  *  «Paracetamol 100 mg/ml sol oral: 300 mg (3 ml) VO cada 6 h — 15 mg/kg, peso 20 kg» (+ «, dosis máxima» si se aplicó el tope) */
 export function pedLine(name, r, kg) {
   const c = pedCalc(r, kg);
-  if (!c) return '';
+  if (!c) return textLine(name, r, kg); // v1.34.2: sin «Dosis por kg», con lo que diga el texto
   const head = [str(name).trim(), str(r.pres).trim()].filter(Boolean).join(' ');
   const dur = str(r.duration).trim();
   const parts = [doseText(c), str(r.route).trim(), str(r.freq).trim(), dur ? (/^\d/.test(dur) ? `durante ${dur}` : dur) : ''].filter(Boolean);
   return `${head}${head ? ': ' : ''}${parts.join(' ')} — ${fmt(c.perKg)} ${c.unit}/kg, peso ${fmt(kg)} kg${c.capped ? ' (dosis máxima)' : ''}`;
+}
+
+// ====================== Cálculo a partir del texto de la dosis (v1.34.2) ======================
+// Para las pautas sin «Dosis por kg» (p. ej. las de la Guía de Aragón: «60 mg/kg/día», «0,2-0,5 mg/kg», «200 μg/kg»):
+// se leen las dosis por kg del texto y se multiplican por el peso. Sin tope (la máxima no está en el texto):
+// se avisa de comprobarla en la tabla por peso.
+const PERKG_RE = /(\d+(?:[.,]\d+)?)(?:\s*[-–]\s*(\d+(?:[.,]\d+)?))?\s*(mg|mcg|µg|μg|ug|g|UI|mEq|mmol|ml|gotas)\s*\/\s*kg(?:\s*\/\s*(d[ií]a|dosis|toma|h(?:ora)?|min(?:uto)?)\b)?/gi;
+const PER = { dia: 'día', día: 'día', dosis: 'dosis', toma: 'dosis', h: 'h', hora: 'h', min: 'min', minuto: 'min' };
+/** Dosis por kg que aparecen en un texto: [{lo, hi, unit, per: 'día'|'dosis'|'h'|'min', src}] */
+export function perKgInText(text) {
+  const out = [];
+  for (const m of str(text).matchAll(PERKG_RE)) {
+    const lo = parseNum(m[1]), hi = m[2] ? parseNum(m[2]) : lo;
+    if (!(lo > 0) || !(hi > 0)) continue;
+    out.push({ lo, hi, unit: unitKey(m[3]) === 'ui' ? 'UI' : unitKey(m[3]), per: PER[(m[4] || 'dosis').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/^d.a$/, 'dia')] || 'dosis', src: m[0] });
+  }
+  return out;
+}
+/** Resultado con el peso: «= 1200 mg/día» · «= 4–10 mg/dosis» (null si no hay peso o no hay dosis por kg en el texto) */
+export function textCalc(text, kg) {
+  if (!validKg(kg)) return null;
+  const list = perKgInText(text);
+  if (!list.length) return null;
+  return list.map((x) => {
+    const lo = x.lo * kg, hi = x.hi * kg;
+    return { ...x, dlo: lo, dhi: hi, out: `${fmt(lo)}${hi !== lo ? `–${fmt(hi)}` : ''} ${x.unit}/${x.per}` };
+  });
+}
+/** Línea para el informe con el cálculo del texto: «Paracetamol: 60 mg/kg/día → 1200 mg/día (peso 20 kg)» */
+export function textLine(name, r, kg) {
+  const c = textCalc(r?.text || r?.dose, kg);
+  if (!c) return '';
+  const head = [str(name).trim(), str(r.pres).trim()].filter(Boolean).join(' ');
+  return `${head}${head ? ': ' : ''}${c.map((x) => `${x.src} → ${x.out}`).join('; ')} (peso ${fmt(kg)} kg)`;
 }
