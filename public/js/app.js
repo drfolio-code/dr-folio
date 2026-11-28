@@ -8,7 +8,7 @@ import {
 import { compressImage, saveFile, fileUrl, fileBlob, deleteFile, revokeAll } from './files.js';
 import { createEditor, escapeHtml } from './editor.js';
 import { el, $, $$, debounce, norm, shortDate, longDate, formatBytes, download } from './util.js';
-import { toast, modal, prompt, confirm, menu, picker, colorPicker, modalOpen } from './ui.js';
+import { toast, modal, prompt, confirm, menu, picker, colorPicker, modalOpen, initAutoTitles } from './ui.js';
 import {
   initSnippets, newSnippet, openSnippet, closeSnippet, currentSnippet, flushSnippet, onSnippetsChange, pickSnippetText,
   snippetCard, snippetItemMenu, snippetMatches, snippetsForView, sortSnippets, allSnippets, moveSnippetTo,
@@ -214,6 +214,7 @@ if ('serviceWorker' in navigator) {
 
 const setScreen = (s) => { document.body.dataset.screen = s; };
 initViewport();
+initAutoTitles(); // v1.33.2: texto completo al pasar el ratón por un botón o carpeta cortados
 initTitles($('#ed-title'), $('#snip-title'));
 
 onAuth(async (user) => {
@@ -1267,7 +1268,7 @@ function renderSidebar() {
       const open = S.expanded.has(f.id);
       const row = el('div', {
         class: `tree-row ${v.type === T.folder && v.id === f.id ? 'active' : ''}`,
-        style: { '--depth': depth }, role: 'button', tabindex: '0', title: folderPath(f.id, T.map()).map((x) => x.name).join(' › '), // nombre completo al pasar el ratón
+        style: { '--depth': depth }, role: 'button', tabindex: '0', // nombre completo al pasar el ratón si no cabe: initAutoTitles (ui.js)
         onclick: (e) => { if (!longPressed(e.currentTarget) && !e.target.closest('.caret,.more')) setView({ type: T.folder, id: f.id }); },
         onkeydown: (e) => { if (e.key === 'Enter') setView({ type: T.folder, id: f.id }); }
       },
@@ -2093,7 +2094,6 @@ function folderItem(f, totals, { showPath = false } = {}, T = TREES.notes) {
   const parent = showPath && f.parentId ? folderPath(f.parentId, T.map()).map((x) => x.name).join(' › ') : '';
   const item = el('div', {
     class: 'fx-folder', role: 'button', tabindex: '0', style: f.color ? { '--fc': f.color } : {},
-    title: folderPath(f.id, T.map()).map((x) => x.name).join(' › '), // nombre completo al pasar el ratón (v1.33.1)
     'aria-label': `Carpeta ${f.name}, ${plural(n, T.one, T.many)}`,
     onclick: open,
     onkeydown: (e) => { if (e.key === 'Enter') setView({ type: T.folder, id: f.id }); }

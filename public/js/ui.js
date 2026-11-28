@@ -217,3 +217,28 @@ export function colorPicker(title, colors = [], kind = 'label') {
   ].filter(Boolean);
   return modal({ title, body, actions: [], onOpen: (_b, close) => { closeFn = () => close(chosen); } }).then(() => chosen);
 }
+
+/**
+ * v1.33.2: textos cortados («…» o recortados a 1–2 líneas) en botones, carpetas, tarjetas, chips y menús:
+ * al pasar el ratón por encima se ve el texto completo (atributo title, puesto solo mientras no cabe).
+ * Solo con ratón (pointer: fine). No toca los title escritos a mano.
+ */
+const CUT_SEL = 'button, a, [role=button], [role=tab], .chip, .find-chip, .dtag, .nav-item, .tree-row, .fx-folder, .note-card, .crumb, label, summary, .menu-item, option';
+const isCut = (x) => x.clientWidth > 0 && (x.scrollWidth > x.clientWidth + 1 || x.scrollHeight > x.clientHeight + 2);
+export function initAutoTitles() {
+  if (!matchMedia('(pointer: fine)').matches) return;
+  document.addEventListener('mouseover', (e) => {
+    const t = e.target instanceof Element ? e.target.closest(CUT_SEL) : null;
+    if (!t) return;
+    if (t.hasAttribute('title') && !t.dataset.autoTitle) return; // title propio (p. ej. ruta completa de la carpeta)
+    const nodes = [t, ...t.querySelectorAll('*')].slice(0, 40);
+    const cut = nodes.some((x) => {
+      if (x.tagName === 'svg' || x.closest('svg')) return false;
+      const cs = getComputedStyle(x);
+      return (cs.overflow !== 'visible' || cs.textOverflow === 'ellipsis' || cs.webkitLineClamp !== 'none') && isCut(x);
+    });
+    const text = (t.innerText || t.textContent || '').replace(/\s+/g, ' ').trim();
+    if (cut && text) { t.title = text.slice(0, 300); t.dataset.autoTitle = '1'; }
+    else if (t.dataset.autoTitle) { t.removeAttribute('title'); delete t.dataset.autoTitle; }
+  }, { passive: true });
+}
