@@ -161,7 +161,7 @@ const TREES = {
       el('button', { class: 'btn', type: 'button', onclick: () => importDrugs(folderId) }, icon('file-up'), ' Importar'),
       el('button', { class: 'btn', type: 'button', onclick: () => pasteChuletario({ folderId }) }, icon('clipboard-paste'), ' Pegar del Chuletario'),
       // Plantilla de carpetas: en la raíz (también en ⋯ y en el aviso de arriba)
-      !folderId && drugProfile() === 'ped' ? el('button', { class: 'btn', type: 'button', onclick: () => createPedFolders({ render: () => { renderList(); renderSidebar(); } }) }, icon('folder-plus'), ' Carpetas pediátricas') : null,
+      !folderId && drugProfile() === 'ped' && ![...store.drugFolders.values()].some((f) => profOf(f) === 'ped') ? el('button', { class: 'btn', type: 'button', onclick: () => createPedFolders({ render: () => { renderList(); renderSidebar(); } }) }, icon('folder-plus'), ' Carpetas pediátricas') : null,
       !folderId && drugProfile() !== 'ped' ? el('button', { class: 'btn', type: 'button', onclick: () => importTemplate() }, icon('folder-plus'), ' Plantilla de carpetas') : null],
     menuExtra: (folderId) => [
       folderId ? { icon: 'book-open', label: 'Enlaces y bibliografía…', onClick: () => editFolderResources(folderId) } : null,
@@ -1267,7 +1267,7 @@ function renderSidebar() {
       const open = S.expanded.has(f.id);
       const row = el('div', {
         class: `tree-row ${v.type === T.folder && v.id === f.id ? 'active' : ''}`,
-        style: { '--depth': depth }, role: 'button', tabindex: '0',
+        style: { '--depth': depth }, role: 'button', tabindex: '0', title: folderPath(f.id, T.map()).map((x) => x.name).join(' › '), // nombre completo al pasar el ratón
         onclick: (e) => { if (!longPressed(e.currentTarget) && !e.target.closest('.caret,.more')) setView({ type: T.folder, id: f.id }); },
         onkeydown: (e) => { if (e.key === 'Enter') setView({ type: T.folder, id: f.id }); }
       },
@@ -1816,7 +1816,8 @@ function renderDrugView(box, T) {
   if (v.type === T.root || v.type === T.folder) {
     renderExplorer(box, T);
     box.prepend(scopeBar());
-    if (ped && v.type === T.root && !liveDrugs('ped').length) {
+    const pedFolders = [...store.drugFolders.values()].some((f) => profOf(f) === 'ped');
+    if (ped && v.type === T.root && !liveDrugs('ped').length && !pedFolders) {
       box.prepend(el('div', { class: 'tpl-banner' }, el('span', { class: 'tpl-ico' }, icon('pill')),
         el('div', { class: 'tpl-txt' }, el('b', {}, 'Vademécum pediátrico'),
           el('span', {}, 'Empieza vacío: añade solo tus fármacos de referencia, con «＋ Fármaco» o desde una ficha adulta (⋯ → «Crear ficha pediátrica a partir de esta»). Las pautas pueden ir por kg: en la ficha escribes el peso y calcula la dosis.')),
@@ -2092,6 +2093,7 @@ function folderItem(f, totals, { showPath = false } = {}, T = TREES.notes) {
   const parent = showPath && f.parentId ? folderPath(f.parentId, T.map()).map((x) => x.name).join(' › ') : '';
   const item = el('div', {
     class: 'fx-folder', role: 'button', tabindex: '0', style: f.color ? { '--fc': f.color } : {},
+    title: folderPath(f.id, T.map()).map((x) => x.name).join(' › '), // nombre completo al pasar el ratón (v1.33.1)
     'aria-label': `Carpeta ${f.name}, ${plural(n, T.one, T.many)}`,
     onclick: open,
     onkeydown: (e) => { if (e.key === 'Enter') setView({ type: T.folder, id: f.id }); }

@@ -1750,3 +1750,7 @@ button.dtag { cursor: pointer; }
 .te-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .te-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .te-btns { display: flex; justify-content: flex-end; }
+
+/* v1.33.1: nombres de carpeta largos en 2 líneas (y completos al pasar el ratón, atributo title) */
+.fx-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; overflow-wrap: anywhere; }
+.prof-switch { margin: 8px 12px; } .fx > .prof-switch { margin: 0 0 8px; }
