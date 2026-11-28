@@ -1026,9 +1026,10 @@ function renderPres() {
     // v1.39.1: dentro de cada vía, por forma (jarabes, comprimidos, sobres…) y de menor a mayor dosis; el subtítulo
     // de la forma solo sale si en esa vía hay más de una
     list.replaceChildren(...groups.map((g) => {
-      const subs = presSubgroups(g.items);
+      const subs = presSubgroups(g.items, d);
       return el('div', { class: 'pres-group' }, el('div', { class: 'pres-glabel' }, g.group),
-        ...(subs.length > 1
+        // v1.39.2: el subtítulo de la forma sale siempre que se sabe (p. ej. Rectal → Supositorios)
+        ...(subs.length > 1 || (subs[0] && subs[0].label !== 'Otras')
           ? subs.map((sg) => el('div', { class: 'pres-sub' }, el('div', { class: 'pres-slabel' }, sg.label), el('div', { class: 'pres-gitems' }, ...chips(sg.items))))
           : [el('div', { class: 'pres-gitems' }, ...chips(subs[0]?.items || g.items))]));
     }));
@@ -1045,8 +1046,10 @@ function presShort(p, name, brands) {
   const nameTokens = new Set(norm(name).split(/[^a-z0-9]+/).filter((w) => w.length > 2));
   let words = t.split(' ');
   while (words.length > 1 && nameTokens.has(norm(words[0]).replace(/[^a-z0-9]/g, '')) && !/\d/.test(words[0])) words = words.slice(1);
+  // v1.39.2: «sup» se lee como supositorio (no suspensión: esa es «susp»)
+  const full = (x) => x.replace(/\bsup\b\.?/gi, 'supositorio').replace(/\bsups\b\.?/gi, 'supositorios');
   const out = words.join(' ').trim();
-  return out && /\d/.test(out) ? out : str(p).replace(/\s*®\s*/g, ' ').trim();
+  return full(out && /\d/.test(out) ? out : str(p).replace(/\s*®\s*/g, ' ').trim());
 }
 
 /** Fila editable: presentación + marcas que la tienen (toca una marca para asignarla) */

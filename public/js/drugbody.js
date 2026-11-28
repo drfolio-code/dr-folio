@@ -541,6 +541,8 @@ function injLabel(k) {
 }
 /** Vía de administración de una presentación (uno de PRES_GROUPS) */
 export function presGroup(d, pres) {
+  const ov = presInfoOf(d, pres).g; // v1.39.2: vía elegida a mano
+  if (ov) return ov;
   const p = norm(str(pres)).trim();
   if (!INJ_RE.test(p)) {
     for (const [re, g] of FORM_RULES) if (re.test(p)) return g;
@@ -582,6 +584,13 @@ const FORM_KINDS = [
   ['Colirios', /colirio/]
 ];
 const VARIANTS = [/bucodispers|liotab|flas/, /eferves/, /mastica/, /liberaci|retard|\bprolongad|\bmodificad|\bretardad/, /gastrorresist|recubiert/];
+export const FORM_LABELS = FORM_KINDS.map(([l]) => l);
+/** v1.39.2: vía y forma elegidas a mano para una presentación: drugs.presInfo = [{ p, g (vía de PRES_GROUPS), f (forma de FORM_LABELS) }] */
+export function presInfoOf(d, pres) {
+  const k = norm(str(pres)).replace(/\s+/g, ' ').trim();
+  const x = arr(d?.presInfo).find((e) => norm(str(e?.p)).replace(/\s+/g, ' ').trim() === k);
+  return { g: PRES_GROUPS.includes(x?.g) ? x.g : '', f: FORM_LABELS.includes(x?.f) || x?.f === 'Otras' ? x.f : '' };
+}
 /** Forma de una presentación: { label, order } (order = posición en FORM_KINDS; 99 si no se sabe) */
 export function presKind(p) {
   const t = norm(str(p));
@@ -606,10 +615,11 @@ export function presAmount(p) {
 const variantOf = (p) => { const t = norm(str(p).split(',')[0]); const i = VARIANTS.findIndex((re) => re.test(t)); return i < 0 ? 0 : i + 1; };
 /** Presentaciones de una vía en subgrupos por forma, cada uno de menor a mayor dosis (las normales antes que
  *  bucodispersables, efervescentes, masticables o de liberación prolongada): [{ label, items }] */
-export function presSubgroups(items) {
+export function presSubgroups(items, d = null) {
   const m = new Map();
   for (const p of arr(items)) {
-    const k = presKind(p);
+    const f = presInfoOf(d, p).f;
+    const k = f ? { label: f, order: f === 'Otras' ? 99 : FORM_LABELS.indexOf(f) } : presKind(p);
     if (!m.has(k.label)) m.set(k.label, { label: k.label, order: k.order, items: [] });
     m.get(k.label).items.push(p);
   }

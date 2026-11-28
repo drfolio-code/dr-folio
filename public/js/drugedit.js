@@ -5,7 +5,7 @@ import { store } from './store.js';
 import { el, norm } from './util.js';
 import { toast, modal, confirm, undoToast } from './ui.js';
 import { icon } from './icons.js';
-import { REG_FIELDS, lineOf, hasDetail, mergeList, presBrandsOf, profOf, tablesOf } from './drugbody.js';
+import { REG_FIELDS, lineOf, hasDetail, mergeList, presBrandsOf, profOf, tablesOf, presInfoOf, presGroup, presKind, PRES_GROUPS, FORM_LABELS } from './drugbody.js';
 import { saveFile, compressImage, fileUrl } from './files.js';
 import { FLUIDS, regType, typeSlug } from './chuletario.js';
 import { liveTags, tagChip, newTag, EXAMPLES } from './drugtags.js';
@@ -115,14 +115,27 @@ export async function editPres(id, { addNew = false } = {}) {
   const d = store.drugs.get(id);
   if (!d) return;
   const brands = d.brands || [];
-  const rows = (d.presentations || []).map((p) => ({ p, b: [...presBrandsOf(d, p)] }));
-  if (addNew || !rows.length) rows.push({ p: '', b: [] });
+  const rows = (d.presentations || []).map((p) => ({ p, b: [...presBrandsOf(d, p)], ...presInfoOf(d, p) }));
+  if (addNew || !rows.length) rows.push({ p: '', b: [], g: '', f: '' });
   const box = el('div', { class: 'pres-rows', 'data-own-enter': '1' });
   const render = (focusLast = false) => {
     box.replaceChildren(...rows.map((row, i) => {
       const inp = el('input', { type: 'text', value: row.p, placeholder: 'p. ej. 37,5/325 mg comp · 1 amp = 1 mL = 1 mg', maxlength: 150, autocomplete: 'off', 'aria-label': `Presentación ${i + 1}` });
+      // v1.39.2: vía y forma (automáticas; se pueden cambiar a mano para mover la presentación de grupo)
+      const autoG = () => presGroup({ ...d, presInfo: [] }, row.p), autoF = () => presKind(row.p).label;
+      const selG = el('select', { class: 'pres-sel', 'aria-label': 'Vía' });
+      const selF = el('select', { class: 'pres-sel', 'aria-label': 'Forma' });
+      const fill = () => {
+        selG.replaceChildren(el('option', { value: '' }, `Automática: ${autoG()}`), ...PRES_GROUPS.map((g) => el('option', { value: g }, g)));
+        selF.replaceChildren(el('option', { value: '' }, `Automática: ${autoF()}`), ...[...FORM_LABELS, 'Otras'].map((f) => el('option', { value: f }, f)));
+        selG.value = row.g || ''; selF.value = row.f || '';
+      };
+      fill();
+      selG.addEventListener('change', () => { row.g = selG.value; });
+      selF.addEventListener('change', () => { row.f = selF.value; });
       inp.addEventListener('input', () => { row.p = inp.value; });
-      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); rows.push({ p: '', b: [] }); render(true); } });
+      inp.addEventListener('change', fill);
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); rows.push({ p: '', b: [], g: '', f: '' }); render(true); } });
       const chips = brands.map((b) => {
         const onB = row.b.includes(b);
         return el('button', { type: 'button', class: `chip toggle ${onB ? 'on' : ''}`, 'aria-pressed': String(onB),
@@ -133,19 +146,21 @@ export async function editPres(id, { addNew = false } = {}) {
         el('div', { class: 'pres-row-top' }, inp,
           i > 0 ? el('button', { class: 'icon-btn', type: 'button', title: 'Subir', 'aria-label': 'Subir', onclick: () => mv(-1) }, icon('arrow-up')) : null,
           el('button', { class: 'icon-btn', type: 'button', title: 'Quitar', 'aria-label': 'Quitar esta presentación', onclick: () => { rows.splice(i, 1); render(); } }, icon('x'))),
+        el('div', { class: 'pres-row-kind' }, el('label', {}, el('span', { class: 'muted small' }, 'Vía'), selG), el('label', {}, el('span', { class: 'muted small' }, 'Forma'), selF)),
         brands.length ? el('div', { class: 'pres-row-brands' }, el('span', { class: 'muted small' }, 'Marca:'), ...chips) : null);
     }));
     if (focusLast) { const ins = box.querySelectorAll('input'); ins[ins.length - 1]?.focus(); }
   };
   render();
   const r = await sheet('Presentaciones', [box,
-    el('button', { class: 'btn sm', type: 'button', onclick: () => { rows.push({ p: '', b: [] }); render(true); } }, '＋ Añadir presentación'),
+    el('button', { class: 'btn sm', type: 'button', onclick: () => { rows.push({ p: '', b: [], g: '', f: '' }); render(true); } }, '＋ Añadir presentación'),
     brands.length ? null : el('p', { class: 'muted small' }, 'Para indicar de qué marca es cada presentación, añade antes los nombres comerciales (lápiz junto al nombre).')
   ], { onOpen: (b) => { if (addNew) setTimeout(() => { const ins = b.querySelectorAll('.pres-row input'); ins[ins.length - 1]?.focus(); }, 60); } });
   if (r !== 'ok') return;
-  const clean = rows.map((x) => ({ p: one(x.p), b: x.b.filter((b) => brands.includes(b)) })).filter((x) => x.p);
+  const clean = rows.map((x) => ({ p: one(x.p), b: x.b.filter((b) => brands.includes(b)), g: x.g || '', f: x.f || '' })).filter((x) => x.p);
   const [presentations] = mergeList([], clean.map((x) => x.p));
-  saveFields(id, { presentations, presBrands: clean.filter((x) => x.b.length) });
+  saveFields(id, { presentations, presBrands: clean.filter((x) => x.b.length).map(({ p, b }) => ({ p, b })),
+    presInfo: clean.filter((x) => x.g || x.f).map(({ p, g, f }) => ({ p, g, f })) });
 }
 
 // ====================== Una pauta (indicación) ======================

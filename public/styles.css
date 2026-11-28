@@ -1535,6 +1535,9 @@ details.dsec[open] > summary { border-bottom: 1px solid var(--border); }
 /* v1.39.1: subgrupos por forma dentro de una vía */
 .pres-sub { display: flex; flex-direction: column; gap: 4px; }
 .pres-sub + .pres-sub { margin-top: 4px; }
+.pres-row-kind { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.pres-row-kind label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pres-row-kind select { width: 100%; min-height: 36px; font: inherit; font-size: 14px; }
 .pres-slabel { font-size: 12.5px; font-weight: 700; color: var(--text); opacity: .75; }
 /* v1.26.1: mismo tamaño de letra en toda la ficha (presentaciones, indicaciones y listas; sigue A−/A+) */
 #drug-wrap { --dtxt: calc(var(--read-size, 18px) * .88); }
