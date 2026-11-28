@@ -561,6 +561,63 @@ export function presGroup(d, pres) {
   }
   return 'Otras';
 }
+// v1.39.1: dentro de cada vía, por forma (Líquidos · Comprimidos · Cápsulas · Sobres…) y de menor a mayor dosis.
+// La primera forma que aparece en el texto manda («1 g comp., comp. efervescentes, sobres» → Comprimidos).
+const FORM_KINDS = [
+  ['Gotas', /\bgotas\b/],
+  ['Jarabe, solución y suspensión', /jarabe|\bsol\b|solucion|\bsusp\b|suspension|elixir|\d\s*(mg|mcg|µg|g|ui)\s*\/\s*\d*\s*ml|ampollas? bebibles?|viales? bebibles?|bebible/],
+  ['Comprimidos', /\bcomp\b|comprimid|tableta|gragea|liotab|\bbucodispers/],
+  ['Cápsulas', /\bcaps\b|capsula|perla/],
+  ['Sobres y granulado', /\bsobres?\b|granulado|polvo para|\bstick/],
+  ['Supositorios', /\bsup\b|supositorio/],
+  ['Enemas', /enema|canula rectal/],
+  ['Ampollas', /\bamp\b|ampolla/],
+  ['Viales', /\bvial/],
+  ['Jeringas y plumas', /\bjer\b|jeringa|pluma|flexpen|kwikpen|solostar|flextouch|autoinyector/],
+  ['Sueros y bolsas', /bolsa|\bfrasco\b.*ml|^[\d.,]+\s*ml$|\d% [\d.,]+ ml$/],
+  ['Inhaladores', /inhalador|turbuhaler|accuhaler|ellipta|respimat|nexthaler|breezhaler|aerosol|\binh\b|polvo para inhal/],
+  ['Nebulización', /nebuliz/],
+  ['Cremas, pomadas y geles', /crema|pomada|\bgel\b|unguento/],
+  ['Lociones, sprays y otros', /locion|champu|spray|solucion cutanea|colutorio|laca|apositos?|parche/],
+  ['Colirios', /colirio/]
+];
+const VARIANTS = [/bucodispers|liotab|flas/, /eferves/, /mastica/, /liberaci|retard|\bprolongad|\bmodificad|\bretardad/, /gastrorresist|recubiert/];
+/** Forma de una presentación: { label, order } (order = posición en FORM_KINDS; 99 si no se sabe) */
+export function presKind(p) {
+  const t = norm(str(p));
+  let best = null;
+  for (const [i, [label, re]] of FORM_KINDS.entries()) {
+    const m = t.match(re);
+    if (m && (!best || m.index < best.at)) best = { label, order: i, at: m.index };
+  }
+  return best ? { label: best.label, order: best.order } : { label: 'Otras', order: 99 };
+}
+/** Dosis de una presentación en mg (o en su unidad) para ordenar: «1 g comp» → 1000 · «100 mg/ml» → 100 · «250 mg/5 ml» → 50 */
+export function presAmount(p) {
+  const t = str(p).replace(/(\d)\.(\d{3})\b/g, '$1$2');
+  const m = t.match(/(\d+(?:[.,]\d+)?)\s*(mg|mcg|µg|μg|g|ui|mEq|mmol|%)?(?:\s*\/\s*(\d+(?:[.,]\d+)?)?\s*ml)?/i);
+  if (!m) return Infinity;
+  let v = Number(m[1].replace(',', '.'));
+  const u = (m[2] || '').toLowerCase();
+  if (u === 'g') v *= 1000; else if (u === 'mcg' || u === 'µg' || u === 'μg') v /= 1000;
+  if (m[3]) v /= Number(m[3].replace(',', '.')) || 1;
+  return v;
+}
+const variantOf = (p) => { const t = norm(str(p).split(',')[0]); const i = VARIANTS.findIndex((re) => re.test(t)); return i < 0 ? 0 : i + 1; };
+/** Presentaciones de una vía en subgrupos por forma, cada uno de menor a mayor dosis (las normales antes que
+ *  bucodispersables, efervescentes, masticables o de liberación prolongada): [{ label, items }] */
+export function presSubgroups(items) {
+  const m = new Map();
+  for (const p of arr(items)) {
+    const k = presKind(p);
+    if (!m.has(k.label)) m.set(k.label, { label: k.label, order: k.order, items: [] });
+    m.get(k.label).items.push(p);
+  }
+  const out = [...m.values()].sort((a, b) => a.order - b.order);
+  for (const g of out) g.items = g.items.map((p, i) => ({ p, i, v: variantOf(p), a: presAmount(p) }))
+    .sort((x, y) => x.v - y.v || x.a - y.a || x.i - y.i).map((x) => x.p);
+  return out.map(({ label, items }) => ({ label, items }));
+}
 /** Presentaciones agrupadas por vía: [{ group, items: [texto] }] en el orden de PRES_GROUPS */
 export function presByGroup(d) {
   const m = new Map();

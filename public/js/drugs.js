@@ -17,7 +17,7 @@ import {
   REG_FIELDS, genLine, lineOf, regSummary, drugMatches, byName, liveDrugs, drugKey, drugByName,
   drugBodyOf, loadDrugBody, writeDrug, deleteDrugDocs, parseDrugImport, mergeList, regKey, hasDetail, EXTRA_LISTS, presBrandsOf,
   baseKey, drugByBase, withForm, duplicateGroups, mergeGroupLight, mergePres, presByGroup,
-  DEFAULT_TAGS, scopeTagId, profOf, scopesToTags, tagIdsByName, drugProfile, setDrugProfile, profileView, tablesOf, presGroup
+  DEFAULT_TAGS, scopeTagId, profOf, scopesToTags, tagIdsByName, drugProfile, setDrugProfile, profileView, tablesOf, presGroup, presSubgroups
 } from './drugbody.js';
 import {
   SCOPES, scopeName, FLUIDS, REG_TYPES, regType, typeSlug, parseChuletario, CHULETARIO_SOURCE
@@ -1012,7 +1012,7 @@ function renderPres() {
     for (const p of items) {
       const b = presBrandsOf(d, p);
       const shown = presShort(p, d.name, b);
-      const k = norm(shown).replace(/\s+/g, ' ').trim();
+      const k = norm(shown).replace(/[.,;:]/g, ' ').replace(/\s+/g, ' ').trim(); // «200 mg, sobres» = «200 mg sobres»
       const prev = out.find((x) => x.k === k);
       if (prev) { for (const x of b) if (!prev.b.includes(x)) prev.b.push(x); prev.full.push(p); continue; }
       out.push({ k, p: shown, b: [...b], full: [p] });
@@ -1023,7 +1023,15 @@ function renderPres() {
     const groups = presByGroup(d);
     list.classList.toggle('grouped', groups.length > 0);
     // La vía se indica siempre, también si solo hay una (v1.26.1)
-    list.replaceChildren(...groups.map((g) => el('div', { class: 'pres-group' }, el('div', { class: 'pres-glabel' }, g.group), el('div', { class: 'pres-gitems' }, ...chips(g.items)))));
+    // v1.39.1: dentro de cada vía, por forma (jarabes, comprimidos, sobres…) y de menor a mayor dosis; el subtítulo
+    // de la forma solo sale si en esa vía hay más de una
+    list.replaceChildren(...groups.map((g) => {
+      const subs = presSubgroups(g.items);
+      return el('div', { class: 'pres-group' }, el('div', { class: 'pres-glabel' }, g.group),
+        ...(subs.length > 1
+          ? subs.map((sg) => el('div', { class: 'pres-sub' }, el('div', { class: 'pres-slabel' }, sg.label), el('div', { class: 'pres-gitems' }, ...chips(sg.items))))
+          : [el('div', { class: 'pres-gitems' }, ...chips(subs[0]?.items || g.items))]));
+    }));
   }
   else $('#drug-pres-rows').replaceChildren(...form.pres.map(presRow));
   $('#drug-pres-dl').replaceChildren(...presList().map((p) => el('option', { value: p })));
