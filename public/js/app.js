@@ -621,7 +621,14 @@ function bindUi() {
   $('#search').addEventListener('input', debounce(() => { S.search = $('#search').value; renderList(); }, 120));
   $('#search').addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { $('#search').value = ''; S.search = ''; renderList(); }
-    if (e.key === 'Enter') { e.preventDefault(); $('#search').blur(); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Vademécum (v1.28.0): Intro abre directamente la primera ficha que coincide
+      if (S.search !== $('#search').value) { S.search = $('#search').value; renderList(); }
+      const first = isDrugView() && S.search.trim() ? $('#list').querySelector('.drug-card') : null;
+      $('#search').blur();
+      first?.click();
+    }
   });
   $('#sort').addEventListener('change', () => {
     const val = $('#sort').value;

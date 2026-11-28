@@ -234,7 +234,7 @@
           <button class="icon-btn" id="drug-menu" title="Más opciones" aria-label="Más opciones"><svg class="i" aria-hidden="true"><use href="#i-ellipsis"/></svg></button>
         </div>
         <div id="drug-review" class="review-banner hidden" role="status">
-          <span><b>⚠ Pendiente de revisar</b> · comprueba las dosis antes de usarla</span>
+          <span><b>⚠ Pendiente de revisar</b><span class="rv-more"> · comprueba las dosis antes de usarla</span></span>
           <button class="btn sm" id="drug-reviewed" type="button">✓ Revisada</button>
         </div>
         <div id="drug-trash" class="trash-banner hidden">
@@ -250,48 +250,58 @@
               <div id="drug-brand-chips" class="chips"></div>
               <input id="drug-brand-input" placeholder="＋ nombre comercial" autocomplete="off" maxlength="80" enterkeyhint="done">
             </div>
-            <!-- Ficha ampliada (v1.22.0): ámbito, embarazo, sueros y secciones plegables (se recuerda si están abiertas) -->
+            <!-- v1.28.0: cabecera (nombre, marcas, etiquetas) · calculadoras · Indicaciones (siempre abiertas) · Presentaciones · resto plegado.
+                 En el ordenador ancho, dos columnas: indicaciones a la izquierda y presentaciones + datos a la derecha -->
             <div id="drug-scopes" class="drug-scopes"></div>
             <!-- v1.27.0: calculadoras (de la ficha y de sus carpetas) a un toque -->
             <div id="drug-calcs" class="drug-calcs hidden"></div>
-            <div id="drug-fluids" class="drug-fluids"></div>
-            <details class="dsec" data-sec="pres" open>
-              <summary><h3>Presentaciones</h3></summary>
-              <div class="dsec-body">
-                <div id="drug-pres-list" class="dchips"></div>
-                <div id="drug-pres-rows" class="pres-rows"></div>
-                <button class="btn sm" id="drug-add-pres" type="button">＋ Añadir presentación</button>
+            <div class="drug-cols">
+              <div class="drug-col-a">
+                <section class="dsec dsec-fixed" data-sec="regs">
+                  <div class="dsec-head"><h3>Indicaciones</h3><span class="dsec-n" data-n="regs"></span></div>
+                  <div class="dsec-body">
+                    <div id="drug-regs" class="drug-regs"></div>
+                    <button class="btn sm" id="drug-add-reg" type="button">＋ Añadir indicación</button>
+                  </div>
+                </section>
               </div>
-            </details>
-            <details class="dsec" data-sec="regs" open>
-              <summary><h3>Indicaciones</h3></summary>
-              <div class="dsec-body">
-                <div id="drug-regs" class="drug-regs"></div>
-                <button class="btn sm" id="drug-add-reg" type="button">＋ Añadir indicación</button>
+              <div class="drug-col-b">
+                <details class="dsec" data-sec="pres" open>
+                  <summary><h3>Presentaciones</h3><span class="dsec-n" data-n="pres"></span></summary>
+                  <div class="dsec-body">
+                    <div id="drug-pres-list" class="dchips"></div>
+                    <div id="drug-pres-rows" class="pres-rows"></div>
+                    <button class="btn sm" id="drug-add-pres" type="button">＋ Añadir presentación</button>
+                  </div>
+                </details>
+                <details class="dsec" data-sec="observations">
+                  <summary><h3>Observaciones</h3><span class="dsec-n" data-n="observations"></span></summary>
+                  <div class="dsec-body"><ul class="dlist" data-list="observations"></ul><textarea class="drug-pres dlist-edit" data-list="observations" rows="3" placeholder="Una por línea"></textarea></div>
+                </details>
+                <details class="dsec" data-sec="contraindications">
+                  <summary><h3>Contraindicaciones</h3><span class="dsec-n" data-n="contraindications"></span></summary>
+                  <div class="dsec-body"><ul class="dlist" data-list="contraindications"></ul><textarea class="drug-pres dlist-edit" data-list="contraindications" rows="3" placeholder="Una por línea"></textarea></div>
+                </details>
+                <details class="dsec" data-sec="compat">
+                  <summary><h3>Sueros y compatibilidad</h3><span class="dsec-n" data-n="compat"></span></summary>
+                  <div class="dsec-body">
+                    <div id="drug-fluids" class="drug-fluids"></div>
+                    <div class="dsub" id="drug-compat-lbl">Compatibilidad en Y</div>
+                    <ul class="dlist" data-list="compat"></ul><textarea class="drug-pres dlist-edit" data-list="compat" rows="3" placeholder="Fármacos compatibles en Y (uno por línea o separados por comas)"></textarea>
+                  </div>
+                </details>
+                <details class="dsec" data-sec="res" id="drug-res-sec">
+                  <summary><h3>Enlaces y bibliografía</h3><span class="dsec-n" data-n="res"></span></summary>
+                  <div class="dsec-body"><div id="drug-res" class="drug-res"></div></div>
+                </details>
+                <details class="dsec drug-notes" data-sec="notes">
+                  <summary><h3>Mis notas</h3><span class="dsec-n" data-n="notes"></span></summary>
+                  <div class="dsec-body">
+                    <div id="drug-content" class="content drug-content" contenteditable="true" spellcheck="true" data-placeholder="Tus notas"></div>
+                  </div>
+                </details>
               </div>
-            </details>
-            <details class="dsec" data-sec="observations" open>
-              <summary><h3>Observaciones</h3></summary>
-              <div class="dsec-body"><ul class="dlist" data-list="observations"></ul><textarea class="drug-pres dlist-edit" data-list="observations" rows="3" placeholder="Una por línea"></textarea></div>
-            </details>
-            <details class="dsec" data-sec="contraindications" open>
-              <summary><h3>Contraindicaciones</h3></summary>
-              <div class="dsec-body"><ul class="dlist" data-list="contraindications"></ul><textarea class="drug-pres dlist-edit" data-list="contraindications" rows="3" placeholder="Una por línea"></textarea></div>
-            </details>
-            <details class="dsec" data-sec="compat" open>
-              <summary><h3>Compatibilidad en Y</h3></summary>
-              <div class="dsec-body"><ul class="dlist" data-list="compat"></ul><textarea class="drug-pres dlist-edit" data-list="compat" rows="3" placeholder="Fármacos compatibles en Y (uno por línea o separados por comas)"></textarea></div>
-            </details>
-            <details class="dsec" data-sec="res" id="drug-res-sec" open>
-              <summary><h3>Enlaces y bibliografía</h3></summary>
-              <div class="dsec-body"><div id="drug-res" class="drug-res"></div></div>
-            </details>
-            <details class="dsec drug-notes" data-sec="notes" open>
-              <summary><h3>Mis notas</h3></summary>
-              <div class="dsec-body">
-                <div id="drug-content" class="content drug-content" contenteditable="true" spellcheck="true" data-placeholder="Tus notas"></div>
-              </div>
-            </details>
+            </div>
             <section id="drug-backlinks" class="backlinks hidden">
               <h4>Aparece en estas notas</h4>
               <div id="drug-backlink-list" class="chips"></div>

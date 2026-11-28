@@ -214,6 +214,13 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - **Copia**: JSON completo (fichas y carpetas), saneado en `fixDoc` con `normResources`. .zip: lista en `drugPageHtml` (con los heredados) y los PDF como «Bibliografía» de la página (`refs`). «Copiar ficha entera»: «Título (año) — URL».
 - Probado con Firebase simulado (`libs.js` en memoria con `getDocs`/`onSnapshot`/`writeBatch`/`runTransaction` y DOMPurify real) + Playwright en 390×844 y 1366×860: 37 comprobaciones (añadir, editar, reordenar, URL no válida, PDF y visor, heredados, calculadoras, icono en la indicación, abrir, copiar, borrar pauta, modal de carpeta, borrar PDF, buscar, importar, unir, JSON, .zip, copiar ficha, plegado).
 
+### Ficha pensada para la guardia (v1.28.0, fase 1)
+- **Orden en lectura**: cabecera (nombre, marcas en gris, etiquetas/ámbito en chips) · calculadoras (`#drug-calcs`) · **Indicaciones** (`section.dsec.dsec-fixed`, no se pliega) · Presentaciones (por vía, abierta) · plegadas: Observaciones, Contraindicaciones, **Sueros y compatibilidad** (`#drug-fluids` dentro de `details[data-sec=compat]`), Enlaces y bibliografía, Mis notas. Plegado recordado en `drfolio.drugSecs` (por defecto solo `SEC_OPEN.pres`). Junto a cada título, nº de elementos (`.dsec-n`, `renderCounts`).
+- **Pauta** (`regView`): etiqueta de tipo + dosis (`--dtxt`, negrita), «máx …» del texto resaltado (`markMax`, `MAX_RE`) y el campo `max` como `.reg-max` si la dosis no lo dice. Botón **Copiar** grande (`.reg-copy.big`, 58×50) = `lineOf` (línea de tratamiento completa).
+- «Pendiente de revisar» en una línea (en móvil sin la coletilla `.rv-more`).
+- **Dos columnas** (`.drug-cols` → `.drug-col-a` indicaciones · `.drug-col-b` resto): `≥1100 px` y el panel de la ficha ≥ 680 px (container query `dpane` en `#drug-scroll`), solo en lectura.
+- Buscador de la lista: **Intro abre la primera ficha** que coincide.
+
 ### Formato del JSON de importación (Vademécum → ⋯ / «Importar»)
 Ejemplo completo en `ejemplos/vademecum-ejemplo.json`. Se acepta `{ "format": "drfolio-vademecum", "version": 1, "drugs": [ … ] }` o directamente la lista `[ … ]`. Claves en inglés o en español:
 

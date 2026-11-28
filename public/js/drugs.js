@@ -720,8 +720,10 @@ function renderLists() {
     ul.replaceChildren(...items.map((x) => el('li', {}, x)));
     ul.classList.toggle('hidden', !rd);
     listBox(k).classList.toggle('hidden', rd);
-    ul.closest('details').classList.toggle('hidden', rd && !items.length);
+    const empty = !items.length && !(k === 'compat' && (d.fluids || []).length);
+    ul.closest('details').classList.toggle('hidden', rd && empty);
   }
+  $('#drug-compat-lbl').classList.toggle('hidden', rd && (!(d.compat || []).length || !(d.fluids || []).length));
 }
 
 // ---------- Fuente ----------
@@ -748,8 +750,27 @@ function applySections() {
   const st = secState();
   const d = store.drugs.get(curId);
   for (const det of document.querySelectorAll('#drug-wrap details.dsec')) {
-    det.open = isRd() ? st[det.dataset.sec] !== false : true;
-    if (det.dataset.sec === 'pres') det.classList.toggle('hidden', isRd() && !(d?.presentations || []).length);
+    const k = det.dataset.sec;
+    det.open = isRd() ? (st[k] ?? SEC_OPEN[k] ?? false) : true;
+    if (k === 'pres') det.classList.toggle('hidden', isRd() && !(d?.presentations || []).length);
+  }
+  renderCounts(d);
+}
+// v1.28.0: en lectura solo Presentaciones empieza abierta; Indicaciones no se pliega nunca; el resto, plegado
+const SEC_OPEN = { pres: true };
+/** Nº de elementos junto al título de cada sección (se ve aunque esté plegada) */
+function renderCounts(d) {
+  if (!d) return;
+  const own = (d.resources || []).length + inheritedRes(d).reduce((s, g) => s + g.items.length, 0);
+  const notesTxt = drugBodyOf(d.id)?.text?.trim();
+  const n = {
+    regs: (d.regimens || []).length, pres: (d.presentations || []).length,
+    observations: (d.observations || []).length, contraindications: (d.contraindications || []).length,
+    compat: (d.fluids || []).length + (d.compat || []).length, res: own, notes: d.bodyAt > 0 && notesTxt !== '' ? '✎' : 0
+  };
+  for (const x of document.querySelectorAll('#drug-wrap .dsec-n')) {
+    const v = isRd() ? n[x.dataset.n] : 0;
+    x.textContent = v ? String(v) : '';
   }
 }
 
@@ -878,6 +899,8 @@ function regGroupView(name, g) {
     g.title ? el('div', { class: 'regg-title' }, g.title) : null,
     ...g.items.map((r) => regView(name, r)));
 }
+/** Pauta en lectura (v1.28.0): [tipo] dosis bien legible, dosis máxima destacada y un botón Copiar grande
+ *  que copia la línea de tratamiento completa (lineOf: nombre + presentación + dosis…) */
 function regView(name, r) {
   const line = lineOf(name, r);
   const type = r.type || '';
@@ -887,9 +910,9 @@ function regView(name, r) {
   const chip = type || (route.length <= 14 ? route : routeType(route) || route.split(/[\s(/,]+/)[0]);
   const nr = norm(route), nc = norm(chip);
   const routeSaid = !route || main === route || nr === nc || (nr.includes(nc.slice(0, 6)) && route.split(/\s+/).length <= 2);
+  const max = maxText(r, main);
   const meta = [
     routeSaid ? '' : route,
-    !str(r.text).trim() && r.max ? `máx ${str(r.max).replace(/^m[aá]x(\.|imo|ima)?\s*/i, '')}` : '',
     brands.length ? `${r.pres}: ${brands.join(' · ')}` : ''
   ].filter(Boolean);
   const slug = chip ? typeSlug(type || routeType(route)) : '';
@@ -897,14 +920,34 @@ function regView(name, r) {
     el('div', { class: 'reg-body' },
       el('div', { class: 'reg-main' },
         chip ? el('span', { class: `reg-type ${slug ? `t-${slug}` : ''}` }, chip) : null,
-        el('span', { class: 'reg-text' }, main || line)),
+        el('span', { class: 'reg-text' }, markMax(main || line))),
+      max ? el('div', { class: 'reg-max' }, icon('triangle-alert'), ` Máx. ${max}`) : null,
       meta.length ? el('div', { class: 'reg-meta' }, meta.join(' · ')) : null,
       r.lineAuto === false && str(r.line).trim() ? el('div', { class: 'reg-meta reg-custom' }, icon('copy'), ` ${str(r.line).trim()}`) : null),
     ...regResLinks(r),
     el('button', {
-      class: 'icon-btn reg-copy', type: 'button', title: `Copiar: ${line}`, 'aria-label': `Copiar: ${line}`,
+      class: 'reg-copy big', type: 'button', title: `Copiar: ${line}`, 'aria-label': `Copiar: ${line}`,
       onclick: (e) => copyLine(lineOf(store.drugs.get(curId)?.name, r), e.currentTarget)
-    }, icon('copy')));
+    }, icon('copy'), el('span', {}, 'Copiar')));
+}
+/** Dosis máxima de la pauta: el campo «máx» (si la dosis no la dice ya) */
+const MAX_RE = /\b(m[aá]x(?:\.|imo|ima)?)(\s*:?\s*)([^;\n)]+)/gi;
+function maxText(r, main) {
+  const m = str(r.max).trim().replace(/^m[aá]x(\.|imo|ima)?\s*:?\s*/i, '');
+  if (!m) return '';
+  return norm(main).includes(norm(m)) ? '' : m;
+}
+/** Resalta «máx …» dentro del texto de la dosis (sin innerHTML) */
+function markMax(text) {
+  const t = str(text);
+  const frag = document.createDocumentFragment();
+  let last = 0;
+  for (const m of t.matchAll(MAX_RE)) {
+    frag.append(t.slice(last, m.index), el('mark', { class: 'reg-maxhl' }, m[0]));
+    last = m.index + m[0].length;
+  }
+  frag.append(t.slice(last));
+  return frag;
 }
 
 function regForm(r, i, total) {

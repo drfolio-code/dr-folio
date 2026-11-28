@@ -1589,3 +1589,44 @@ html, body { touch-action: pan-x pan-y; } /* v1.26.3: sin doble toque ni pellizc
 .res-add { display: flex; flex-wrap: wrap; gap: 8px; }
 .modal.res-modal { max-width: 640px; width: 100%; }
 .res-modal .res-edit { margin-top: 6px; }
+
+/* ===== v1.28.0: ficha pensada para la guardia (lectura) ===== */
+/* Indicaciones: sección fija (no se pliega) */
+section.dsec { margin-top: 14px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--panel); }
+.dsec-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--panel-2); border-bottom: 1px solid var(--border); }
+.dsec-head h3 { margin: 0; font-size: 16px; font-style: italic; font-weight: 700; color: var(--text); flex: 1; }
+.dsec-n { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 0 8px; line-height: 20px; }
+.dsec-n:empty { display: none; }
+details.dsec > summary h3 { flex: 1; }
+.dsub { font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); }
+.drug-fluids:not(.hidden) + .dsub { margin-top: 4px; }
+#drug-wrap .drug-fluids { margin: 0; }
+/* Pauta: dosis legible, máximo destacado y botón Copiar grande */
+#drug-wrap .reading-regs .reg { align-items: center; gap: 10px; padding: 4px 0 4px 10px; margin-top: 6px; }
+#drug-wrap .reading-regs .reg-text { font-size: var(--dtxt); font-weight: 650; }
+#drug-wrap .reading-regs .reg-type { font-size: 11px; line-height: 20px; padding: 0 8px; }
+.reg-maxhl { background: #fee2e2; color: #991b1b; font-weight: 750; border-radius: 4px; padding: 0 1px; }
+.reg-max { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; padding: 1px 8px; border-radius: 6px; background: #fee2e2; color: #991b1b; font-size: 13.5px; font-weight: 750; }
+.reg-max .i { font-size: 13px; }
+@media (prefers-color-scheme: dark) { .reg-maxhl, .reg-max { background: #3b1414; color: #fca5a5; } }
+#drug-wrap .reading-regs .reg-copy.big { flex: none; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  width: 58px; height: 50px; margin: 0; padding: 0; border: 1px solid var(--accent); border-radius: 12px; background: var(--accent-soft); color: var(--accent);
+  font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; touch-action: manipulation; }
+#drug-wrap .reading-regs .reg-copy.big .i { font-size: 20px; }
+#drug-wrap .reading-regs .reg-copy.big:active { transform: scale(.95); }
+#drug-wrap .reading-regs .reg-copy.big.done { background: var(--ok, #16a34a); border-color: transparent; color: #fff; }
+@media (prefers-color-scheme: dark) { #drug-wrap .reading-regs .reg-copy.big { color: #7dd3e6; border-color: #2b6f80; } }
+#drug-wrap .reading-regs .reg-res { align-self: center; }
+/* Aviso «Pendiente de revisar» compacto (una línea) */
+#drug-review { flex-wrap: nowrap; }
+#drug-review > span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 639px) { #drug-review .rv-more { display: none; } }
+/* Ordenador ancho: indicaciones a la izquierda, presentaciones + datos a la derecha */
+#drug-scroll { container: dpane / inline-size; }
+.drug-cols > div > .dsec:first-child { margin-top: 14px; }
+@media (min-width: 1100px) {
+  @container dpane (min-width: 680px) {
+    #drug-wrap.reading .drug-inner { max-width: 1280px; }
+    #drug-wrap.reading .drug-cols { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 0 18px; align-items: start; }
+  }
+}
