@@ -357,7 +357,10 @@ function extraFields(it) {
     scopes: [...new Set(list(pick(it, 'scopes', 'scope', 'ambito', 'ámbito', 'ambitos', 'ámbitos')).map(scopeKey).filter(Boolean))],
     source: normSource(pick(it, 'source', 'fuente')),
     tables: normImportTables(pick(it, 'tables', 'tablas')), // v1.33.0: imágenes (tablas por peso) en data:image/…;base64
-    tagNames: [...new Set(list(pick(it, 'tags', 'etiquetas')).map((x) => str(x).replace(/\s+/g, ' ').trim().slice(0, 40)).filter(Boolean))] // v1.31.0
+    tagNames: [...new Set(list(pick(it, 'tags', 'etiquetas')).map((x) => str(x).replace(/\s+/g, ' ').trim().slice(0, 40)).filter(Boolean))], // v1.31.0
+    // v1.34.3: actualización de un archivo ya importado (p. ej. Guía de Aragón v2): presentaciones de antes, para saber si las has cambiado
+    guideUpdate: Number(pick(it, 'guideUpdate')) || 0,
+    presOld: list(pick(it, 'presOld')).map((x) => str(x).replace(/\s+/g, ' ').trim())
   };
 }
 /** Campos de lista ampliados (para unir sin repetir) */
@@ -508,7 +511,7 @@ const FORM_RULES = [
   [/inh\b|aerosol|turbuhaler|accuhaler|ellipta|respimat|nexthaler|breezhaler|inhalacion|inhalador/, 'Inhalada'],
   [/bala|gas medicinal|\bgas\b|concentrador|gafas nasales|mascarilla/, 'Gas medicinal'],
   [/crema|pomada|\bgel\b|locion|champu|laca|polvo|unguento|\d% solucion|solucion acuosa|colutorio|para chupar|spray|apli/, 'Tópica'],
-  [/\bcomp|caps|capsula|sobre|jarabe|suspension|grageas|liotab|bucodispers|chicle|gotas|solucion|bebible|masticable|granulado|frasco|\bvo\b/, 'Oral']
+  [/\bcomp|caps|capsula|sobre|jarabe|suspension|\bsusp\b|\boral\b|grageas|liotab|bucodispers|chicle|gotas|solucion|bebible|masticable|granulado|frasco|\bvo\b/, 'Oral']
 ];
 const INJ_RE = /\bamp\b|ampolla(?! bebible)|vial|\bjer\b|jeringa|pluma|flexpen|kwikpen|solostar|flextouch|autoinyector|bolsa|^[\d.,]+\s*ml$|\d% [\d.,]+ ml$/;
 function routeKinds(r) {

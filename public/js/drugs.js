@@ -410,6 +410,14 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
     if (want && drugProfile() !== want) { setDrugProfile(want); ctx.onProfile?.(); toast('Archivo del Vademécum pediátrico: cambiado a «Pediátrico»', 'ok', 4000); }
     const plan = planImport(items);
     const nTables = plan.all.reduce((s, it) => s + (it.tables || []).length, 0);
+    // v1.34.3: actualizar fichas ya importadas del mismo archivo (se decide ANTES de escribir nada)
+    const keyList = (a) => (a || []).map((x) => norm(str(x)).replace(/\s+/g, ' ').trim()).sort().join('\n');
+    const guide = plan.all.filter((it) => it.guideUpdate && it._id && store.drugs.get(it._id)).map((it) => {
+      const d = store.drugs.get(it._id);
+      return { it, id: d.id,
+        pres: keyList(d.presentations) === keyList(it.presOld), // presentaciones como se importaron (no las has cambiado)
+        notes: !(d.bodyAt > 0) || d.bodyAt <= (d.importedAt || 0) + 20000 }; // «Mis notas» sin tocar desde la importación (se escribe en el mismo momento)
+    });
     // v1.25.0: al cargar una versión nueva de la plantilla, las fichas que no has tocado (sin revisar ni editar desde que
     // se importaron) se ponen al día enteras; las que has revisado o editado solo se completan.
     const untouched = (d) => d.reviewed === false && (d.updatedAt || 0) <= (d.importedAt || 0) + 5000;
@@ -443,11 +451,12 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
         list(plan.create, (x) => x.name),
         plan.merge.length ? el('p', { class: 'small' }, 'Se añade a las fichas que ya tienes (sin borrar ni cambiar nada de lo que hay):') : null,
         list(plan.merge, (m) => `${m.d.name}: ${[m.added.nb ? `${m.added.nb} nombre(s) comercial(es)` : '', m.added.np ? `${m.added.np} presentación(es)` : '', m.added.nr ? `${m.added.nr} pauta(s)` : '', m.added.notes ? 'notas' : '', m.added.ne ? 'datos de la ficha (sueros, observaciones, enlaces…)' : ''].filter(Boolean).join(', ')}`),
+        guide.length ? el('p', { class: 'small' }, `Actualización de la guía: ${guide.filter((g) => g.pres).length} ficha(s) con presentaciones limpias y ${guide.filter((g) => g.notes).length} con «Mis notas» resumida. Lo que hayas cambiado tú no se toca.`) : null,
         nTables ? el('p', { class: 'small' }, `Incluye ${nTables} tabla(s) por peso (imágenes): se guardan en cada ficha (las que ya tengas no se repiten). Hace falta conexión.`) : null,
         el('p', { class: 'bk-warn' }, '⚠ Las fichas nuevas o completadas quedan marcadas «Pendiente de revisar» hasta que pulses «✓ Revisada» en cada una. Comprueba las dosis antes de usarlas.'),
         el('p', { class: 'muted small' }, `Las nuevas van a ${folderId ? `«${DF().get(folderId)?.name || 'carpeta'}»` : 'la raíz del Vademécum'} (o a la carpeta que indique el archivo).`)
       ],
-      actions: [{ label: 'Cancelar' }, { label: 'Importar', primary: true, value: true, onClick: () => (plan.create.length || plan.merge.length || autoRepl.length || mode === 'replace' || nTables ? true : (toast('No hay nada nuevo que importar', 'ok'), false)) }]
+      actions: [{ label: 'Cancelar' }, { label: 'Importar', primary: true, value: true, onClick: () => (plan.create.length || plan.merge.length || autoRepl.length || mode === 'replace' || nTables || guide.length ? true : (toast('No hay nada nuevo que importar', 'ok'), false)) }]
     });
     if (!ok) return;
     const ops = plan.create.reduce((s, it) => s + 1 + (it.notes.trim() ? 1 : 0), 0) + (mode === 'replace' ? plan.matched.length * 2 : autoRepl.length * 2 + mergeOnly.reduce((s, m) => s + 1 + (m.notes ? 1 : 0), 0)) + 20;
@@ -489,6 +498,7 @@ async function runImport(text, fileName, folderId, { template = false } = {}) {
     }
     await commitBatch(batch);
     addQuota(ops - 20, 0);
+    if (guide.length) await guideRefresh(guide);
     await importTables(plan.all.filter((it) => it._id && (it.tables || []).length));
     toast(`Importado: ${plan.create.length} nueva(s), ${mode === 'replace' ? `${plan.matched.length} reemplazada(s)` : `${autoRepl.length ? `${autoRepl.length} actualizada(s), ` : ''}${mergeOnly.length} completada(s)`}${created.length ? `, ${created.length} carpeta(s)` : ''}`, 'ok', 4500);
     if (template) put('settings', 'vademecum', { templateVersion: TEMPLATE_VERSION, updatedAt: Date.now() });
@@ -507,6 +517,30 @@ function importTags(cur, it, batch, merge) {
   if (merge && !names.length && !(it.scopes || []).length) return null;
   const base = merge ? [...new Set([...(cur || []), ...scopesToTags([], it.scopes, drugProfile(), batch)])] : scopesToTags(cur, it.scopes, drugProfile(), batch);
   return [...new Set([...base, ...tagIdsByName(names, drugProfile(), batch)])];
+}
+
+/** v1.34.3: aplica la actualización de un archivo ya importado: presentaciones (si no las cambiaste), «Mis notas»
+ *  (si no la tocaste desde la importación: se sustituye por el resumen, o se vacía) y quita las pautas de relleno antiguas */
+const OLD_FILLER = /^Ver «(Tablas por peso» y «Mis notas»|Mis notas»)/;
+async function guideRefresh(list) {
+  const batch = writeBatch(db);
+  let n = 0;
+  for (const g of list) {
+    const d = store.drugs.get(g.id);
+    if (!d) continue;
+    const light = {};
+    if (g.pres) { light.presentations = [...g.it.presentations]; light.presBrands = (g.it.presBrands || []).map((e) => ({ p: e.p, b: [...e.b] })); }
+    const regs = (d.regimens || []).filter((r) => !OLD_FILLER.test(str(r.text)));
+    if (regs.length !== (d.regimens || []).length) {
+      const keys = new Set(regs.map(regKey));
+      light.regimens = [...regs, ...g.it.regimens.filter((r) => !keys.has(regKey(r)) && !OLD_FILLER.test(str(r.text)))];
+    }
+    const body = g.notes && d.bodyAt > 0 ? (g.it.notesHtml ? bodyFrom(g.it, g.it.notes) : { html: '', text: '' }) : null;
+    if (!Object.keys(light).length && !body) continue;
+    writeDrug(g.id, light, body, batch, { commit: false });
+    n += body ? 2 : 1;
+  }
+  if (n) { await commitBatch(batch); addQuota(n, 0); }
 }
 
 /** v1.33.0: sube las tablas por peso (imágenes) de lo importado a cada ficha (files/ con drugId). No repite las que ya tiene (por `key`). */

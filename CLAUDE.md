@@ -272,6 +272,15 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - **Presentaciones en lectura** (`presShort` + `chips` en `renderPres`): se quita del texto la marca de esa presentación (`presBrandsOf`) y las palabras del principio activo que van delante («Apiretal 100 mg/ml sol. oral» → «100 mg/ml sol. oral» con «Apiretal» debajo; «Paracetamol 650 mg comp.» → «650 mg comp.»). Si queda sin números, se deja el texto original. Las que quedan iguales se juntan en un chip con todas sus marcas; el texto completo sale al pasar el ratón (`title`). Solo vista: los datos no cambian. «sup.» = Rectal en `presGroup`.
 - **Calculadora pediátrica sin «Dosis por kg»** (`perKgInText`, `textCalc`, `textLine` en drugped.js): lee las dosis por kg del texto de la pauta (`text` o `dose`: «60 mg/kg/día», «40-90 mg/kg/día», «0,2-0,5 mg/kg», «200 μg/kg», «1,5 mg/kg/toma», «/h») y con el peso muestra `= 1200 mg/día` (o `/dosis`, `/h`) **sin tope**, avisando «mira la dosis máxima en la tabla». Copiar (`lineOf` → `pedLine` → `textLine`): «Paracetamol: 60 mg/kg/día → 1200 mg/día (peso 20 kg)». Las pautas con `perKg` siguen con `pedCalc` (tope y volumen). Así funcionan las fichas de la Guía de Aragón.
 
+### Guía de Aragón v2: presentaciones limpias, solo la guía y «Mis notas» mínima (v1.34.3)
+- `tools/guia_aragon/build.py` v2 (lee también `guia-v1.json`, el archivo anterior, para `presOld`):
+  - **Presentaciones** (`clean_pres`): solo cantidad y forma («100 mg/ml sol. oral», «250 mg sup.»): sin marca (va debajo, `presBrands`), sin el principio activo delante, sin envase («(env. 30 y 60 ml)», «(200 ml)», «(60 amp 2 ml)»), sin «pediátrico/infantil/lactantes/adultos», sin «EFG». Las iguales (o una que empieza como otra) se juntan con todas sus marcas. Antes se perdían las presentaciones sin marca ni forma («Paracetamol 100 mg/ml»): ahora entran.
+  - **Solo la guía de Aragón**: fuera los enlaces a otras guías (NICE, Cochrane, AEPap…) y el texto entero de la página.
+  - **Pautas por indicación** de la propia guía: frases con mg/kg dentro de un apartado (Faringoamigdalitis, Neumonía, OMA, Tosferina…) → pauta con esa indicación (máx. 6). Pauta de relleno si no hay dosis: «Ver «Tablas por peso».».
+  - **«Mis notas»**: solo «Puntos clave (Guía de Aragón)» con 2–3 frases (≤ 200 caracteres) puntuadas por palabras clave (`KEYS`: «no se recomienda», «contraindicado», «de elección», «dosis máxima», «precaución», edades; resta lo de COVID); si no hay nada importante, vacía (51 de 132 llevan notas).
+- **Actualizar lo ya importado** (`guideUpdate: 2` + `presOld` en cada ficha; `guideRefresh` en drugs.js, al importar el archivo nuevo): se decide antes de escribir; presentaciones y marcas se sustituyen solo si siguen como se importaron (`presOld`); «Mis notas» se sustituye (o se vacía) solo si no la has tocado desde la importación (`bodyAt ≤ importedAt + 20 s`); se quitan las pautas de relleno antiguas («Ver «Tablas por peso» y «Mis notas»…»). Las tablas no se repiten (misma `key`). El resumen de la importación dice cuántas se limpian.
+- «susp» y «oral» = Oral en `presGroup`.
+
 ### Formato del JSON de importación (Vademécum → ⋯ / «Importar»)
 Ejemplo completo en `ejemplos/vademecum-ejemplo.json`. Se acepta `{ "format": "drfolio-vademecum", "version": 1, "drugs": [ … ] }` o directamente la lista `[ … ]`. Claves en inglés o en español:
 
@@ -319,5 +328,5 @@ Reglas (ver también v1.24.0: une por principio activo y opción Reemplazar): fi
 4. ✅ Chat personal (bandeja temporal entre dispositivos: textos, enlaces, fotos y documentos; caducidad; convertir en nota)
 
 ## Probar
-No hay tests automáticos en el repo. Antes de publicar, al menos `node --check` en cada `public/js/*.js`.
+No hay tests automáticos en el repo. Antes de publicar, al menos `node --experimental-default-type=module --check` en cada `public/js/*.js` (sin la opción, `node --check` trata los archivos como CommonJS y **no detecta** algunos errores de sintaxis).
 Límites del plan gratuito: 1 GB, 50.000 lecturas y 20.000 escrituras al día.
