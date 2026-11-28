@@ -273,11 +273,11 @@ export async function pickFolderName(parentId, profile) {
 
 /** «Carpetas estándar…» (adulto o pediátrico): elige qué grupos y subcarpetas crear; las del otro perfil también se ofrecen */
 export async function createStdFolders(ctx, profile) {
-  const tops = CATALOG.map((c) => ({ name: c.name, subs: [...c.subs], nuevo: !!c.nuevo }));
+  const tops = CATALOG.map((c) => ({ name: c.name, subs: [...c.subs], std: new Set(c.subs.map(nk)), nuevo: !!c.nuevo }));
   // carpetas del otro perfil que no están en el catálogo (para igualar los dos perfiles)
   for (const f of profFolders(otherProf(profile)).filter((x) => !x.parentId)) {
     let g = tops.find((t) => nk(t.name) === nk(f.name));
-    if (!g) tops.push(g = { name: f.name, subs: [], fromOther: true });
+    if (!g) tops.push(g = { name: f.name, subs: [], std: new Set(), fromOther: true });
     for (const c of profFolders(otherProf(profile)).filter((x) => x.parentId === f.id)) if (!g.subs.some((s) => nk(s) === nk(c.name))) g.subs.push(c.name);
   }
   const checks = [];
@@ -288,10 +288,11 @@ export async function createStdFolders(ctx, profile) {
     const subs = g.subs.map((sname) => {
       const sx = top && childOf(profile, top.id, sname);
       const sc = el('input', { type: 'checkbox', checked: false, disabled: !!sx });
-      checks.push({ top: g.name, sub: sname, c: sc, parent: c });
-      return el('label', { class: 'sub' }, sc, ` ${sname}${sx ? ' (ya está)' : ''}`);
+      const std = g.std.has(nk(sname));
+      checks.push({ top: g.name, sub: sname, c: sc, parent: c, std });
+      return el('label', { class: 'sub' }, sc, ` ${sname}${sx ? ' (ya está)' : ''}`, !std && !sx ? el('span', { class: 'muted small' }, ` · del ${profile === 'ped' ? 'adulto' : 'pediátrico'}`) : null);
     });
-    c.addEventListener('change', () => { for (const x of checks) if (x.parent === c && !x.c.disabled) x.c.checked = c.checked; });
+    c.addEventListener('change', () => { for (const x of checks) if (x.parent === c && !x.c.disabled && (x.std || g.fromOther)) x.c.checked = c.checked; });
     checks.push({ top: g.name, c });
     box.append(el('label', {}, c, el('b', {}, ` ${g.name}`), top ? el('span', { class: 'muted small' }, ' (ya está)') : null,
       g.nuevo ? el('span', { class: 'prof-badge' }, 'nuevo') : null, g.fromOther ? el('span', { class: 'muted small' }, ` · del ${profile === 'ped' ? 'adulto' : 'pediátrico'}`) : null), ...subs);

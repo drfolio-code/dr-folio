@@ -64,8 +64,19 @@ export async function editHead(id, { isNew = false } = {}) {
   st.value = d.source?.text || '';
   const su = el('input', { type: 'url', maxlength: 500, placeholder: 'https://…', inputmode: 'url' });
   su.value = d.source?.url || '';
+  // v1.34.1: al crear, la carpeta se elige aquí (las mismas carpetas estándar en adulto y pediátrico)
+  let folderSel = null, touched = false;
+  if (isNew && api.folderOptions) {
+    folderSel = el('select', { 'aria-label': 'Carpeta' }, el('option', { value: '' }, '— Sin carpeta —'),
+      ...api.folderOptions().map((f) => el('option', { value: f.id }, `${'\u00a0\u00a0'.repeat(f.depth)}${f.depth ? '› ' : ''}${f.name}`)));
+    folderSel.value = d.folderId || '';
+    folderSel.addEventListener('change', () => { touched = true; });
+    // si el fármaco ya está en el otro perfil (o con otro nombre comercial), se propone la misma carpeta
+    name.addEventListener('change', () => { if (touched) return; const f = api.suggestFolder?.(name.value); if (f) folderSel.value = f; });
+  }
   const r = await sheet(isNew ? 'Nuevo fármaco' : 'Nombre y nombres comerciales', [
     el('label', { class: 'rf' }, 'Principio activo', name),
+    folderSel ? el('label', { class: 'rf' }, 'Carpeta', folderSel) : null,
     el('label', { class: 'rf' }, 'Nombres comerciales', brands),
     el('details', { class: 'reg-more', open: !!(d.source?.text || d.source?.url) }, el('summary', {}, 'Fuente (opcional)'),
       el('label', { class: 'rf' }, 'Fuente', st), el('label', { class: 'rf' }, 'Enlace', su))
@@ -77,6 +88,7 @@ export async function editHead(id, { isNew = false } = {}) {
   const patch = { name: one(name.value), brands: next, source: { text: one(st.value), url } };
   // marcas quitadas: dejan de estar asignadas a sus presentaciones
   if ((d.presBrands || []).length) patch.presBrands = d.presBrands.map((e) => ({ p: e.p, b: e.b.filter((b) => next.includes(b)) })).filter((e) => e.b.length);
+  if (folderSel) patch.folderId = folderSel.value || null;
   if (isNew) { api.write(id, { ...patch, updatedAt: Date.now() }); api.refresh(id); toast(`Ficha «${patch.name}» creada ✓`, 'ok'); return; }
   saveFields(id, patch);
 }

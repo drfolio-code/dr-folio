@@ -1402,6 +1402,21 @@ export function initDrugs(appCtx) {
   });
   initDrugEdit({
     ctx, regId, genLine, resEditor, cleanResList,
+    folderOptions: () => flatFolders(null, DF()),
+    suggestFolder: (nm) => {
+      // la carpeta de la misma ficha en el otro perfil (misma ruta de nombres) o de una ficha igual en este perfil
+      const k = baseKey(nm) || drugKey(nm);
+      const twin = liveDrugs('all').find((x) => x.folderId && (baseKey(x.name) || drugKey(x.name)) === k);
+      if (!twin) return null;
+      if (profOf(twin) === drugProfile()) return twin.folderId;
+      let parent = null;
+      for (const n of folderPath(twin.folderId, store.drugFolders).map((f) => f.name)) {
+        const f = [...DF().values()].find((x) => (x.parentId || null) === parent && norm(x.name).trim() === norm(n).trim());
+        if (!f) return parent;
+        parent = f.id;
+      }
+      return parent;
+    },
     extraFields: (r, sync) => (isPed(store.drugs.get(curId)) ? pedFields(r, sync) : null),
     hasExtra: (r) => hasPerKg(r),
     write: (id, light) => writeDrug(id, light),
