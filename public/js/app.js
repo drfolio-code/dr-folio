@@ -1722,7 +1722,8 @@ function renderList() {
   $('#btn-list-more').classList.toggle('hidden', !T || !(v.type === T.root || v.type === T.folder));
   syncSortSelect(T);
   $('#sort').classList.toggle('hidden', ['recent', 'sused', 'srecent'].includes(v.type) || T?.id === 'drugs'); // el Vademécum va siempre A-Z
-  $('#search').placeholder = T && v.type === T.folder ? `Buscar en «${T.map().get(v.id)?.name || 'carpeta'}»…`
+  $('#search').placeholder = T?.id === 'drugs' ? (v.type === 'dtrash' ? 'Buscar en la papelera…' : 'Buscar en todo el Vademécum…  (Ctrl+K)')
+    : T && v.type === T.folder ? `Buscar en «${T.map().get(v.id)?.name || 'carpeta'}»…`
     : T && v.type === T.root ? `${T.txt.searchAll}  (Ctrl+K)` : 'Buscar…  (Ctrl+K)';
   renderCrumbs();
   if (T?.id === 'drugs') { $('#list-trash-bar').classList.add('hidden'); renderDrugView(box, T); return; }
@@ -1819,6 +1820,9 @@ function renderDrugView(box, T) {
       el('button', { type: 'button', class: 'find-chip tag-manage', title: 'Gestionar etiquetas', 'aria-label': 'Gestionar etiquetas', onclick: () => openTagAdmin() }, icon('tag'), tags.length ? null : ' Etiquetas…'));
   };
   const ped = drugProfile() === 'ped';
+  // v1.35.1: el buscador del Vademécum busca SIEMPRE en todos los fármacos (no en la carpeta abierta ni con el
+  // filtro de etiquetas ni solo en A-Z/Favoritos…). La papelera sigue buscando solo dentro de la papelera.
+  if (S.search.trim() && v.type !== 'dtrash') { renderDrugSearch(box, T); return; }
   if (v.type === T.root || v.type === T.folder) {
     renderExplorer(box, T);
     box.prepend(scopeBar());
@@ -1891,6 +1895,31 @@ function renderDrugView(box, T) {
   if (v.type === 'daz' && !q) wrap.append(...drugsAZ(list));
   else wrap.append(drugsBlock(list, { showPath: true }));
   box.replaceChildren(wrap);
+}
+
+/** v1.35.1: resultados del buscador del Vademécum: todos los fármacos del perfil (o de los dos) */
+function renderDrugSearch(box, T) {
+  const words = norm(S.search.trim()).split(/\s+/);
+  const p = drugProfile(), other = p === 'ped' ? 'adult' : 'ped';
+  const pool = liveDrugs(S.drugBoth ? 'all' : p);
+  const list = rankDrugs(pool.filter((d) => drugMatches(d, words)), words);
+  const m = T.map();
+  const folders = flatFolders(null, m).map((f) => m.get(f.id)).filter((f) => f && matchesWords(f.name, words));
+  const scopeTxt = S.drugBoth ? 'Buscando en todo el Vademécum (adulto y pediátrico)'
+    : `Buscando en todo el Vademécum${p === 'ped' ? ' pediátrico' : ''}`;
+  const wrap = el('div', { class: `fx ${S.layout === 'grid' ? 'grid' : ''}` });
+  wrap.append(el('div', { class: 'fx-scope' }, el('span', {}, scopeTxt),
+    (S.drugBoth || liveDrugs(other).length) ? el('button', { class: 'btn sm', type: 'button', onclick: () => { S.drugBoth = !S.drugBoth; renderList(); } },
+      S.drugBoth ? `Solo ${p === 'ped' ? 'pediátrico' : 'adulto'}` : `Incluir ${other === 'ped' ? 'pediátrico' : 'adulto'}`) : null));
+  if (folders.length) {
+    const totals = folderTotals(T);
+    wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `Carpetas · ${folders.length}`)),
+      el('div', { class: 'fx-folders' }, folders.slice(0, 30).map((f) => folderItem(f, totals, { showPath: true }, T))));
+  }
+  wrap.append(el('div', { class: 'fx-sec' }, el('span', {}, `Fármacos · ${list.length}`)));
+  if (list.length) wrap.append(drugsBlock(list.slice(0, 300), { showPath: true }));
+  else wrap.append(el('div', { class: 'fx-hint' }, 'No hay fármacos que coincidan. Prueba con el principio activo o el nombre comercial.'));
+  box.replaceChildren(profileSwitch(), wrap);
 }
 
 /** v1.32.0: selector «Adulto | Pediátrico» arriba del Vademécum (por dispositivo, drfolio.drugProfile) */

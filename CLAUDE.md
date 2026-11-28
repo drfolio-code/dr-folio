@@ -282,6 +282,9 @@ programador: explica los pasos que tenga que hacer él en lenguaje sencillo.
 - **Actualizar lo ya importado** (`guideUpdate: 2` + `presOld` en cada ficha; `guideRefresh` en drugs.js, al importar el archivo nuevo): se decide antes de escribir; presentaciones y marcas se sustituyen solo si siguen como se importaron (`presOld`); «Mis notas» se sustituye (o se vacía) solo si no la has tocado desde la importación (`bodyAt ≤ importedAt + 20 s`); se quitan las pautas de relleno antiguas («Ver «Tablas por peso» y «Mis notas»…»). Las tablas no se repiten (misma `key`). El resumen de la importación dice cuántas se limpian.
 - «susp» y «oral» = Oral en `presGroup`.
 
+### Buscador del Vademécum siempre global (v1.35.2)
+- En cualquier vista del Vademécum (raíz, carpeta, A-Z, Favoritos, Recientes, Por revisar) la caja de búsqueda busca en **todos los fármacos del perfil** (`renderDrugSearch` en app.js): sin limitarse a la carpeta abierta ni al filtro de etiquetas. Resultados: carpetas que coinciden + fármacos (`rankDrugs`, con su ruta). Aviso «Buscando en todo el Vademécum» con botón «Incluir pediátrico/adulto» (`S.drugBoth`). La papelera sigue buscando solo en la papelera. Placeholder «Buscar en todo el Vademécum…». Notas y prerredactados mantienen la búsqueda por carpeta.
+
 ### Formato del JSON de importación (Vademécum → ⋯ / «Importar»)
 Ejemplo completo en `ejemplos/vademecum-ejemplo.json`. Se acepta `{ "format": "drfolio-vademecum", "version": 1, "drugs": [ … ] }` o directamente la lista `[ … ]`. Claves en inglés o en español:
 
