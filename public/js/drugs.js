@@ -24,6 +24,7 @@ import {
   RES_KINDS, kindIcon, cleanUrl, domainOf, guessKind, normResource, mergeResources, fixRegIds, folderResources, byKind, resLine, isPdfRes, resFileIds
 } from './drugres.js';
 import { saveFile } from './files.js';
+import { initDrugEdit, editHead, editScopes, editPres, editReg, editRegs, editList, editRes } from './drugedit.js';
 import { formatBytes } from './util.js';
 
 const str = (x) => (x == null ? '' : String(x));
@@ -35,6 +36,7 @@ let bodyReady = false;   // «Mis notas» cargada (si no, no se edita ni se guar
 let dirtyLight = false;  // nombre, marcas, presentaciones o pautas sin guardar
 let dirtyBody = false;   // «Mis notas» sin guardar
 let loadedHtml = '';
+let notesEdit = false;   // v1.29.0: solo «Mis notas» en edición (el resto de la ficha sigue en lectura)
 let form = null;         // copia editable de la ficha abierta { brands, pres: [{p, b}], regimens, fluids, scopes, source }
 const LISTS = ['observations', 'contraindications', 'compat'];
 const formOf = (d) => ({
@@ -50,7 +52,7 @@ function fillLists(d) { for (const k of LISTS) listBox(k).value = (d[k] || []).j
 
 const DF = () => store.drugFolders;
 export const currentDrug = () => curId;
-export const isDrugReading = () => !!curId && (reading || !!store.drugs.get(curId)?.trashed);
+export const isDrugReading = () => !!curId && ((reading && !notesEdit) || !!store.drugs.get(curId)?.trashed);
 export const drugPathText = (folderId) => (folderId ? folderPath(folderId, DF()).map((f) => f.name).join(' › ') : '');
 const regId = () => Math.random().toString(36).slice(2, 10);
 const clone = (x) => JSON.parse(JSON.stringify(x ?? null));
@@ -157,10 +159,10 @@ export function drugItemMenu(anchor, d, { inList = true } = {}) {
   const here = !inList && curId === d.id;
   menu(anchor, [
     inList ? { icon: 'file-text', label: 'Abrir', onClick: () => openDrug(d.id, { push: true }) } : null,
+    here ? { icon: 'clipboard-paste', label: 'Pegar del Chuletario…', onClick: () => pasteChuletario({ targetId: d.id }) } : null,
     here ? { icon: 'copy', label: 'Copiar ficha entera', onClick: () => { saveSoon.flush(); copyLine(drugAsText(store.drugs.get(d.id))); } } : null,
     here && bodyReady ? { icon: 'list', label: editor.hasTocBlock() ? 'Quitar índice de «Mis notas»' : 'Añadir índice a «Mis notas»', onClick: toggleToc } : null,
-    here ? (reading ? { icon: 'pencil', label: 'Editar', onClick: () => setReading(false) } : { icon: 'book-open', label: 'Modo lectura', onClick: () => setReading(true) }) : null,
-    here ? { icon: 'clipboard-paste', label: 'Pegar del Chuletario…', onClick: () => pasteChuletario({ targetId: d.id }) } : null,
+    here ? (reading ? { icon: 'square-pen', label: 'Editar todo (formulario completo)', onClick: () => setReading(false) } : { icon: 'book-open', label: 'Terminar de editar', onClick: () => setReading(true) }) : null,
     { icon: 'star', label: d.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos', onClick: () => toggleFavorite(d.id) },
     d.reviewed === false
       ? { icon: 'check', label: 'Marcar como revisada', onClick: () => setReviewed(d.id, true) }
@@ -232,8 +234,9 @@ export function newDrug({ folderId = null, favorite = false, name = '' } = {}) {
   const data = blankDrug({ name, folderId, favorite, now });
   store.drugs.set(id, { id, ...data });
   put('drugs', id, data);
-  openDrug(id, { push: true, focusTitle: true });
+  openDrug(id, { push: true });
   ctx.renderList(); ctx.renderSidebar();
+  editHead(id, { isNew: true }); // v1.29.0: el nombre en su propio editor; al cancelar, la ficha vacía se borra
   return id;
 }
 const blankDrug = ({ name = '', folderId = null, favorite = false, now = Date.now(), reviewed = true } = {}) => ({
@@ -540,7 +543,8 @@ export function openDrug(id, { push = false, focusTitle = false, fromHash = fals
   curId = id;
   if (!same || focusTitle) {
     dirtyLight = false; dirtyBody = false;
-    reading = !focusTitle && ctx.openMode() === 'read';
+    reading = !focusTitle; // v1.29.0: la ficha se abre siempre en lectura (se edita por secciones)
+    notesEdit = false;
   }
   ctx.showPane('drug');
   if (!same) { fillForm(d); $('#drug-scroll').scrollTop = 0; } else renderChrome();
@@ -557,6 +561,7 @@ export function closeDrug({ fromHash = false } = {}) {
   saveSoon.flush();
   curId = null;
   reading = false;
+  notesEdit = false;
   bodyReady = false;
   form = null;
   editor?.hideFloating();
@@ -602,6 +607,7 @@ function showBody(b) {
 function setReading(on) {
   const d = store.drugs.get(curId);
   if (!d || d.trashed) return;
+  if (notesEdit) { saveSoon.flush(); notesEdit = false; }
   if (on) {
     saveSoon.flush();
     document.activeElement?.blur?.();
@@ -611,6 +617,67 @@ function setReading(on) {
   renderChrome();
   if (!on && !d.name) $('#drug-title').focus();
   ctx.updateWakeLock();
+}
+
+/** v1.29.0: el lápiz de «Mis notas» la pone en edición sin tocar el resto de la ficha */
+function setNotesEdit(on) {
+  const d = store.drugs.get(curId);
+  if (!d || d.trashed || !reading) return;
+  if (!on) { saveSoon.flush(); document.activeElement?.blur?.(); window.getSelection()?.removeAllRanges(); }
+  notesEdit = on;
+  renderChrome();
+  if (on) {
+    const det = document.querySelector('#drug-wrap details[data-sec=notes]');
+    det.open = true;
+    if (bodyReady) setTimeout(() => { $('#drug-content').focus(); det.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 30);
+  }
+  ctx.updateWakeLock();
+}
+/** Lápiz o «＋» de una sección de la ficha abierta */
+function sectionEdit(ed, add) {
+  const id = curId;
+  const d = store.drugs.get(id);
+  if (!d || d.trashed) return;
+  saveSoon.flush();
+  if (!reading) setReading(true); // «Editar todo» abierto: se guarda y se vuelve a lectura antes
+  if (add === 'regs') return editReg(id, null);
+  if (add === 'pres') return editPres(id, { addNew: true });
+  if (ed === 'head') return editHead(id);
+  if (ed === 'scopes') return editScopes(id);
+  if (ed === 'regs') return editRegs(id);
+  if (ed.startsWith('reg:')) { const i = (d.regimens || []).findIndex((r) => r.id === ed.slice(4)); return i >= 0 ? editReg(id, i) : null; }
+  if (ed === 'pres') return editPres(id);
+  if (['observations', 'contraindications', 'compat'].includes(ed)) return editList(id, ed);
+  if (ed === 'res') return editRes(id);
+  if (ed === 'notes') return setNotesEdit(true);
+  return null;
+}
+/** Tras guardar desde un editor de sección: repinta la ficha (si está abierta), la lista y la barra lateral */
+function refreshDrug(id) {
+  if (curId === id) {
+    const d = store.drugs.get(id);
+    if (!d) return;
+    form = formOf(d);
+    fillLists(d);
+    if ($('#drug-title').value !== (d.name || '')) { $('#drug-title').value = d.name || ''; fitTitle($('#drug-title')); }
+    renderChrome();
+    renderInfo(d);
+  }
+  ctx.renderList(); ctx.renderSidebar();
+}
+/** Secciones vacías (no salen en lectura): botones para añadirlas */
+function renderAddMore(d) {
+  const box = $('#drug-addmore');
+  if (!isRd() || d.trashed) { box.classList.add('hidden'); return; }
+  const miss = [
+    !(d.presentations || []).length ? ['pres', 'Presentaciones', true] : null,
+    !(d.observations || []).length ? ['observations', 'Observaciones'] : null,
+    !(d.contraindications || []).length ? ['contraindications', 'Contraindicaciones'] : null,
+    !(d.compat || []).length && !(d.fluids || []).length ? ['compat', 'Sueros y compatibilidad'] : null,
+    !(d.resources || []).length && !inheritedRes(d).length ? ['res', 'Enlaces y bibliografía'] : null
+  ].filter(Boolean);
+  box.classList.toggle('hidden', !miss.length);
+  box.replaceChildren(el('span', { class: 'muted small' }, 'Añadir:'), ...miss.map(([k, l, add]) => el('button', { class: 'chip', type: 'button', ...(add ? { 'data-add': k } : { 'data-ed': k }) }, `＋ ${l}`)));
 }
 
 function toggleToc() {
@@ -628,21 +695,25 @@ function renderChrome() {
   if (!d) return;
   const trashed = !!d.trashed;
   const rd = reading || trashed;
+  if (trashed) notesEdit = false;
   const wrap = $('#drug-wrap');
-  wrap.classList.toggle('readonly', rd);
+  wrap.classList.toggle('readonly', rd && !notesEdit);
+  wrap.classList.toggle('in-trash', trashed);
+  wrap.classList.toggle('notes-edit', notesEdit);
   wrap.classList.toggle('no-body', !bodyReady); // «Mis notas» aún no ha cargado: sin barra de formato
   wrap.classList.toggle('reading', rd);
   wrap.classList.toggle('editing-form', !rd);
-  editor.setReadOnly(rd || !bodyReady);
+  editor.setReadOnly((rd && !notesEdit) || !bodyReady);
   $('#drug-title').readOnly = rd;
   $('#drug-title').tabIndex = rd ? -1 : 0;
   const eb = $('#drug-edit');
-  eb.classList.toggle('hidden', trashed);
-  eb.classList.toggle('primary', !rd);
-  eb.title = rd ? 'Editar la ficha' : 'Terminar de editar (modo lectura)';
+  // v1.29.0: «Editar» ya no está en la cabecera (cada sección tiene su lápiz; «Editar todo» en ⋯). Aquí solo «✓ Listo».
+  eb.classList.toggle('hidden', trashed || (rd && !notesEdit));
+  eb.classList.add('primary');
+  eb.title = 'Terminar de editar';
   eb.setAttribute('aria-label', eb.title);
-  eb.querySelector('.ico').replaceChildren(icon(rd ? 'pencil' : 'check'));
-  eb.querySelector('.lbl').textContent = rd ? 'Editar' : 'Listo';
+  eb.querySelector('.ico').replaceChildren(icon('check'));
+  eb.querySelector('.lbl').textContent = 'Listo';
   const path = drugPathText(d.folderId);
   $('#drug-folder').replaceChildren(icon('folder'), ` ${path || 'Sin carpeta'}`);
   const fav = $('#drug-fav');
@@ -662,6 +733,7 @@ function renderChrome() {
   renderSource();
   applySections();
   renderBacklinks();
+  renderAddMore(d);
   renderInfo(d);
 }
 
@@ -672,7 +744,9 @@ function renderScopes() {
   if (isRd()) {
     const cur = d.scopes || [];
     box.classList.toggle('hidden', !cur.length);
-    box.replaceChildren(...cur.map((k) => el('span', { class: `scope-chip sc-${k}` }, scopeName(k))));
+    box.classList.toggle('hidden', !!d.trashed && !cur.length);
+    box.replaceChildren(...cur.map((k) => el('span', { class: `scope-chip sc-${k}` }, scopeName(k))),
+      el('button', { class: 'chip sec-ed scope-ed', type: 'button', 'data-ed': 'scopes', title: 'Editar el ámbito', 'aria-label': 'Editar el ámbito' }, icon('pencil'), cur.length ? null : ' Ámbito'));
     return;
   }
   box.classList.remove('hidden');
@@ -865,7 +939,7 @@ function renderRegs() {
   const regs = rd ? (d.regimens || []) : form.regimens;
   $('#drug-add-reg').classList.toggle('hidden', rd);
   if (!regs.length) {
-    box.replaceChildren(el('p', { class: 'muted small' }, rd ? 'Sin indicaciones. Pulsa «Editar» para añadir la primera.' : 'Añade una indicación con su tipo (Bolo, Perfusión, IM…) y la dosis tal cual; los campos detallados son opcionales.'));
+    box.replaceChildren(el('p', { class: 'muted small' }, rd ? 'Sin indicaciones. Toca «＋ Indicación» para añadir la primera.' : 'Añade una indicación con su tipo (Bolo, Perfusión, IM…) y la dosis tal cual; los campos detallados son opcionales.'));
     return;
   }
   box.classList.toggle('reading-regs', rd);
@@ -928,7 +1002,8 @@ function regView(name, r) {
     el('button', {
       class: 'reg-copy big', type: 'button', title: `Copiar: ${line}`, 'aria-label': `Copiar: ${line}`,
       onclick: (e) => copyLine(lineOf(store.drugs.get(curId)?.name, r), e.currentTarget)
-    }, icon('copy'), el('span', {}, 'Copiar')));
+    }, icon('copy'), el('span', {}, 'Copiar')),
+    el('button', { class: 'icon-btn reg-ed sec-ed', type: 'button', 'data-ed': `reg:${r.id}`, title: 'Editar esta indicación', 'aria-label': 'Editar esta indicación' }, icon('pencil')));
 }
 /** Dosis máxima de la pauta: el campo «máx» (si la dosis no la dice ya) */
 const MAX_RE = /\b(m[aá]x(?:\.|imo|ima)?)(\s*:?\s*)([^;\n)]+)/gi;
@@ -1057,7 +1132,7 @@ function saveNow() {
 
 /** Del editor de «Mis notas» (app.js lo crea con createEditor) */
 export function onDrugEditorChange() {
-  if (!curId || reading || !bodyReady) return;
+  if (!curId || (reading && !notesEdit) || !bodyReady) return;
   dirtyBody = true;
   $('#drug-status').textContent = 'Editando…';
   saveSoon();
@@ -1071,7 +1146,7 @@ export function onDrugsChange(changed) {
   if (!d) { curId = null; reading = false; ctx.showPane('empty'); ctx.pushHash(true); return; }
   if (changed && !changed.has(curId)) { renderChrome(); return; }
   const editing = dirtyLight || dirtyBody || $('#drug-wrap').contains(document.activeElement) && document.activeElement !== document.body;
-  if (editing && !reading) { renderInfo(d); return; }
+  if (editing && (!reading || notesEdit)) { renderInfo(d); return; }
   const b = drugBodyOf(curId);
   if (!b || b.html !== loadedHtml) { const sc = $('#drug-scroll').scrollTop; fillForm(d); $('#drug-scroll').scrollTop = sc; return; }
   form = formOf(d);
@@ -1170,7 +1245,26 @@ export function initDrugs(appCtx) {
     if (history.state?.nt && history.state?.d > 0) { saveSoon.flush(); history.back(); return; }
     closeDrug(); ctx.showPane('empty'); ctx.showList(); ctx.renderList();
   });
-  $('#drug-edit').addEventListener('click', () => setReading(!reading));
+  $('#drug-edit').addEventListener('click', () => { if (notesEdit) setNotesEdit(false); else setReading(!reading); });
+  // v1.29.0: lápices de cada sección (también dentro de los títulos plegables: no pliegan) y «＋» rápidos
+  $('#drug-wrap').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ed], [data-add]');
+    if (!b || !curId || !$('#drug-wrap').contains(b)) return;
+    e.preventDefault(); e.stopPropagation();
+    sectionEdit(b.dataset.ed || '', b.dataset.add || '');
+  });
+  initDrugEdit({
+    ctx, regId, genLine, resEditor, cleanResList,
+    write: (id, light) => writeDrug(id, light),
+    refresh: refreshDrug,
+    purgeNew: (id) => {
+      const d = store.drugs.get(id);
+      if (!d || d.name || (d.regimens || []).length) return;
+      if (curId === id) { dirtyLight = dirtyBody = false; saveSoon.cancel(); closeDrug(); ctx.showPane('empty'); ctx.showList(); }
+      deleteDrugDocs(id);
+      ctx.renderList(); ctx.renderSidebar();
+    }
+  });
   $('#drug-font-down').addEventListener('click', () => ctx.fontStep(-1));
   $('#drug-font-up').addEventListener('click', () => ctx.fontStep(1));
   $('#drug-fav').addEventListener('click', () => { if (curId) toggleFavorite(curId); });

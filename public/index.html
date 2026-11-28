@@ -244,7 +244,7 @@
         </div>
         <div class="ed-scroll" id="drug-scroll">
           <div class="ed-inner drug-inner">
-            <textarea rows="1" enterkeyhint="next" spellcheck="false" id="drug-title" class="ed-title" placeholder="Principio activo (p. ej. Dexketoprofeno)" autocomplete="off" maxlength="150"></textarea>
+            <div class="drug-titlerow"><textarea rows="1" enterkeyhint="next" spellcheck="false" id="drug-title" class="ed-title" placeholder="Principio activo (p. ej. Dexketoprofeno)" autocomplete="off" maxlength="150"></textarea><button class="icon-btn sec-ed" type="button" data-ed="head" title="Editar el nombre y los nombres comerciales" aria-label="Editar el nombre y los nombres comerciales"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></button></div>
             <div class="ed-tags drug-brands">
               <span class="drug-lbl">Nombres comerciales</span>
               <div id="drug-brand-chips" class="chips"></div>
@@ -258,7 +258,7 @@
             <div class="drug-cols">
               <div class="drug-col-a">
                 <section class="dsec dsec-fixed" data-sec="regs">
-                  <div class="dsec-head"><h3>Indicaciones</h3><span class="dsec-n" data-n="regs"></span></div>
+                  <div class="dsec-head"><h3>Indicaciones</h3><span class="dsec-n" data-n="regs"></span><button class="btn sm sec-add" type="button" data-add="regs" title="Añadir indicación" aria-label="Añadir indicación">＋ Indicación</button><button class="icon-btn sec-ed" type="button" data-ed="regs" title="Editar las indicaciones" aria-label="Editar las indicaciones"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></button></div>
                   <div class="dsec-body">
                     <div id="drug-regs" class="drug-regs"></div>
                     <button class="btn sm" id="drug-add-reg" type="button">＋ Añadir indicación</button>
@@ -267,7 +267,7 @@
               </div>
               <div class="drug-col-b">
                 <details class="dsec" data-sec="pres" open>
-                  <summary><h3>Presentaciones</h3><span class="dsec-n" data-n="pres"></span></summary>
+                  <summary><h3>Presentaciones</h3><span class="dsec-n" data-n="pres"></span><button class="btn sm sec-add" type="button" data-add="pres" title="Añadir presentación" aria-label="Añadir presentación">＋</button><button class="icon-btn sec-ed" type="button" data-ed="pres" title="Editar las presentaciones" aria-label="Editar las presentaciones"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></button></summary>
                   <div class="dsec-body">
                     <div id="drug-pres-list" class="dchips"></div>
                     <div id="drug-pres-rows" class="pres-rows"></div>
@@ -275,15 +275,15 @@
                   </div>
                 </details>
                 <details class="dsec" data-sec="observations">
-                  <summary><h3>Observaciones</h3><span class="dsec-n" data-n="observations"></span></summary>
+                  <summary><h3>Observaciones</h3><span class="dsec-n" data-n="observations"></span><button class="icon-btn sec-ed" type="button" data-ed="observations" title="Editar las observaciones" aria-label="Editar las observaciones"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></button></summary>
                   <div class="dsec-body"><ul class="dlist" data-list="observations"></ul><textarea class="drug-pres dlist-edit" data-list="observations" rows="3" placeholder="Una por línea"></textarea></div>
                 </details>
                 <details class="dsec" data-sec="contraindications">
-                  <summary><h3>Contraindicaciones</h3><span class="dsec-n" data-n="contraindications"></span></summary>
+                  <summary><h3>Contraindicaciones</h3><span class="dsec-n" data-n="contraindications"></span><button class="icon-btn sec-ed" type="button" data-ed="contraindications" title="Editar las contraindicaciones" aria-label="Editar las contraindicaciones"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></button></summary>
                   <div class="dsec-body"><ul class="dlist" data-list="contraindications"></ul><textarea class="drug-pres dlist-edit" data-list="contraindications" rows="3" placeholder="Una por línea"></textarea></div>
                 </details>
                 <details class="dsec" data-sec="compat">
-                  <summary><h3>Sueros y compatibilidad</h3><span class="dsec-n" data-n="compat"></span></summary>
+                  <summary><h3>Sueros y compatibilidad</h3><span class="dsec-n" data-n="compat"></span><button class="icon-btn sec-ed" type="button" data-ed="compat" title="Editar sueros y compatibilidad" aria-label="Editar sueros y compatibilidad"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></button></summary>
                   <div class="dsec-body">
                     <div id="drug-fluids" class="drug-fluids"></div>
                     <div class="dsub" id="drug-compat-lbl">Compatibilidad en Y</div>
@@ -291,17 +291,19 @@
                   </div>
                 </details>
                 <details class="dsec" data-sec="res" id="drug-res-sec">
-                  <summary><h3>Enlaces y bibliografía</h3><span class="dsec-n" data-n="res"></span></summary>
+                  <summary><h3>Enlaces y bibliografía</h3><span class="dsec-n" data-n="res"></span><button class="icon-btn sec-ed" type="button" data-ed="res" title="Editar los enlaces" aria-label="Editar los enlaces"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></button></summary>
                   <div class="dsec-body"><div id="drug-res" class="drug-res"></div></div>
                 </details>
                 <details class="dsec drug-notes" data-sec="notes">
-                  <summary><h3>Mis notas</h3><span class="dsec-n" data-n="notes"></span></summary>
+                  <summary><h3>Mis notas</h3><span class="dsec-n" data-n="notes"></span><button class="icon-btn sec-ed" type="button" data-ed="notes" title="Editar mis notas" aria-label="Editar mis notas"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg></button></summary>
                   <div class="dsec-body">
                     <div id="drug-content" class="content drug-content" contenteditable="true" spellcheck="true" data-placeholder="Tus notas"></div>
                   </div>
                 </details>
               </div>
             </div>
+            <!-- v1.29.0: secciones vacías (ocultas en lectura): se añaden desde aquí -->
+            <div id="drug-addmore" class="drug-addmore hidden"></div>
             <section id="drug-backlinks" class="backlinks hidden">
               <h4>Aparece en estas notas</h4>
               <div id="drug-backlink-list" class="chips"></div>

@@ -8,6 +8,15 @@ export function toast(msg, type = '', ms = 2800) {
   setTimeout(() => t.remove(), ms);
 }
 
+/** Aviso con botón «Deshacer» (v1.29.0): onUndo se llama una sola vez si se pulsa antes de que desaparezca */
+export function undoToast(msg, onUndo, ms = 7000) {
+  let used = false;
+  const t = el('div', { class: 'toast ok has-undo', role: 'status' }, el('span', {}, msg),
+    el('button', { class: 'toast-undo', type: 'button', onclick: () => { if (used) return; used = true; t.remove(); onUndo(); } }, 'Deshacer'));
+  $('#toast-root').append(t);
+  setTimeout(() => t.remove(), ms);
+}
+
 let openCount = 0;
 export const modalOpen = () => openCount > 0;
 
@@ -15,7 +24,7 @@ export const modalOpen = () => openCount > 0;
  * Modal genérico. actions: [{label, primary, danger, value, onClick}]
  * onClick puede devolver false para no cerrar. Resuelve con el value de la acción o undefined.
  */
-export function modal({ title, body, actions = [{ label: 'Cerrar', value: undefined }], wide = false, cls = '', onOpen }) {
+export function modal({ title, body, actions = [{ label: 'Cerrar', value: undefined }], wide = false, cls = '', onOpen, autofocus = true }) {
   return new Promise((resolve) => {
     openCount++;
     const close = (val) => {
@@ -42,7 +51,7 @@ export function modal({ title, body, actions = [{ label: 'Cerrar', value: undefi
     const back = el('div', { class: `modal-back ${cls ? `has-${cls}` : ''}`, onmousedown: (e) => { if (e.target === back) close(undefined); } }, box);
     const onKey = (e) => {
       if (e.key === 'Escape') { e.stopPropagation(); close(undefined); }
-      if (e.key === 'Enter' && !e.shiftKey && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'BUTTON') {
+      if (e.key === 'Enter' && !e.shiftKey && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'BUTTON' && !e.target.closest?.('[data-own-enter]')) {
         const primary = actions.find((a) => a.primary);
         if (primary) { e.preventDefault(); e.stopPropagation(); foot.querySelector('.btn.primary').click(); }
       }
@@ -51,7 +60,7 @@ export function modal({ title, body, actions = [{ label: 'Cerrar', value: undefi
     $('#modal-root').append(back);
     if (onOpen) onOpen(box, close);
     const first = box.querySelector('input, textarea, select');
-    if (first) setTimeout(() => { first.focus(); if (first.select) first.select(); }, 30);
+    if (first && autofocus) setTimeout(() => { first.focus(); if (first.select) first.select(); }, 30);
   });
 }
 

@@ -1630,3 +1630,47 @@ details.dsec > summary h3 { flex: 1; }
     #drug-wrap.reading .drug-cols { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 0 18px; align-items: start; }
   }
 }
+
+/* ===== v1.29.0: edición fácil por secciones (lápices, editores en hoja, «Deshacer») ===== */
+.sec-ed, .sec-add { display: none; }
+#drug-wrap.reading:not(.in-trash):not(.notes-edit) :is(.sec-ed, .sec-add) { display: inline-flex; }
+#drug-wrap.notes-edit .sec-ed[data-ed=notes] { display: none !important; }
+.dsec .sec-ed { width: 34px; height: 34px; color: var(--muted); flex: none; }
+.dsec .sec-ed:hover { color: var(--accent); background: var(--panel); }
+.dsec .sec-add { min-height: 30px; padding: 2px 10px; font-size: 13px; font-weight: 700; color: var(--accent); flex: none; }
+details.dsec > summary .sec-ed, details.dsec > summary .sec-add { margin: -6px 0; }
+.drug-titlerow { display: flex; align-items: flex-start; gap: 6px; }
+.drug-titlerow .ed-title { flex: 1; min-width: 0; }
+.drug-titlerow .sec-ed { margin-top: 4px; color: var(--muted); }
+.scope-ed { min-height: 26px; padding: 0 8px; font-size: 12.5px; color: var(--muted); border-style: dashed; }
+.scope-ed .i { font-size: 13px; }
+#drug-wrap .reading-regs .reg-ed { width: 28px; height: 34px; padding: 0; color: var(--muted); align-self: center; margin-left: -4px; }
+#drug-wrap.notes-edit .drug-brands input, #drug-wrap.notes-edit .chip .x { display: none; }
+.drug-addmore { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 14px; }
+.drug-addmore .chip { border-style: dashed; }
+/* Editores de sección: hoja desde abajo en el móvil */
+.modal.dsheet { max-width: 560px; }
+.modal.dsheet .modal-body { display: flex; flex-direction: column; gap: 10px; }
+.modal.dsheet .modal-foot .btn.danger { margin-right: auto; }
+@media (max-width: 639px), (max-height: 520px) and (orientation: landscape) and (max-width: 1099px) {
+  .modal-back.has-dsheet { align-items: flex-end; padding: 0; }
+  .modal.dsheet { max-width: 100%; max-height: 94%; border-radius: 18px 18px 0 0; animation: sheet-up .18s ease;
+    padding-bottom: max(6px, var(--safe-bottom)); padding-left: var(--safe-left); padding-right: var(--safe-right); }
+  body.kb-open .modal.dsheet { max-height: 100%; border-radius: 0; }
+}
+.type-quick { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
+.type-quick .reg-type.tq { margin: 0; border: 1.5px solid transparent; cursor: pointer; font: inherit; font-size: 12px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; padding: 3px 10px; opacity: .7; }
+.type-quick .reg-type.tq.on { border-color: var(--tc); opacity: 1; box-shadow: 0 0 0 1px var(--tc); }
+.line-box { border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; background: var(--accent-soft); display: flex; flex-direction: column; gap: 6px; }
+.line-preview { display: flex; flex-direction: column; gap: 2px; }
+.lp-lbl { font-size: 12px; font-weight: 700; color: var(--accent); }
+.lp-txt { font-size: 15px; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+.line-box .reg-actions { margin-top: 0; justify-content: flex-start; }
+.regs-order { display: flex; flex-direction: column; gap: 6px; }
+.ro-row { display: flex; align-items: center; gap: 2px; padding: 6px 4px 6px 10px; border-radius: 10px; }
+.ro-txt { flex: 1; min-width: 0; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* Aviso con «Deshacer» */
+.toast.has-undo { display: flex; align-items: center; gap: 14px; pointer-events: auto; padding: 8px 8px 8px 16px; }
+.toast-undo { border: 0; background: rgba(255, 255, 255, .18); color: #fff; font: inherit; font-weight: 800; border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+.toast-undo:hover { background: rgba(255, 255, 255, .3); }
+.modal.dsheet .line-box { position: sticky; top: -8px; z-index: 2; box-shadow: 0 6px 10px -8px rgba(0, 0, 0, .35); }
